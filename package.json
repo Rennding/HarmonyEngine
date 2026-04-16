@@ -1,0 +1,13 @@
+{
+  "name": "harmony-engine",
+  "version": "0.1.0",
+  "description": "Procedural music station — extracted from DemoShooter",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "serve": "node scripts/dev-server.js",
+    "dev": "node build.js && node scripts/dev-server.js",
+    "validate": "node build.js && node --check dist/index.html || true",
+    "gate": "npm run validate"
+  }
+}

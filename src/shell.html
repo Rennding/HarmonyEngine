@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harmony Engine — Music Station</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0f;
+    color: #aaaacc;
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 {
+    color: #00ffcc;
+    font-size: 28px;
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+  }
+  .subtitle {
+    color: #555577;
+    font-size: 12px;
+    margin-bottom: 24px;
+  }
+
+  /* Visualizer canvas */
+  #vizCanvas {
+    width: 600px;
+    height: 600px;
+    border: 1px solid #1a1a3a;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    background: #0a0a0f;
+  }
+
+  /* Status bar */
+  .status {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .status .label { color: #555577; }
+  .status .value { color: #00ffcc; font-weight: bold; }
+  .status .phase-value { color: #7b2fff; font-weight: bold; text-transform: uppercase; }
+
+  /* Controls grid */
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    width: 100%;
+    max-width: 640px;
+    margin-bottom: 20px;
+  }
+  .panel {
+    background: #0f0f1a;
+    border: 1px solid #1a1a3a;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .panel h2 {
+    color: #7b2fff;
+    font-size: 13px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Buttons */
+  .btn {
+    background: #1a1a3a;
+    color: #00ffcc;
+    border: 1px solid #00ffcc33;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+    min-width: 80px;
+  }
+  .btn:hover { background: #00ffcc22; }
+  .btn:active { background: #00ffcc44; }
+  .btn.primary { background: #00ffcc; color: #0a0a0f; font-weight: bold; }
+  .btn.primary:hover { background: #00ddaa; }
+  .btn.danger { border-color: #ff336644; color: #ff3366; }
+  .btn.danger:hover { background: #ff336622; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+
+  /* Sliders */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .slider-row label {
+    color: #555577;
+    font-size: 12px;
+    min-width: 70px;
+  }
+  .slider-row input[type=range] {
+    flex: 1;
+    accent-color: #00ffcc;
+  }
+  .slider-row .slider-val {
+    color: #00ffcc;
+    font-size: 12px;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Palette select */
+  select {
+    background: #1a1a3a;
+    color: #aaaacc;
+    border: 1px solid #1a1a3a;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  /* Phase pills */
+  .phase-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .phase-pill {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border: 1px solid #1a1a3a;
+    color: #555577;
+    transition: all 0.2s;
+  }
+  .phase-pill.active {
+    border-color: #7b2fff;
+    color: #7b2fff;
+    background: #7b2fff22;
+  }
+  .phase-pill:hover { border-color: #7b2fff88; }
+</style>
+</head>
+<body>
+
+<h1>HARMONY ENGINE</h1>
+<p class="subtitle">Procedural music station — extracted from DemoShooter</p>
+
+<canvas id="vizCanvas" width="600" height="600"></canvas>
+
+<div class="status">
+  <span><span class="label">Beat</span> <span class="value" id="statBeat">0</span></span>
+  <span><span class="label">Phase</span> <span class="phase-value" id="statPhase">—</span></span>
+  <span><span class="label">DC</span> <span class="value" id="statDC">0.00</span></span>
+  <span><span class="label">Combo</span> <span class="value" id="statCombo">0</span></span>
+  <span><span class="label">BPM</span> <span class="value" id="statBPM">—</span></span>
+  <span><span class="label">Palette</span> <span class="value" id="statPalette">—</span></span>
+</div>
+
+<div class="controls">
+  <!-- Transport -->
+  <div class="panel">
+    <h2>Transport</h2>
+    <div class="btn-row">
+      <button class="btn primary" id="btnPlay" onclick="doPlay()">PLAY</button>
+      <button class="btn" id="btnPause" onclick="doPause()">PAUSE</button>
+      <button class="btn danger" id="btnStop" onclick="doStop()">STOP</button>
+    </div>
+    <label style="font-size:12px; color:#555577;">Palette</label>
+    <select id="selPalette">
+      <option value="-1">Random</option>
+    </select>
+    <div class="slider-row">
+      <label>Volume</label>
+      <input type="range" min="0" max="100" value="80" id="slVolume" oninput="onVolume(this.value)">
+      <span class="slider-val" id="valVolume">80%</span>
+    </div>
+  </div>
+
+  <!-- Conductor -->
+  <div class="panel">
+    <h2>Conductor</h2>
+    <div class="slider-row">
+      <label>Combo Rate</label>
+      <input type="range" min="0" max="5" step="0.5" value="1" id="slComboRate" oninput="onComboRate(this.value)">
+      <span class="slider-val" id="valComboRate">1</span>
+    </div>
+    <div class="slider-row">
+      <label>Set Combo</label>
+      <input type="range" min="0" max="100" value="0" id="slCombo" oninput="onSetCombo(this.value)">
+      <span class="slider-val" id="valCombo">0</span>
+    </div>
+    <label style="font-size:12px; color:#555577; margin-bottom:6px; display:block;">Force Phase</label>
+    <div class="phase-pills" id="phasePills">
+      <span class="phase-pill active" data-phase="auto" onclick="onPhase('auto')">Auto</span>
+      <span class="phase-pill" data-phase="pulse" onclick="onPhase('pulse')">Pulse</span>
+      <span class="phase-pill" data-phase="swell" onclick="onPhase('swell')">Swell</span>
+      <span class="phase-pill" data-phase="surge" onclick="onPhase('surge')">Surge</span>
+      <span class="phase-pill" data-phase="storm" onclick="onPhase('storm')">Storm</span>
+      <span class="phase-pill" data-phase="maelstrom" onclick="onPhase('maelstrom')">Maelstrom</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn danger" onclick="Conductor.simulateHit()">Sim Hit</button>
+      <button class="btn" onclick="Conductor.simulateGraze('perfect')">Sim Graze</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* __INJECT_JS__ */
+
+// ── Palette dropdown population ──────────────────────────────────────────
+(function() {
+  var sel = document.getElementById('selPalette');
+  if (typeof PALETTES !== 'undefined') {
+    for (var i = 0; i < PALETTES.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = PALETTES[i].name || ('Palette ' + i);
+      sel.appendChild(opt);
+    }
+  }
+})();
+
+// ── Transport controls ───────────────────────────────────────────────────
+function doPlay() {
+  var sel = document.getElementById('selPalette');
+  var idx = parseInt(sel.value);
+  Conductor.start(idx >= 0 ? idx : undefined);
+}
+function doPause() {
+  if (Conductor.isPaused()) Conductor.resume();
+  else Conductor.pause();
+}
+function doStop() { Conductor.stop(); }
+
+function onVolume(v) {
+  document.getElementById('valVolume').textContent = v + '%';
+  Conductor.setVolume(v / 100);
+}
+function onComboRate(v) {
+  document.getElementById('valComboRate').textContent = v;
+  Conductor.setComboRate(parseFloat(v));
+}
+function onSetCombo(v) {
+  document.getElementById('valCombo').textContent = v;
+  Conductor.setCombo(parseInt(v));
+}
+function onPhase(p) {
+  document.querySelectorAll('.phase-pill').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.phase === p);
+  });
+  if (p === 'auto') {
+    Conductor.setAutoPhase(true);
+  } else {
+    Conductor.forcePhase(p);
+  }
+}
+
+// ── Status bar updates ───────────────────────────────────────────────────
+window.addEventListener('conductor:beat', function(e) {
+  var d = e.detail;
+  document.getElementById('statBeat').textContent = d.beat;
+  document.getElementById('statPhase').textContent = d.phase;
+  document.getElementById('statDC').textContent = d.dc.toFixed(2);
+  document.getElementById('statCombo').textContent = d.combo;
+  document.getElementById('statBPM').textContent = d.bpm;
+  if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette) {
+    var pal = HarmonyEngine.getPalette();
+    document.getElementById('statPalette').textContent = pal ? pal.name : '—';
+  }
+});
+
+// ── FFT Visualizer (canvas-based, no Phaser) ─────────────────────────────
+(function() {
+  var canvas = document.getElementById('vizCanvas');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var CX = W / 2, CY = H / 2;
+  var _fftData = new Uint8Array(64);
+  var _frameCount = 0;
+  var _beatFlash = 0;
+
+  window.addEventListener('conductor:beat', function() { _beatFlash = 6; });
+
+  function draw() {
+    requestAnimationFrame(draw);
+    _frameCount++;
+    if (_frameCount % 3 !== 0) return; // 20fps
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Get FFT data
+    var analyser = (typeof getAnalyser === 'function') ? getAnalyser() : null;
+    if (analyser) {
+      analyser.getByteFrequencyData(_fftData);
+    }
+
+    // Phase config
+    var phaseName = G.phase || 'pulse';
+    var capPhase = phaseName.charAt(0).toUpperCase() + phaseName.slice(1);
+    var cfg = CFG.VIZ.PHASE_CFG[capPhase] || [60, 50, 0.25];
+    var baseR = cfg[0] * 2;     // scale up for 600px canvas
+    var maxBar = cfg[1] * 2;
+    var alphaCap = cfg[2];
+
+    // Beat flash
+    if (_beatFlash > 0) {
+      _beatFlash--;
+      maxBar *= 1.2;
+    }
+
+    // Draw ring
+    var bins = _fftData.length;
+    var angleStep = (Math.PI * 2) / bins;
+
+    for (var i = 0; i < bins; i++) {
+      var val = _fftData[i] / 255;
+      var barH = val * maxBar;
+      var angle = i * angleStep - Math.PI / 2;
+
+      var x1 = CX + Math.cos(angle) * baseR;
+      var y1 = CY + Math.sin(angle) * baseR;
+      var x2 = CX + Math.cos(angle) * (baseR + barH);
+      var y2 = CY + Math.sin(angle) * (baseR + barH);
+
+      var alpha = Math.min(val * 0.8 + 0.1, alphaCap);
+      ctx.strokeStyle = 'rgba(123, 43, 255, ' + alpha + ')';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // Inner circle
+    ctx.strokeStyle = 'rgba(123, 43, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(CX, CY, baseR, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Phase label
+    ctx.fillStyle = '#7b2fff';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(phaseName.toUpperCase(), CX, CY - 10);
+
+    // DC value
+    ctx.fillStyle = '#00ffcc';
+    ctx.font = '24px monospace';
+    ctx.fillText(G.dc.toFixed(2), CX, CY + 20);
+  }
+
+  draw();
+})();
+</script>
+</body>
+</html>

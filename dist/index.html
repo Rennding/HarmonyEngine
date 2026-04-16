@@ -10483,13 +10483,8 @@ function doPlay() {
   var sel = document.getElementById('selPalette');
   var idx = parseInt(sel.value);
 
-  // Read seed from URL if present (replay mode)
+  // Pre-select palette from URL on first load only (when user hasn't picked one)
   var urlParams = _getUrlParams();
-  var seedOverride = null;
-  if (urlParams.seed != null && isFinite(urlParams.seed)) {
-    seedOverride = parseInt(urlParams.seed, 10);
-  }
-  // Pre-select palette from URL if not explicitly set by user
   if (urlParams.palette != null && sel.value === '-1') {
     var urlPal = parseInt(urlParams.palette, 10);
     if (urlPal >= 0) { sel.value = urlPal; idx = urlPal; }
@@ -10500,7 +10495,8 @@ function doPlay() {
   } else {
     Conductor.unlockPalette();
   }
-  Conductor.start(seedOverride);
+  // Always generate a fresh seed on Play — URL updates after to reflect new song
+  Conductor.start(null);
 
   // Write URL params so this song can be shared/replayed
   // Seed is set by resetRun — read it back after a tick

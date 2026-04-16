@@ -9,6 +9,20 @@
 
 ---
 
+## 2026-04-16 — BPM override slider (#7)
+
+**What happened:**
+- Added BPM slider (60–200) and "Auto BPM" checkbox to Transport panel in shell.html
+- `Conductor.setBPM(bpm)` — clamps to 60–200, writes to `G.settings.bpmOverride` and `G.bpm` (takes effect on next beat, since beat clock reads `G.bpm` dynamically)
+- `Conductor.setAutoBPM()` — clears `G.settings.bpmOverride` so next `resetRun()` uses palette/mood BPM
+- `resetRun()` applies `bpmOverride` after palette BPM is computed (both the HarmonyEngine and fallback paths)
+- Beat event handler syncs slider position to actual BPM in Auto mode
+- Moving the slider unchecks Auto; checking Auto restores "Auto" label and calls `setAutoBPM()`
+- BPM override persists across Stop/Play cycles; Auto mode restores natural palette BPM on next play
+- Gate passes.
+
+---
+
 ## 2026-04-16 — Palette lock (#6)
 
 **What happened:**

@@ -29,7 +29,7 @@ const G = {
   bpm: CFG.BPM,
 
   // Settings
-  settings: { volume: 0.8, mood: 1, palette: 0 },  // palette: 0=random, 1..N=locked to PALETTES[idx-1]
+  settings: { volume: 0.8, mood: 1, palette: 0, bpmOverride: null },  // palette: 0=random, 1..N=locked; bpmOverride: null=auto, number=locked BPM
 
   // Per-run tracking
   songHash: '',
@@ -132,6 +132,8 @@ function resetRun() {
     G.bpm = moodBpm !== null
       ? moodBpm
       : pal.bpmRange[0] + Math.floor(_songRng() * (pal.bpmRange[1] - pal.bpmRange[0] + 1));
+    // BPM override: user-set value takes priority over palette/mood
+    if (G.settings.bpmOverride !== null) G.bpm = G.settings.bpmOverride;
     if (typeof Sequencer !== 'undefined') Sequencer.initRun(pal);
     if (typeof VoicePool !== 'undefined') VoicePool.initRun(pal);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.initRun(pal);
@@ -141,6 +143,7 @@ function resetRun() {
     _songRng = _createSongRng(G.songSeed);
     var moodBpm = CFG.MOODS[G.settings.mood] ? CFG.MOODS[G.settings.mood].bpm : null;
     G.bpm = moodBpm !== null ? moodBpm : CFG.BPM;
+    if (G.settings.bpmOverride !== null) G.bpm = G.settings.bpmOverride;
   }
   if (typeof applyVolumeSetting === 'function') applyVolumeSetting();
 }

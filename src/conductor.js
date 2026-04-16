@@ -127,6 +127,19 @@ var Conductor = (function() {
       G.settings.volume = Math.max(0, Math.min(1, v));
       applyVolumeSetting();
     },
+
+    // --- BPM override ---
+    setBPM: function(bpm) {
+      // Clamp to slider range; takes effect on next beat (beat clock reads G.bpm dynamically)
+      var clamped = Math.max(60, Math.min(200, Math.round(bpm)));
+      G.settings.bpmOverride = clamped;
+      G.bpm = clamped;
+    },
+    setAutoBPM: function() {
+      G.settings.bpmOverride = null;
+      // G.bpm stays at current value until next resetRun(); that's acceptable —
+      // the user pressed Auto so the next Play will pick the natural palette BPM.
+    },
     setIntensity: function(c) { G.intensity = Math.max(0, c); },
 
     // Simulate a "hit" — drops intensity, triggers audio effects

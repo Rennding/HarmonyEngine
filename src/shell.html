@@ -189,6 +189,15 @@
       <input type="range" min="0" max="100" value="80" id="slVolume" oninput="onVolume(this.value)">
       <span class="slider-val" id="valVolume">80%</span>
     </div>
+    <div class="slider-row">
+      <label>BPM</label>
+      <input type="range" min="60" max="200" step="1" value="120" id="slBPM" oninput="onBPM(this.value)">
+      <span class="slider-val" id="valBPM">Auto</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-top:2px; margin-bottom:4px;">
+      <input type="checkbox" id="chkBPMAuto" checked onchange="onBPMAuto(this.checked)">
+      <label for="chkBPMAuto" style="font-size:12px; color:#555577; cursor:pointer;">Auto BPM</label>
+    </div>
   </div>
 
   <!-- Conductor -->
@@ -257,6 +266,22 @@ function onVolume(v) {
   document.getElementById('valVolume').textContent = v + '%';
   Conductor.setVolume(v / 100);
 }
+function onBPM(v) {
+  var chk = document.getElementById('chkBPMAuto');
+  chk.checked = false; // moving the slider means manual mode
+  document.getElementById('valBPM').textContent = v;
+  Conductor.setBPM(parseInt(v));
+}
+function onBPMAuto(checked) {
+  if (checked) {
+    document.getElementById('valBPM').textContent = 'Auto';
+    Conductor.setAutoBPM();
+  } else {
+    var v = document.getElementById('slBPM').value;
+    document.getElementById('valBPM').textContent = v;
+    Conductor.setBPM(parseInt(v));
+  }
+}
 function onComboRate(v) {
   document.getElementById('valComboRate').textContent = v;
   Conductor.setComboRate(parseFloat(v));
@@ -284,6 +309,11 @@ window.addEventListener('conductor:beat', function(e) {
   document.getElementById('statDC').textContent = d.dc.toFixed(2);
   document.getElementById('statCombo').textContent = d.combo;
   document.getElementById('statBPM').textContent = d.bpm;
+  // Sync BPM slider to actual BPM when in Auto mode
+  var chkAuto = document.getElementById('chkBPMAuto');
+  if (chkAuto && chkAuto.checked) {
+    document.getElementById('slBPM').value = d.bpm;
+  }
   if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette) {
     var pal = HarmonyEngine.getPalette();
     document.getElementById('statPalette').textContent = pal ? pal.name : '—';

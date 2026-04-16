@@ -185,8 +185,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #6 built, awaiting QA.**
-**Next build:** #7 (Sonnet) — BPM override slider
+**Status: #7 built, awaiting QA.**
+**Next build:** #8 (plan-session) — Cycle mode / radio station
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -198,8 +198,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#5** Rename source files — drop numeric prefixes (P3) — qa-pass
 
 ### Tier 3 · Core Product (P1–P2)
-- **#6** Palette lock — play one palette on repeat (P1) ← awaiting QA
-- **#7** BPM override slider — independent of palette range (P1)
+✅ **#6** Palette lock — play one palette on repeat (P1) — qa-pass
+- **#7** BPM override slider — independent of palette range (P1) ← awaiting QA
 - **#8** Cycle mode — auto palette rotation / radio station (P1, plan-session)
 - **#9** Song identity — seed display + shareable URL params (P2)
 

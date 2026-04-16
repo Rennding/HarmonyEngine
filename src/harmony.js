@@ -171,6 +171,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 4,
       attack: 0.02, hold: 0, decay: 0.08, sustainLevel: 0.3, release: 0.06,
       lpfCutoff: 1800, lpfEnvAmount: 800, lpfEnvDecay: 0.12, lpfResonance: 4,
       vibratoDepth: 0, vibratoRate: 5, vibratoDelay: 0,
@@ -289,6 +290,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 5,
       attack: 0.04, hold: 0, decay: 0.15, sustainLevel: 1.0, release: 0.2,
       lpfCutoff: 2500, lpfEnvAmount: 400, lpfEnvDecay: 0.3, lpfResonance: 1.0,
       vibratoDepth: 6, vibratoRate: 3, vibratoDelay: 0.3,
@@ -406,6 +408,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 5,
       attack: 0.003, hold: 0, decay: 0.05, sustainLevel: 0, release: 0.02,
       lpfCutoff: 5000, lpfEnvAmount: 0, lpfEnvDecay: 0.1, lpfResonance: 0.7,
       vibratoDepth: 0, vibratoRate: 5, vibratoDelay: 0,
@@ -524,6 +527,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 4,
       attack: 0.15, hold: 0, decay: 0.2, sustainLevel: 0.7, release: 0.5,
       lpfCutoff: 1200, lpfEnvAmount: 0, lpfEnvDecay: 0.1, lpfResonance: 0.7,
       vibratoDepth: 8, vibratoRate: 3.5, vibratoDelay: 0.2,
@@ -643,6 +647,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 4,
       attack: 0.04, hold: 0, decay: 0.15, sustainLevel: 0.6, release: 0.15,
       lpfCutoff: 2000, lpfEnvAmount: 200, lpfEnvDecay: 0.2, lpfResonance: 1.0,
       vibratoDepth: 3, vibratoRate: 4, vibratoDelay: 0.2,
@@ -765,6 +770,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 5,
       attack: 0.005, hold: 0, decay: 0.05, sustainLevel: 0.8, release: 0.02,
       lpfCutoff: 6000, lpfEnvAmount: 0, lpfEnvDecay: 0.1, lpfResonance: 0.7,
       vibratoDepth: 0, vibratoRate: 5, vibratoDelay: 0,
@@ -963,11 +969,12 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 4,
       attack: 0.12, hold: 0, decay: 0.2, sustainLevel: 1.0, release: 0.25,
       lpfCutoff: 2000, lpfEnvAmount: 300, lpfEnvDecay: 0.25, lpfResonance: 1.0,
       vibratoDepth: 6, vibratoRate: 4.5, vibratoDelay: 0.15,
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
-      legato: true, legatoTime: 0.06, staccato: false,
+      legato: true, legatoTime: 0.18, staccato: false,
       gainScalar: 1.0,
     },
 
@@ -1195,6 +1202,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 4,
       attack: 0.005, hold: 0, decay: 0.06, sustainLevel: 0.1, release: 0.04,
       lpfCutoff: 4000, lpfEnvAmount: 1200, lpfEnvDecay: 0.08, lpfResonance: 3,
       vibratoDepth: 0, vibratoRate: 5, vibratoDelay: 0,
@@ -1314,6 +1322,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 4,
       attack: 0.08, hold: 0, decay: 0.2, sustainLevel: 0.8, release: 0.3,
       lpfCutoff: 1800, lpfEnvAmount: 0, lpfEnvDecay: 0.1, lpfResonance: 0.7,
       vibratoDepth: 4, vibratoRate: 3, vibratoDelay: 0.15,
@@ -1436,6 +1445,7 @@ var PALETTES = [
 
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
+      octave: 4,
       attack: 0.01, hold: 0, decay: 0.1, sustainLevel: 0.5, release: 0.08,
       lpfCutoff: 3500, lpfEnvAmount: 600, lpfEnvDecay: 0.15, lpfResonance: 1.5,
       vibratoDepth: 3, vibratoRate: 5, vibratoDelay: 0.1,

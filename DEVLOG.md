@@ -9,6 +9,15 @@
 
 ---
 
+## 2026-04-16 — #11 Plan: Tension curve randomization
+
+**What:** Designed the TensionMap system. Currently DC follows a pure monotonic power curve — every listen at the same BPM/palette has the identical emotional arc. The spec adds a tension layer on top: plateaus (DC freezes for 16–32 beats), false climaxes (DC spikes into the next phase then retreats), and brief retreats (DC dips 10–20%, creating a "breath"). Events are generated per-song from the seeded PRNG, so same seed = same profile. Each palette gets a tension tuning profile — ambient_dread favors long plateaus, glitch is chaotic with frequent spikes, dark_techno has sharp spikes but fewer events. Suppressed during manual phase override and cycle transitions.
+
+**Spec:** `SPEC_011_TENSION_CURVE_RANDOMIZATION.md`
+**Build issue:** #27 (Opus, ~30 edits, single session)
+
+---
+
 ## 2026-04-16 — #26 Build: Staggered phase transitions
 
 **What:** Implemented PhaseStagger scheduler. Phase transitions now spread instrument entries over several beats instead of everything hitting at once. Each genre has its own timing profile (techno=4 beats, ambient=12 beats, chiptune=2 beats). Refactored `_onPhaseChange` into 4 group dispatch functions (rhythm, harmony, texture, melody). Added `_effectiveFloor` mechanism so `_updateLayers` respects stagger state. Downward transitions reverse group order. Cycle mode bypasses stagger entirely. Rapid phase changes cancel active stagger cleanly.

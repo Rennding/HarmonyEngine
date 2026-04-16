@@ -183,25 +183,43 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Extraction complete. Pipeline initialized.**
-**Next build:** Smoke test — verify all 10 palettes play through all 5 phases
+**Status: Extraction complete. Audit done. 21 issues filed.**
+**Next build:** #1+#2 (one session, Sonnet) — AudioContext lifecycle + validate script fix
 
-### Immediate priorities
-1. Smoke test build + fix runtime errors from missing game-state references
-2. Palette-lock feature (play one palette on repeat)
-3. BPM override slider (independent of palette range)
+### Tier 1 · Foundation (P1)
+- **#1** AudioContext lifecycle — autoplay policy + start/stop leak
+- **#2** Fix validate/gate script — actually catch syntax errors
 
-### Future features
-- Streaming mode (continuous play, auto palette rotation)
-- Export to WAV via OfflineAudioContext
-- Headless Chromium + FFmpeg → YouTube RTMP streaming
-- Per-family instrument solo/mute toggles
-- Visual theme per palette (canvas backgrounds)
-- Electron wrapper for .exe distribution
-- Per-instrument background visualization
+### Tier 2 · Clean Extraction (P1–P3)
+- **#3** Kill dead code — stubs, vestigial G fields, CFG.PERKS (P1)
+- **#4** Rename game vocabulary — combo→intensity, hp→energy, bullet→voice (P2)
+- **#5** Rename source files — drop numeric prefixes (P3)
+
+### Tier 3 · Core Product (P1–P2)
+- **#6** Palette lock — play one palette on repeat (P1)
+- **#7** BPM override slider — independent of palette range (P1)
+- **#8** Cycle mode — auto palette rotation / radio station (P1, plan-session)
+- **#9** Song identity — seed display + shareable URL params (P2)
+
+### Tier 4 · Musicality (P2)
+- **#10** Staggered phase transitions — spread subsystem changes over beats (plan)
+- **#11** Tension curve randomization — plateaus, false climaxes, retreats (plan)
+- **#12** Post-Maelstrom decay arc — break down → new cycle (plan)
+- **#13** Faster start — skip empty Pulse or add intro phrase
+
+### Tier 5 · UI/UX (P2–P3)
+- **#14** Musical feedback in UI — chord, active instruments, genre (P2)
+- **#15** Per-palette visualizer colors — genre-aware visual identity (P2)
+- **#16** Keyboard shortcuts — space, arrows, standard music player keys (P3)
+- **#17** Responsive layout + mobile support (P3)
+
+### Tier 6 · Distribution (P3)
+- **#18** WAV export via OfflineAudioContext (plan)
+- **#19** PWA manifest — installable app
+- **#20** Dev server watch mode — rebuild on save
+- **#21** Production build — source maps + minification
 
 ### Backlog
-<!-- Issues and tasks accumulate here -->
 
 ---
 

@@ -189,7 +189,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #26 awaiting QA. Next: #11 — Tension curve randomization (plan session).**
+**Status: #26 qa-pass ✅. Next: #11 — Tension curve randomization (plan session).**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -211,23 +211,20 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#9** Song identity — seed display + shareable URL params (P2, Sonnet) — qa-pass
 
 ### Tier 4 · Musicality (P2)
-✅ **#10** Staggered phase transitions — plan-session complete, spec written
-- **#26** Staggered phase transitions — PhaseStagger scheduler + per-palette profiles (P2, Opus) — **awaiting QA**
+✅ **#10** Staggered phase transitions — plan complete → SPEC_010_STAGGERED_PHASE_TRANSITIONS.md
+✅ **#26** Staggered phase transitions — PhaseStagger scheduler + per-palette profiles (Opus) — qa-pass
 - **#11** Tension curve randomization — plateaus, false climaxes, retreats (plan)
 - **#12** Post-Maelstrom decay arc — break down → new cycle (plan)
-- **#13** Faster start — skip empty Pulse or add intro phrase
+- **#13** Faster start — skip empty Pulse or add intro phrase (plan)
 
 ### Tier 5 · UI/UX (P2–P3)
-- **#14** Musical feedback in UI — chord, active instruments, genre (P2)
-- **#15** Per-palette visualizer colors — genre-aware visual identity (P2)
-- **#16** Keyboard shortcuts — space, arrows, standard music player keys (P3)
-- **#17** Responsive layout + mobile support (P3)
+- **#14** UI overhaul — musical feedback + per-palette visualizer colors (P2, Sonnet) [absorbed #15]
+- **#16** Keyboard shortcuts — space, arrows, standard music player keys (P3, Sonnet)
+- **#17** Responsive layout + mobile support (P3, Sonnet)
 
 ### Tier 6 · Distribution (P3)
 - **#18** WAV export via OfflineAudioContext (plan)
-- **#19** PWA manifest — installable app
-- **#20** Dev server watch mode — rebuild on save
-- **#21** Production build — source maps + minification
+- **#19** Distribution polish — PWA manifest + dev watch mode + prod build (P3, Sonnet) [absorbed #20, #21]
 
 ---
 

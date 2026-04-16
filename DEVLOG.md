@@ -9,6 +9,15 @@
 
 ---
 
+## 2026-04-17 — #36 Plan: Melody Evolution — motivic development, contour, phrase pairing
+
+**What:** Planned the melody evolution system — six subsystems layered on top of the existing Markov chain to give melodies higher-level musical structure. (1) Seed motif: 4–8 note motif generated at song/cycle start, all phrases derive via variation (repeat, transpose, invert, diminish, fragment). Phase controls which variations unlock. (2) Contour bias: per-palette target phrase shape (arch for synthwave, descending for jazz, wave for ambient). (3) Antecedent-consequent pairing: phrases in question-answer pairs. (4) I-R post-filter: Narmour gap-fill rules enforce stepwise recovery after large leaps. (5) Interval affinity: per-palette soft bias on interval selection (dark_techno→4ths/5ths, ambient_dread→m2/tritones). (6) Melodic rhythm extensions: syncopation, dotted rhythms, rubato per palette.
+
+**Spec:** SPEC_036_MELODY_EVOLUTION.md
+**Build issues:** #36 motif+pairing+contour (Opus), #37 I-R+affinity (Opus), #38 rhythm extensions (Sonnet)
+
+---
+
 ## 2026-04-17 — #34 Build: ChordTrack — rhythmic chord articulation engine
 
 **What:** New rhythmic chord layer between bass and melody. 8 genre-specific chord patterns: synthwave offbeat power stabs, chiptune NES arp cycling, dark_techno four-on-floor stabs, noir_jazz ghosted swung comps, industrial 8th-note stutter stabs, lo_fi ghosted Rhodes comps, glitch ascending arps, breakbeat euclidean stabs. Ambient_dread and vaporwave get nothing (pad wash only). Full audio infrastructure: dedicated gain bus, EQ chain, sidechain, reverb send. Phase floor integration — chords enter at Swell, gain ramps with intensity. Stagger dispatch integration (#35) still pending.

@@ -9812,6 +9812,7 @@ var Conductor = (function() {
   function _enterRebuild(beatTime) {
     _cycleState = 'rebuild';
     _cycleBeats = 0;
+    _nextPalette = null; // swap is done — clear so UI no longer shows "old → new"
     // Schedule staggered gain ramps upward from 0 (SPEC_008 §5)
     if (typeof StateMapper !== 'undefined') StateMapper.startCycleRebuild(beatTime, _frozenIntensity);
     console.log('[Conductor] Cycle: entering rebuild (' + CFG.CYCLE.REBUILD_BARS + ' bars)');

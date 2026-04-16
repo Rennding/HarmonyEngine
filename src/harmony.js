@@ -2043,13 +2043,11 @@ var PaletteBlender = {
       var blendReverb  = lerp(sfx.reverbSend || 0, tfx.reverbSend || 0);
       var blendDelay   = lerp(sfx.delaySend  || 0, tfx.delaySend  || 0);
 
-      // Apply to per-track sends (pad + arp are most audible)
+      // Apply to per-track sends (pad is most audible)
       if (typeof _trackReverbSends !== 'undefined') {
         if (_trackReverbSends.pad)  _trackReverbSends.pad.gain.setTargetAtTime(blendReverb, audioCtx.currentTime, 0.5);
-        if (_trackReverbSends.arp)  _trackReverbSends.arp.gain.setTargetAtTime(blendReverb * 0.7, audioCtx.currentTime, 0.5);
       }
       if (typeof _trackDelaySends !== 'undefined') {
-        if (_trackDelaySends.arp)   _trackDelaySends.arp.gain.setTargetAtTime(blendDelay * 0.7, audioCtx.currentTime, 0.5);
         if (_trackDelaySends.sfx)   _trackDelaySends.sfx.gain.setTargetAtTime(blendDelay * 0.3, audioCtx.currentTime, 0.5);
       }
     }

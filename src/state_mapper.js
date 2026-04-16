@@ -220,10 +220,10 @@ var StateMapper = {
     var beatSec = (CFG.BEAT_MS || (60000 / (G.bpm || 120))) / 1000;
     var barSec = beatSec * 4;
 
-    // Groups with ramp start offsets (bars): arp+melody=0, pad+perc=4, snare+bass=8, hat=12
+    // Groups with ramp start offsets (bars): melody=0, pad+perc=4, snare+bass=8, hat=12
     // Ramp duration: 4 bars each
     var groups = [
-      { tracks: ['arp', 'melody'], startBar: 0 },
+      { tracks: ['melody'],        startBar: 0 },
       { tracks: ['pad', 'perc'],   startBar: 4 },
       { tracks: ['snare', 'bass'], startBar: 8 },
       { tracks: ['hat'],           startBar: 12 },
@@ -260,12 +260,12 @@ var StateMapper = {
     var beatSec = (CFG.BEAT_MS || (60000 / (G.bpm || 120))) / 1000;
     var barSec = beatSec * 4;
 
-    // Groups with ramp start offsets (bars): hat=0, snare+bass=4, pad+perc=8, arp+melody=12
+    // Groups with ramp start offsets (bars): hat=0, snare+bass=4, pad+perc=8, melody=12
     var groups = [
       { tracks: ['hat'],           startBar: 0 },
       { tracks: ['snare', 'bass'], startBar: 4 },
       { tracks: ['pad', 'perc'],   startBar: 8 },
-      { tracks: ['arp', 'melody'], startBar: 12 },
+      { tracks: ['melody'],        startBar: 12 },
     ];
 
     for (var gi = 0; gi < groups.length; gi++) {
@@ -290,7 +290,7 @@ var StateMapper = {
     // Unmute all tracks in sequencer so they produce sound
     if (typeof Sequencer !== 'undefined') {
       var m = Sequencer._mute;
-      var allTracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'arp', 'melody'];
+      var allTracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'melody'];
       for (var i = 0; i < allTracks.length; i++) m[allTracks[i]] = false;
       m.kick = false;
     }
@@ -312,7 +312,7 @@ var StateMapper = {
     var m = Sequencer._mute;
     var floor = CFG.PHASE_FLOOR[phase] || CFG.PHASE_FLOOR.pulse;
     var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
-    var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'arp', 'melody'];
+    var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'melody'];
     var hasGainNodes = (typeof _trackGains !== 'undefined');
     var t = (audioCtx) ? audioCtx.currentTime : 0;
     var rampTau = 0.15; // ~150ms smooth ramp time constant
@@ -451,8 +451,8 @@ var StateMapper = {
       // Reverb send amounts on per-track sends
       if (typeof _trackReverbSends !== 'undefined') {
         var revTarget = Math.min(paletteFx.reverbSend, 0.70); // cap to prevent wet buildup
-        var sendNames = ['pad', 'snare', 'arp'];
-        var sendMults = { pad: 1.0, snare: 0.4, arp: 0.7 }; // relative send levels
+        var sendNames = ['pad', 'snare'];
+        var sendMults = { pad: 1.0, snare: 0.4 }; // relative send levels
         for (var ri = 0; ri < sendNames.length; ri++) {
           var sn = sendNames[ri];
           if (_trackReverbSends[sn]) {
@@ -482,11 +482,6 @@ var StateMapper = {
       // Delay send amounts
       if (typeof _trackDelaySends !== 'undefined') {
         var dlTarget = paletteFx.delaySend;
-        if (_trackDelaySends.arp) {
-          _trackDelaySends.arp.gain.cancelScheduledValues(t);
-          _trackDelaySends.arp.gain.setValueAtTime(_trackDelaySends.arp.gain.value, t);
-          _trackDelaySends.arp.gain.linearRampToValueAtTime(dlTarget * 0.7, t + rampSec);
-        }
         if (_trackDelaySends.sfx) {
           _trackDelaySends.sfx.gain.cancelScheduledValues(t);
           _trackDelaySends.sfx.gain.setValueAtTime(_trackDelaySends.sfx.gain.value, t);
@@ -866,7 +861,7 @@ var StateMapper = {
       var floor = CFG.PHASE_FLOOR[G.phase] || CFG.PHASE_FLOOR.pulse;
       var m = Sequencer._mute;
       var hitT = audioCtx ? audioCtx.currentTime : 0;
-      var hitTracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'arp', 'melody'];
+      var hitTracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'melody'];
       for (var hi = 0; hi < hitTracks.length; hi++) {
         var ht = hitTracks[hi];
         var inF = !!floor[ht];

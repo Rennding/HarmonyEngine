@@ -34,11 +34,11 @@ const CFG = {
 
   // Phase floor: tracks always audible per phase (SPEC_011 §3.1)
   PHASE_FLOOR: {
-    pulse:     { kick: true, hat: false, snare: false, bass: false, pad: false, perc: false, arp: false, melody: false },
-    swell:     { kick: true, hat: true,  snare: false, bass: false, pad: false, perc: false, arp: false, melody: true  },
-    surge:     { kick: true, hat: true,  snare: true,  bass: true,  pad: false, perc: true,  arp: false, melody: true  },
-    storm:     { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  arp: true,  melody: true  },
-    maelstrom: { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  arp: true,  melody: true  },
+    pulse:     { kick: true, hat: false, snare: false, bass: false, pad: false, perc: false, melody: false },
+    swell:     { kick: true, hat: true,  snare: false, bass: false, pad: false, perc: false, melody: true  },
+    surge:     { kick: true, hat: true,  snare: true,  bass: true,  pad: false, perc: true,  melody: true  },
+    storm:     { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  melody: true  },
+    maelstrom: { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  melody: true  },
   },
 
   // Intensity thresholds (above floor) for adding layers
@@ -88,8 +88,6 @@ const CFG = {
     perc:        0.13,
     // Bass
     bass:        0.20,
-    // Arp
-    arp:         0.09,
     // Melody
     melody:      0.06,
     // Pad
@@ -98,7 +96,6 @@ const CFG = {
     tick_sq:     0.05,
     tick_sub:    0.04,
     tick_stab:   0.025,
-    tick_arp:    0.02,
     // SFX
     hit_hp3:     0.14,
     hit_hp3b:    0.11,

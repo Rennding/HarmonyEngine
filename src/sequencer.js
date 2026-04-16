@@ -1183,59 +1183,7 @@ var PadTrack = {
   },
 };
 
-// ---- Arp track (Storm+ only): monophonic scale-tone 16ths, sidechain-gated ----
-
-var ArpTrack = {
-  _active:    false,
-  _muted:     true,
-  _noteIdx:   0,       // cycles through scale notes
-  _palette:   null,
-
-  initRun: function(palette) {
-    this._active  = true;
-    this._muted   = true;  // unmuted at Storm via _updateLayers
-    this._noteIdx = 0;
-    this._palette = palette;
-  },
-
-  // Called every 16th-note sub-step from Sequencer.tick
-  // Plays one scale tone per step (monophonic, short, sidechain-gated)
-  tickSub: function(t) {
-    if (!this._active || this._muted || !audioCtx) return;
-    if (typeof HarmonyEngine === 'undefined') return;
-
-    var scaleNotes = HarmonyEngine.getScaleNotes(4);
-    if (!scaleNotes || scaleNotes.length === 0) return;
-
-    var midi = scaleNotes[this._noteIdx % scaleNotes.length];
-    this._noteIdx++;
-
-    var freq = midiToFreq(midi);
-    var osc  = audioCtx.createOscillator();
-    var gain = audioCtx.createGain();
-    osc.connect(gain);
-    // Route through per-track arp gain (sidechain built into mix chain)
-    var dest = (typeof _trackGains !== 'undefined' && _trackGains.arp) ? _trackGains.arp : submixGain;
-    gain.connect(dest);
-
-    osc.type = 'square';
-    osc.frequency.value = freq;
-
-    // Short plucky envelope
-    var dur = 0.08;
-    gain.gain.setValueAtTime(CFG.GAIN.arp, t);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.start(t);
-    osc.stop(t + dur + 0.01);
-  },
-
-  shutdown: function() {
-    this._active  = false;
-    this._muted   = true;
-    this._noteIdx = 0;
-    this._palette = null;
-  },
-};
+// ArpTrack removed — was a DemoShooter panic-mode artifact, non-procedural, same pattern all palettes.
 
 // ---- GrazeStreakTrack ----
 // Ascending scale tones on each graze in a streak (Graze Streak perk, SPEC_012 §2.2, §6)
@@ -1974,7 +1922,7 @@ var Sequencer = {
   _bassPattern:  null,  // array of 16 steps
   _palette:      null,
   _active:       false,
-  _mute:         { kick: false, snare: false, hat: false, bass: false, pad: true, perc: true, arp: true },
+  _mute:         { kick: false, snare: false, hat: false, bass: false, pad: true, perc: true },
   _hatDefault:   null,   // original hat pattern name (for Maelstrom reset)
   _hatDoubled:   false,  // true when Maelstrom double-time hat is active
 
@@ -1988,7 +1936,7 @@ var Sequencer = {
     this._active   = true;
     // Start muted per Pulse floor: only kick audible at game start.
     // StateMapper._updateLayers() will unmute tracks as phase/intensity progress.
-    this._mute     = { kick: false, snare: true, hat: true, bass: true, pad: true, perc: true, arp: true, melody: true };
+    this._mute     = { kick: false, snare: true, hat: true, bass: true, pad: true, perc: true, melody: true };
     this._hatDoubled = false;
     this._halfTime = false;
     this._halfTimeEnd = 0;
@@ -2013,9 +1961,8 @@ var Sequencer = {
     var bName = bPats[Math.floor((_songRng || Math.random)() * bPats.length)];
     this._bassPattern = _buildPattern(bName);
 
-    // Init PadTrack + ArpTrack + GrazeStreakTrack + MelodyEngine + GrooveEngine + FillSystem
+    // Init PadTrack + GrazeStreakTrack + MelodyEngine + GrooveEngine + FillSystem
     if (typeof PadTrack !== 'undefined') PadTrack.initRun(palette);
-    if (typeof ArpTrack !== 'undefined') ArpTrack.initRun(palette);
     if (typeof GrazeStreakTrack !== 'undefined') GrazeStreakTrack.initRun(palette);
     if (typeof MelodyEngine !== 'undefined') MelodyEngine.initRun(palette);
     if (typeof GrooveEngine !== 'undefined') GrooveEngine.initRun(palette);  // SPEC_018 §1
@@ -2085,11 +2032,9 @@ var Sequencer = {
         if (typeof _trackReverbSends !== 'undefined') {
           if (_trackReverbSends.pad) _trackReverbSends.pad.gain.value = pulseFx.reverbSend * 1.0;
           if (_trackReverbSends.snare) _trackReverbSends.snare.gain.value = pulseFx.reverbSend * 0.4;
-          if (_trackReverbSends.arp) _trackReverbSends.arp.gain.value = pulseFx.reverbSend * 0.7;
         }
         // Set initial delay send levels
         if (typeof _trackDelaySends !== 'undefined') {
-          if (_trackDelaySends.arp) _trackDelaySends.arp.gain.value = pulseFx.delaySend * 0.7;
           if (_trackDelaySends.sfx) _trackDelaySends.sfx.gain.value = pulseFx.delaySend * 0.3;
         }
       }
@@ -2100,7 +2045,6 @@ var Sequencer = {
         var scBase = fx.sidechain || 0.6;
         _SIDECHAIN_PROFILES.bass.duck = Math.min(0.80 * (scBase / 0.6), 0.95);
         _SIDECHAIN_PROFILES.pad.duck  = Math.min(0.40 * (scBase / 0.6), 0.70);
-        _SIDECHAIN_PROFILES.arp.duck  = Math.min(0.50 * (scBase / 0.6), 0.80);
         _SIDECHAIN_PROFILES.perc.duck = Math.min(0.30 * (scBase / 0.6), 0.60);
         _SIDECHAIN_PROFILES.sfx.duck  = Math.min(0.20 * (scBase / 0.6), 0.40);
       }
@@ -2114,7 +2058,6 @@ var Sequencer = {
   stop: function() {
     this._active = false;
     if (typeof PadTrack !== 'undefined') PadTrack.shutdown();
-    if (typeof ArpTrack !== 'undefined') ArpTrack.shutdown();
     if (typeof GrazeStreakTrack !== 'undefined') GrazeStreakTrack.shutdown();
     if (typeof MelodyEngine !== 'undefined') MelodyEngine.shutdown();
     if (typeof FillSystem !== 'undefined') FillSystem.stop();              // SPEC_018 §2
@@ -2173,7 +2116,7 @@ var Sequencer = {
 
     // Reverb sends +20%
     if (audioCtx && typeof _trackReverbSends !== 'undefined') {
-      var sends = ['pad', 'snare', 'arp', 'perk'];
+      var sends = ['pad', 'snare', 'perk'];
       for (var i = 0; i < sends.length; i++) {
         var s = _trackReverbSends[sends[i]];
         if (s) {
@@ -2201,7 +2144,7 @@ var Sequencer = {
 
       // Restore reverb sends
       if (audioCtx && typeof _trackReverbSends !== 'undefined') {
-        var sends = ['pad', 'snare', 'arp', 'perk'];
+        var sends = ['pad', 'snare', 'perk'];
         for (var i = 0; i < sends.length; i++) {
           var s = _trackReverbSends[sends[i]];
           if (s && s._htOriginal !== undefined) {
@@ -2350,14 +2293,6 @@ var Sequencer = {
       // --- Pattern mutations (SPEC_018 §6) ---
       if (typeof PatternMutator !== 'undefined') {
         PatternMutator.onStep(s, this._drumPatterns);
-      }
-
-      // --- Arp (mute-aware, Storm+) ---
-      if (typeof ArpTrack !== 'undefined' && !this._mute.arp) {
-        ArpTrack._muted = false;
-        ArpTrack.tickSub(t);
-      } else if (typeof ArpTrack !== 'undefined') {
-        ArpTrack._muted = true;
       }
 
       // --- Bass (mute-aware; WalkingBass engine handles pitch — SPEC_018 §3) ---

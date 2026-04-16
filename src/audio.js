@@ -3,7 +3,7 @@
 var audioCtx = null;
 var masterGain = null;
 var _limiter = null;
-var submixGain = null;   // music bus — Sequencer, PadTrack, ArpTrack, GrazeStreakTrack
+var submixGain = null;   // music bus — Sequencer, PadTrack, GrazeStreakTrack
 var sfxGain = null;      // SFX bus — voice pool, perk effects, one-shots (muted during pause/perk)
 var waveshaper = null;
 var _compressor = null;
@@ -158,7 +158,7 @@ function initAudio() {
   _mixBus.gain.value = 1.0;
 
   // --- Per-track gain nodes ---
-  var trackNames = ['kick', 'bass', 'snare', 'hat', 'pad', 'arp', 'perc', 'sfx', 'melody', 'perk'];
+  var trackNames = ['kick', 'bass', 'snare', 'hat', 'pad', 'perc', 'sfx', 'melody', 'perk'];
   for (var i = 0; i < trackNames.length; i++) {
     _trackGains[trackNames[i]] = audioCtx.createGain();
     _trackGains[trackNames[i]].gain.value = 1.0;
@@ -186,11 +186,6 @@ function initAudio() {
     { type: 'peaking', freq: 500, gain: -2, Q: 1.0 },
     { type: 'lowpass', freq: 3000, Q: 0.7 }
   ]);
-  _trackEQs.arp = _makeTrackEQ([
-    { type: 'highpass', freq: 1000, Q: 0.7 },
-    { type: 'peaking', freq: 4000, gain: 2, Q: 1.0 },
-    { type: 'lowpass', freq: 8000, Q: 0.7 }
-  ]);
   _trackEQs.perc = _makeTrackEQ([
     { type: 'highpass', freq: 400, Q: 0.7 },
     { type: 'lowpass', freq: 6000, Q: 0.7 }
@@ -208,7 +203,7 @@ function initAudio() {
     { type: 'lowpass', freq: 4000, Q: 0.7 }
   ]);
 
-  // Perk: mid-range, between bass and arp (SPEC_025 §3.1)
+  // Perk: mid-range (SPEC_025 §3.1)
   _trackEQs.perk = _makeTrackEQ([
     { type: 'highpass', freq: 150, Q: 0.7 },
     { type: 'peaking', freq: 600, gain: 1, Q: 1.0 },   // +1dB gentle presence
@@ -216,7 +211,7 @@ function initAudio() {
   ]);
 
   // --- Per-track sidechain gains (SPEC_016 §5) ---
-  var scTracks = ['bass', 'pad', 'arp', 'perc', 'sfx', 'melody', 'perk'];
+  var scTracks = ['bass', 'pad', 'perc', 'sfx', 'melody', 'perk'];
   for (var si = 0; si < scTracks.length; si++) {
     _trackSidechains[scTracks[si]] = audioCtx.createGain();
     _trackSidechains[scTracks[si]].gain.value = 1.0;
@@ -256,13 +251,11 @@ function initAudio() {
   _reverb.connect(_reverbWet);
   _reverbWet.connect(_mixBus);
 
-  // Per-track reverb sends: pad (wet), snare (light), arp (medium)
+  // Per-track reverb sends: pad (wet), snare (light)
   _trackReverbSends.pad = audioCtx.createGain();
   _trackReverbSends.pad.gain.value = 0.28;   // default, overridden per palette at run start
   _trackReverbSends.snare = audioCtx.createGain();
   _trackReverbSends.snare.gain.value = 0.15;
-  _trackReverbSends.arp = audioCtx.createGain();
-  _trackReverbSends.arp.gain.value = 0.25;
   // Melody reverb send (SPEC_017 §5)
   _trackReverbSends.melody = audioCtx.createGain();
   _trackReverbSends.melody.gain.value = 0.22;
@@ -280,8 +273,6 @@ function initAudio() {
   _trackReverbSends.pad.connect(_reverbSend);
   _trackEQs.snare[_trackEQs.snare.length - 1].connect(_trackReverbSends.snare);
   _trackReverbSends.snare.connect(_reverbSend);
-  _trackEQs.arp[_trackEQs.arp.length - 1].connect(_trackReverbSends.arp);
-  _trackReverbSends.arp.connect(_reverbSend);
   _trackEQs.melody[_trackEQs.melody.length - 1].connect(_trackReverbSends.melody);
   _trackReverbSends.melody.connect(_reverbSend);
   _trackEQs.perk[_trackEQs.perk.length - 1].connect(_trackReverbSends.perk);
@@ -302,13 +293,9 @@ function initAudio() {
   _delay.connect(_delayOut);
   _delayOut.connect(_mixBus);
 
-  // Per-track delay sends: arp (8th note), sfx/voices (16th note, low feedback)
-  _trackDelaySends.arp = audioCtx.createGain();
-  _trackDelaySends.arp.gain.value = 0.2;
+  // Per-track delay sends: sfx/voices (16th note, low feedback)
   _trackDelaySends.sfx = audioCtx.createGain();
   _trackDelaySends.sfx.gain.value = 0.1;
-  _trackEQs.arp[_trackEQs.arp.length - 1].connect(_trackDelaySends.arp);
-  _trackDelaySends.arp.connect(_delaySend);
   _trackEQs.sfx[_trackEQs.sfx.length - 1].connect(_trackDelaySends.sfx);
   _trackDelaySends.sfx.connect(_delaySend);
   // Melody delay send (wired after _delaySend is created)
@@ -472,7 +459,6 @@ function _playTransient(name, trackGain, time, gainMult) {
 var _SIDECHAIN_PROFILES = {
   bass: { duck: 0.80, attack: 0.005, release: 0.120 },
   pad:  { duck: 0.40, attack: 0.010, release: 0.200 },
-  arp:  { duck: 0.50, attack: 0.005, release: 0.100 },
   perc: { duck: 0.30, attack: 0.005, release: 0.100 },
   sfx:    { duck: 0.20, attack: 0.010, release: 0.080 },
   melody: { duck: 0.35, attack: 0.010, release: 0.150 },
@@ -483,7 +469,7 @@ function _pumpTrackSidechains(t) {
   // Apply per-phase sidechain multiplier from StateMapper (SPEC_016 §5/§7)
   var phaseMult = (typeof StateMapper !== 'undefined' && StateMapper._sidechainPhaseMult)
     ? StateMapper._sidechainPhaseMult : 1.0;
-  var tracks = ['bass', 'pad', 'arp', 'perc', 'sfx', 'melody', 'perk'];
+  var tracks = ['bass', 'pad', 'perc', 'sfx', 'melody', 'perk'];
   for (var i = 0; i < tracks.length; i++) {
     var sc = _trackSidechains[tracks[i]];
     if (!sc) continue;

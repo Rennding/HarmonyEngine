@@ -426,7 +426,7 @@ var NarrativeConductor = {
       case 'surge':
         // Theme motif plays retrograde. Instruments fade in reverse order of introduction.
         this._playMotifVariation('retrograde', t + 0.3, { volume: 0.35, tempoMult: 2.0 });
-        this._deathStaggerFade(t, ['melody', 'arp', 'perc', 'pad', 'snare', 'hat', 'bass'], 3.0);
+        this._deathStaggerFade(t, ['melody', 'perc', 'pad', 'snare', 'hat', 'bass'], 3.0);
         return { fadeDur: 3.0, silenceFirst: 0 };
 
       case 'storm':
@@ -546,9 +546,6 @@ var NarrativeConductor = {
       case 'snare':
         this._introSnareAccent(t, beatDur);
         break;
-      case 'arp':
-        this._introArpMotif(t, beatDur);
-        break;
       // hat: fade-in via gain ramp is the intro (materializing)
       // pad: 8-beat swell via gain ramp + PadTrack's own attack
       // perc: enters naturally during fill (FillSystem triggers at same time)
@@ -599,22 +596,6 @@ var NarrativeConductor = {
     _dispatchDrumSynth('snare', t + beatDur, 0.9, pal.drums.snare);
   },
 
-  // Arp: play theme motif as arpeggiated figure, then ArpTrack continues
-  _introArpMotif: function(t, beatDur) {
-    if (!this._motifMidi || this._motifMidi.length === 0) return;
-    this._refreshMotifMidi();
-    var notes = this._motifMidi;
-    var subDur = beatDur / 4; // 16th notes for arp feel
-    var arpDest = (typeof _trackGains !== 'undefined' && _trackGains.arp) ? _trackGains.arp : null;
-
-    for (var i = 0; i < notes.length; i++) {
-      var noteTime = t + i * subDur;
-      if (typeof MelodyEngine !== 'undefined' && MelodyEngine._playMelodyNote) {
-        MelodyEngine._playMelodyNote(notes[i], noteTime, 0.5, subDur * 0.8);
-      }
-    }
-  },
-
   // ── Re-entry rebuild (SPEC_020 §3) ────────────────────────────────────────
   // Called when hit-strip ends. Ramps track gains from 0→1 over 2 beats.
   onReentry: function(beatTime) {
@@ -624,7 +605,7 @@ var NarrativeConductor = {
     var rampDur = 2 * beatDur;
     this._reentryUntil = G.beatCount + 2;
 
-    var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'arp', 'melody'];
+    var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'melody'];
     for (var i = 0; i < tracks.length; i++) {
       var tg = (typeof _trackGains !== 'undefined') ? _trackGains[tracks[i]] : null;
       if (!tg) continue;
@@ -659,10 +640,6 @@ var NarrativeConductor = {
     // Hat exit: open hat (extended decay)
     if (!m.hat && !floor.hat) {
       this._exitHatOpen(t);
-    }
-    // Arp exit: descending run
-    if (!m.arp && !floor.arp) {
-      this._exitArpDescend(t, beatDur);
     }
     // Pad: already handled by PadTrack._fadeOutVoices()
   },
@@ -703,27 +680,6 @@ var NarrativeConductor = {
     if (!pal || !pal.drums || !pal.drums.hat) return;
     // Play an open hat (high vel, the synth naturally decays longer at higher vel)
     _dispatchDrumSynth('hat', t, 1.0, pal.drums.hat);
-  },
-
-  // Arp: descending 4-note run before silence
-  _exitArpDescend: function(t, beatDur) {
-    if (typeof HarmonyEngine === 'undefined') return;
-    var scaleNotes = HarmonyEngine.getScaleNotes(4);
-    if (!scaleNotes || scaleNotes.length < 4) return;
-    var subDur = beatDur / 4;
-    var dest = (typeof _trackGains !== 'undefined' && _trackGains.arp) ? _trackGains.arp : null;
-
-    // Pick 4 descending notes from current scale position
-    var startIdx = Math.min(scaleNotes.length - 1, 5);
-    for (var i = 0; i < 4; i++) {
-      var idx = startIdx - i;
-      if (idx < 0) idx = 0;
-      var noteTime = t + i * subDur;
-      var vol = 0.5 - i * 0.1; // diminuendo
-      if (typeof MelodyEngine !== 'undefined' && MelodyEngine._playMelodyNote) {
-        MelodyEngine._playMelodyNote(scaleNotes[idx], noteTime, Math.max(vol, 0.1), subDur * 0.7);
-      }
-    }
   },
 
   // ── Expose motif for MelodyEngine phrase seeding ───────────────────────────
@@ -1007,7 +963,7 @@ var NarrativeConductor = {
 
       case 'maelstrom_intimate':
         // Everything to half volume except melody (motif plays through)
-        this._duckTracks(['kick', 'snare', 'hat', 'bass', 'pad', 'perc', 'arp'], t, 0.5);
+        this._duckTracks(['kick', 'snare', 'hat', 'bass', 'pad', 'perc'], t, 0.5);
         break;
 
       case 'pre_phase':
@@ -1028,7 +984,7 @@ var NarrativeConductor = {
 
     // Restore all track gains over 0.5 beats
     var rampTime = (60 / G.bpm) * 0.5;
-    var tracks = ['kick', 'snare', 'hat', 'bass', 'pad', 'perc', 'arp', 'melody'];
+    var tracks = ['kick', 'snare', 'hat', 'bass', 'pad', 'perc', 'melody'];
     for (var i = 0; i < tracks.length; i++) {
       var g = _trackGains[tracks[i]];
       if (g) {
@@ -1051,7 +1007,7 @@ var NarrativeConductor = {
 
   // Duck all tracks
   _duckAllTracks: function(t, targetGain) {
-    var tracks = ['kick', 'snare', 'hat', 'bass', 'pad', 'perc', 'arp', 'melody'];
+    var tracks = ['kick', 'snare', 'hat', 'bass', 'pad', 'perc', 'melody'];
     this._duckTracks(tracks, t, targetGain);
   },
 

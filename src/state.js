@@ -184,13 +184,13 @@ var TensionMap = (function() {
     },
 
     setSuppressed: function(v) { _suppressed = !!v; },
-    isActive: function() {
+    isActive: function(beat) {
       if (_suppressed) return false;
-      return !!_findActive(G.beatCount);
+      return !!_findActive(beat != null ? beat : G.beatCount - G.beatCountCycleBase);
     },
-    currentEvent: function() {
+    currentEvent: function(beat) {
       if (_suppressed) return null;
-      return _findActive(G.beatCount);
+      return _findActive(beat != null ? beat : G.beatCount - G.beatCountCycleBase);
     },
     reset: function() { _events = []; _suppressed = false; },
   };
@@ -220,6 +220,7 @@ const G = {
   dc: 0,
   phase: 'pulse',
   phaseEntryBeat: 0,
+  beatCountCycleBase: 0,   // subtracted from beatCount for cycle-relative DC + TensionMap lookups
   _phaseChangeListeners: [],
 
   // Perk state
@@ -247,13 +248,15 @@ const G = {
 function updateDC(beatTime) {
   var moodKey = (CFG.MOODS[G.settings.mood] || CFG.MOODS[1]).name.toLowerCase();
   var curve = CFG.DIFFICULTY.CURVES[moodKey] || CFG.DIFFICULTY.CURVES.normal;
-  var baseDC = Math.pow(G.beatCount / curve.scale, curve.exp);
+  // Use cycle-relative beat so each cycle's DC arc starts from 0
+  var cycleBeat = G.beatCount - G.beatCountCycleBase;
+  var baseDC = Math.pow(cycleBeat / curve.scale, curve.exp);
 
   // ── Tension curve modulation (SPEC_011 §4) ──────────────────────────────
-  var tension = TensionMap.getOffset(G.beatCount);
+  var tension = TensionMap.getOffset(cycleBeat);
   if (tension.freeze) {
     // Plateau: stamp frozenDC on first beat, then hold
-    TensionMap._stampFrozenDC(G.beatCount, baseDC);
+    TensionMap._stampFrozenDC(cycleBeat, baseDC);
     if (tension.freezeLerp < 1.0) {
       // easeOut: lerp from frozen back to current baseDC
       G.dc = tension.frozenDC + (baseDC - tension.frozenDC) * (1.0 - tension.freezeLerp);
@@ -265,15 +268,15 @@ function updateDC(beatTime) {
     G.dc = Math.max(0, baseDC + offset);
   }
 
-  // Log tension event transitions
-  var curEvent = TensionMap.currentEvent();
+  // Log tension event transitions (use cycle-relative beat for event lookup)
+  var curEvent = TensionMap.currentEvent(cycleBeat);
   if (curEvent) {
-    var into = G.beatCount - curEvent.startBeat;
+    var into = cycleBeat - curEvent.startBeat;
     if (into === 0) {
-      console.log('[TensionMap] ' + curEvent.type + ' started at beat ' + G.beatCount +
+      console.log('[TensionMap] ' + curEvent.type + ' started at cycle-beat ' + cycleBeat +
                   ' (duration=' + curEvent.duration + ')');
     } else if (into === curEvent.duration - 1) {
-      console.log('[TensionMap] ' + curEvent.type + ' ending at beat ' + G.beatCount);
+      console.log('[TensionMap] ' + curEvent.type + ' ending at cycle-beat ' + cycleBeat);
     }
   }
 
@@ -319,6 +322,7 @@ function resetRun(seedOverride) {
   G.dc = 0;
   G.phase = 'pulse';
   G.phaseEntryBeat = 0;
+  G.beatCountCycleBase = 0;
   G._phaseChangeListeners = [];
   G.perks = [];
   G.beatsSinceHit = 0;

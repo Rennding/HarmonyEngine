@@ -190,7 +190,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #27 + #29 builds complete, both awaiting QA. Next: #12 — Post-Maelstrom decay arc (plan).**
+**Status: #29 awaiting QA. Next: #12 — Post-Maelstrom decay arc (plan).**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -215,7 +215,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#10** Staggered phase transitions — plan complete → SPEC_010_STAGGERED_PHASE_TRANSITIONS.md
 ✅ **#26** Staggered phase transitions — PhaseStagger scheduler + per-palette profiles (Opus) — qa-pass
 ✅ **#11** Tension curve randomization — plan complete → SPEC_011_TENSION_CURVE_RANDOMIZATION.md
-- **#27** Tension curve randomization — TensionMap + palette profiles + DC integration (Opus) — **awaiting QA**
+✅ **#27** Tension curve randomization — TensionMap + palette profiles + DC integration (Opus) — qa-pass
 ✅ **#28** Per-palette Storm/Maelstrom personality — plan complete → SPEC_028_PALETTE_STORM_PERSONALITY.md
 - **#29** Per-palette Storm/Maelstrom personality — tier caps + gain scalars + phase filters (Opus) — **awaiting QA**
 - **#12** Post-Maelstrom decay arc — break down → new cycle (plan)

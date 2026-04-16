@@ -79,6 +79,8 @@ var Conductor = (function() {
     var oldPhase = G.phase;
     G.phase = 'pulse';
     G.phaseEntryBeat = G.beatCount;
+    // Anchor cycle-relative beat so updateDC's power curve restarts from 0
+    G.beatCountCycleBase = G.beatCount;
     // Reset DC to 0 so the full Pulse→Maelstrom arc replays
     G.dc = 0;
     for (var j = 0; j < G._phaseChangeListeners.length; j++) {
@@ -286,7 +288,22 @@ var Conductor = (function() {
 
     // --- Cycle mode API (SPEC_008 §7) ---
     setCycleMode: function(v) {
+      var was = G.settings.cycleMode;
       G.settings.cycleMode = !!v;
+      // When turning cycle mode off, anchor beatCountCycleBase so updateDC
+      // restarts its power curve from the current beat (avoids Maelstrom snap).
+      if (was && !G.settings.cycleMode) {
+        G.beatCountCycleBase = G.beatCount;
+        G.dc = 0;
+        var oldPhase = G.phase;
+        G.phase = 'pulse';
+        G.phaseEntryBeat = G.beatCount;
+        for (var j = 0; j < G._phaseChangeListeners.length; j++) {
+          G._phaseChangeListeners[j]('pulse', oldPhase, 0);
+        }
+        // Also abort any in-progress cycle transition
+        _resetCycleState();
+      }
       console.log('[Conductor] Cycle mode: ' + (G.settings.cycleMode ? 'ON' : 'OFF'));
     },
     isCycleMode: function() { return G.settings.cycleMode; },

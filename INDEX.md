@@ -23,7 +23,8 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | CFG.COMBO_LAYER_THRESHOLDS | config.js | 50 | Combo needed per track above floor |
 | CFG.PHASE_FX | config.js | 60 | Per-phase additive FX |
 | CFG.GAIN | config.js | 82 | Volume levels for all audio elements |
-| CFG.STAGGER_OVERRIDE | config.js | 129 | Override stagger profile (null = palette default) |
+| CFG.TENSION | config.js | 132 | Tension curve randomization constants (SPEC_011) |
+| CFG.STAGGER_OVERRIDE | config.js | 147 | Override stagger profile (null = palette default) |
 | CFG.STAGGER_DEFAULT | config.js | 130 | Fallback stagger profile when palette has none |
 | CFG.CYCLE | config.js | 85 | Cycle mode timing constants (SPEC_008) |
 | CFG.VIZ | config.js | 142 | Visualizer constants |
@@ -35,10 +36,14 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Symbol | File | Line | Description |
 |---|---|---|---|
 | _songRng / _createSongRng | state.js | 3–14 | Mulberry32 seeded PRNG |
-| G | state.js | 21 | Global mutable state |
-| updateDC() | state.js | 66 | Difficulty coefficient engine |
-| onPhaseChange() | state.js | 87 | Register phase-change listener |
-| resetRun() | state.js | 102 | Initialize all subsystems for new run |
+| TensionMap | state.js | 18 | Tension curve modulation system (SPEC_011) |
+| TensionMap.generate() | state.js | ~55 | Build event array from PRNG + palette |
+| TensionMap.getOffset() | state.js | ~110 | Per-beat DC offset (or plateau freeze) |
+| TensionMap._capSpike() | state.js | ~130 | Cap spike to ≤1 phase skip |
+| G | state.js | ~165 | Global mutable state |
+| updateDC() | state.js | ~210 | Difficulty coefficient engine + tension integration |
+| onPhaseChange() | state.js | ~245 | Register phase-change listener |
+| resetRun() | state.js | ~250 | Initialize all subsystems for new run |
 
 ---
 

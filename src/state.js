@@ -15,6 +15,187 @@ function _createSongRng(seed) {
   };
 }
 
+// ========== TENSION MAP (SPEC_011) ==========
+// Generates per-song tension events (plateaus, spikes, retreats) on top of
+// the monotonic DC power curve. Same seed → same map → reproducible.
+
+var TensionMap = (function() {
+  var _events = [];
+  var _suppressed = false;  // true when autoPhase off or cycle active
+
+  // Find the active event for a given beat count
+  function _findActive(beat) {
+    for (var i = 0; i < _events.length; i++) {
+      var e = _events[i];
+      if (beat >= e.startBeat && beat < e.startBeat + e.duration) return e;
+    }
+    return null;
+  }
+
+  // Compute eased offset for spike/retreat
+  function _easedOffset(e, beat) {
+    var into = beat - e.startBeat;
+    var t;
+    if (e.easeIn > 0 && into < e.easeIn) {
+      t = into / e.easeIn;
+      return e.magnitude * t;
+    } else if (e.easeOut > 0 && into > e.duration - e.easeOut) {
+      var remaining = e.duration - into;
+      t = remaining / e.easeOut;
+      return e.magnitude * t;
+    }
+    return e.magnitude;
+  }
+
+  return {
+    // Generate tension events from PRNG + palette profile
+    generate: function(rng, palette) {
+      _events = [];
+      _suppressed = false;
+      if (!rng || !palette) return;
+
+      var T = CFG.TENSION;
+      var prof = palette.tension || {};
+      var density = prof.eventDensity != null ? prof.eventDensity : 0.7;
+      var retreatDepth = prof.retreatDepth != null ? prof.retreatDepth : 0.15;
+      var spikeHeight = prof.spikeHeight != null ? prof.spikeHeight : 0.20;
+      var plateauBias = prof.plateauBias != null ? prof.plateauBias : 0.0;
+
+      // Compute adjusted probabilities
+      var pNone = T.BASE_PROBS.none;
+      var pPlateau = T.BASE_PROBS.plateau + plateauBias;
+      var pSpike = T.BASE_PROBS.spike;
+      var pRetreat = T.BASE_PROBS.retreat;
+      // Normalize
+      var sum = pNone + pPlateau + pSpike + pRetreat;
+      pNone /= sum; pPlateau /= sum; pSpike /= sum; pRetreat /= sum;
+
+      // Phase thresholds for spike capping
+      var phases = CFG.PHASES;
+
+      // Walk candidate windows
+      var beat = T.GRACE_BEATS;
+      var maxBeat = 800; // ~6+ minutes at 120bpm — enough for any song
+      var lastEventEnd = 0;
+
+      while (beat < maxBeat) {
+        var windowSize = T.WINDOW_MIN + Math.floor(rng() * (T.WINDOW_MAX - T.WINDOW_MIN + 1));
+        var midBeat = beat + Math.floor(windowSize / 2);
+
+        // Density roll — skip window?
+        if (rng() > density) { beat += windowSize; continue; }
+
+        // Enforce gap from last event
+        if (midBeat < lastEventEnd + T.GAP_MIN) { beat += windowSize; continue; }
+
+        // Event type roll
+        var roll = rng();
+        var type;
+        if (roll < pNone) { beat += windowSize; continue; }
+        else if (roll < pNone + pPlateau) type = 'plateau';
+        else if (roll < pNone + pPlateau + pSpike) type = 'spike';
+        else type = 'retreat';
+
+        // Duration
+        var dur = T.DURATION[type];
+        var duration = dur.min + Math.floor(rng() * (dur.max - dur.min + 1));
+
+        // Magnitude
+        var magnitude = 0;
+        if (type === 'spike') {
+          // Magnitude = fraction of gap to next phase threshold
+          // Use spikeHeight as fraction of 0.30 (typical phase gap)
+          magnitude = spikeHeight * 0.30;
+        } else if (type === 'retreat') {
+          // Magnitude is negative — fraction of expected DC at this point
+          // Estimate DC at midBeat using normal curve
+          var moodKey = (CFG.MOODS[1] || {}).name;
+          var curve = CFG.DIFFICULTY.CURVES[(moodKey || 'normal').toLowerCase()] || CFG.DIFFICULTY.CURVES.normal;
+          var estDC = Math.pow(midBeat / curve.scale, curve.exp);
+          magnitude = -(retreatDepth * Math.max(estDC, 0.1));
+        }
+        // plateau magnitude stays 0 (freeze, not additive)
+
+        _events.push({
+          type: type,
+          startBeat: midBeat,
+          duration: duration,
+          magnitude: magnitude,
+          easeIn: dur.easeIn,
+          easeOut: dur.easeOut,
+          frozenDC: 0, // set at runtime for plateaus
+        });
+
+        lastEventEnd = midBeat + duration;
+        beat += windowSize;
+      }
+
+      if (_events.length > 0) {
+        console.log('[TensionMap] Generated ' + _events.length + ' events for ' + palette.name);
+      }
+    },
+
+    // Get the effective DC offset for a given beat.
+    // Returns { offset, freeze } — if freeze is true, caller uses frozenDC instead of baseDC+offset
+    getOffset: function(beatCount) {
+      if (_suppressed) return { offset: 0, freeze: false };
+      var e = _findActive(beatCount);
+      if (!e) return { offset: 0, freeze: false };
+
+      if (e.type === 'plateau') {
+        // During easeOut, lerp back to normal
+        var into = beatCount - e.startBeat;
+        if (e.easeOut > 0 && into > e.duration - e.easeOut) {
+          var remaining = e.duration - into;
+          var t = remaining / e.easeOut;
+          return { offset: 0, freeze: true, freezeLerp: t, frozenDC: e.frozenDC };
+        }
+        return { offset: 0, freeze: true, freezeLerp: 1.0, frozenDC: e.frozenDC };
+      }
+
+      return { offset: _easedOffset(e, beatCount), freeze: false };
+    },
+
+    // Set frozenDC for a plateau event at the given beat (called from updateDC on first beat of plateau)
+    _stampFrozenDC: function(beatCount, dc) {
+      var e = _findActive(beatCount);
+      if (e && e.type === 'plateau' && e.frozenDC === 0) {
+        e.frozenDC = dc;
+      }
+    },
+
+    // Cap spike so it doesn't skip >1 phase
+    _capSpike: function(baseDC, offset) {
+      if (offset <= 0) return offset;
+      var effective = baseDC + offset;
+      var phases = CFG.PHASES;
+      // Find current phase index
+      var curIdx = 0;
+      for (var i = phases.length - 1; i >= 0; i--) {
+        if (baseDC >= phases[i].dc) { curIdx = i; break; }
+      }
+      // Max allowed = threshold of curIdx+2 (skip 1 = land on curIdx+1, so cap at curIdx+2 boundary - 0.01)
+      var maxIdx = Math.min(curIdx + 2, phases.length - 1);
+      var cap = phases[maxIdx].dc - 0.01;
+      if (effective > cap && maxIdx < phases.length - 1) {
+        return cap - baseDC;
+      }
+      return offset;
+    },
+
+    setSuppressed: function(v) { _suppressed = !!v; },
+    isActive: function() {
+      if (_suppressed) return false;
+      return !!_findActive(G.beatCount);
+    },
+    currentEvent: function() {
+      if (_suppressed) return null;
+      return _findActive(G.beatCount);
+    },
+    reset: function() { _events = []; _suppressed = false; },
+  };
+})();
+
 // ========== VIRTUAL GAME STATE ==========
 // The audio engine reads these fields. The virtual conductor writes them.
 
@@ -66,7 +247,35 @@ const G = {
 function updateDC(beatTime) {
   var moodKey = (CFG.MOODS[G.settings.mood] || CFG.MOODS[1]).name.toLowerCase();
   var curve = CFG.DIFFICULTY.CURVES[moodKey] || CFG.DIFFICULTY.CURVES.normal;
-  G.dc = Math.pow(G.beatCount / curve.scale, curve.exp);
+  var baseDC = Math.pow(G.beatCount / curve.scale, curve.exp);
+
+  // ── Tension curve modulation (SPEC_011 §4) ──────────────────────────────
+  var tension = TensionMap.getOffset(G.beatCount);
+  if (tension.freeze) {
+    // Plateau: stamp frozenDC on first beat, then hold
+    TensionMap._stampFrozenDC(G.beatCount, baseDC);
+    if (tension.freezeLerp < 1.0) {
+      // easeOut: lerp from frozen back to current baseDC
+      G.dc = tension.frozenDC + (baseDC - tension.frozenDC) * (1.0 - tension.freezeLerp);
+    } else {
+      G.dc = tension.frozenDC;
+    }
+  } else {
+    var offset = TensionMap._capSpike(baseDC, tension.offset);
+    G.dc = Math.max(0, baseDC + offset);
+  }
+
+  // Log tension event transitions
+  var curEvent = TensionMap.currentEvent();
+  if (curEvent) {
+    var into = G.beatCount - curEvent.startBeat;
+    if (into === 0) {
+      console.log('[TensionMap] ' + curEvent.type + ' started at beat ' + G.beatCount +
+                  ' (duration=' + curEvent.duration + ')');
+    } else if (into === curEvent.duration - 1) {
+      console.log('[TensionMap] ' + curEvent.type + ' ending at beat ' + G.beatCount);
+    }
+  }
 
   var phases = CFG.PHASES;
   var newPhase = phases[0].name;
@@ -133,6 +342,8 @@ function resetRun(seedOverride) {
 
     HarmonyEngine.initRun(pal);
     if (typeof PaletteBlender !== 'undefined') PaletteBlender.initRun(pal);
+    // Generate tension map for this song (SPEC_011 §3.1)
+    TensionMap.generate(_songRng, pal);
     // Auto BPM: always pick from palette's natural range
     G.bpm = pal.bpmRange[0] + Math.floor(_songRng() * (pal.bpmRange[1] - pal.bpmRange[0] + 1));
     // BPM override: user-set value takes priority

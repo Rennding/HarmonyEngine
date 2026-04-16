@@ -9,6 +9,15 @@
 
 ---
 
+## 2026-04-17 — #27 Build: Tension curve randomization
+
+**What:** Implemented the TensionMap system. Songs now modulate DC with plateaus (freeze), spikes (false climaxes), and retreats (breath/dip) generated deterministically from the song seed. Each palette has a unique tension profile tuning density, retreat depth, spike height, and plateau bias. Plateaus freeze DC for 16–32 beats with easeOut lerp back. Spikes are capped to prevent skipping more than 1 phase. Retreats clamp at DC≥0. Tension is suppressed during manual phase override and cycle transitions, and regenerated on palette swap.
+
+**Files:** config.js (CFG.TENSION), state.js (TensionMap + updateDC integration + resetRun wiring), harmony.js (×10 tension profiles), conductor.js (suppression + regeneration), INDEX.md
+**Awaiting QA:** #27
+
+---
+
 ## 2026-04-17 — #28 Plan: Per-palette Storm/Maelstrom personality
 
 **What:** At Storm/Maelstrom, the WalkingBass engine plays the same jazz-like walking pattern across all 10 genres — worst in chiptune where a bright pulse wave walks like an upright bass at full volume. Designed a per-palette bass personality system with three knobs: tier cap (limits which WalkingBass complexity tiers a palette can reach — only noir_jazz gets full walking bass), gain scalar (tames bright timbres like chiptune at 0.7×, boosts subby ones like ambient_dread at 1.2×), and phase filter envelope (tighter lowpass at Storm/Maelstrom to prevent spectral buildup). Each palette now has genre-appropriate high-intensity bass behavior.

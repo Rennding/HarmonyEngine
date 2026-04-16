@@ -184,6 +184,8 @@ var PALETTES = [
 
     // Stagger: tight mechanical (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
+    // Tension: relentless build with sharp spikes (SPEC_011 §3.4)
+    tension: { eventDensity: 0.6, retreatDepth: 0.10, spikeHeight: 0.25, plateauBias: 0.0 },
   },
 
   {
@@ -287,6 +289,8 @@ var PALETTES = [
 
     // Stagger: cinematic build, melody enters last (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 6, window: 6 },
+    // Tension: cruising feel, longer plateaus (SPEC_011 §3.4)
+    tension: { eventDensity: 0.7, retreatDepth: 0.15, spikeHeight: 0.20, plateauBias: 0.1 },
   },
   {
     name: 'glitch',
@@ -389,6 +393,8 @@ var PALETTES = [
 
     // Stagger: chaotic, near-instant (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 1, texture: 1, melody: 2, window: 2 },
+    // Tension: chaotic, frequent events (SPEC_011 §3.4)
+    tension: { eventDensity: 0.9, retreatDepth: 0.20, spikeHeight: 0.30, plateauBias: -0.1 },
   },
 
   {
@@ -498,6 +504,8 @@ var PALETTES = [
 
     // Stagger: glacial drift, maximum spread (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 4, texture: 8, melody: 12, window: 12 },
+    // Tension: slow burn, heavy plateaus, rare spikes (SPEC_011 §3.4)
+    tension: { eventDensity: 0.5, retreatDepth: 0.12, spikeHeight: 0.10, plateauBias: 0.3 },
   },
 
   // ── lo-fi_chill (SPEC_019 §1.1) ──────────────────────────────────────────
@@ -605,6 +613,8 @@ var PALETTES = [
 
     // Stagger: lazy, unhurried drift (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 6, melody: 8, window: 8 },
+    // Tension: relaxed, gentle variation (SPEC_011 §3.4)
+    tension: { eventDensity: 0.6, retreatDepth: 0.18, spikeHeight: 0.12, plateauBias: 0.2 },
   },
 
   // ── chiptune (SPEC_019 §1.3) ─────────────────────────────────────────────
@@ -716,6 +726,8 @@ var PALETTES = [
 
     // Stagger: snappy 8-bit, fast transitions (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 1, texture: 1, melody: 2, window: 2 },
+    // Tension: energetic, game-like pacing (SPEC_011 §3.4)
+    tension: { eventDensity: 0.8, retreatDepth: 0.15, spikeHeight: 0.25, plateauBias: 0.0 },
   },
 
   // ── noir_jazz (SPEC_019 §1.4) ──────────────────────────────────────────
@@ -906,6 +918,8 @@ var PALETTES = [
 
     // Stagger: smoky patience, bass walks in then sax (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 4, texture: 6, melody: 8, window: 8 },
+    // Tension: dramatic retreats, moody plateaus (SPEC_011 §3.4)
+    tension: { eventDensity: 0.7, retreatDepth: 0.20, spikeHeight: 0.15, plateauBias: 0.15 },
   },
 
   // ── industrial (SPEC_019 §1.2) ──────────────────────────────────────────
@@ -1129,6 +1143,8 @@ var PALETTES = [
 
     // Stagger: harsh but controlled (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 2, melody: 4, window: 4 },
+    // Tension: aggressive, spike-heavy (SPEC_011 §3.4)
+    tension: { eventDensity: 0.7, retreatDepth: 0.10, spikeHeight: 0.30, plateauBias: -0.1 },
   },
 
   // ── vaporwave (SPEC_019 §1.5) ────────────────────────────────────────────
@@ -1236,6 +1252,8 @@ var PALETTES = [
 
     // Stagger: dreamy, slowed, everything takes its time (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 4, texture: 8, melody: 10, window: 10 },
+    // Tension: dreamy, long plateaus, minimal spikes (SPEC_011 §3.4)
+    tension: { eventDensity: 0.5, retreatDepth: 0.15, spikeHeight: 0.10, plateauBias: 0.25 },
   },
 
   // ── breakbeat (SPEC_019 §1.6) ────────────────────────────────────────────
@@ -1343,6 +1361,8 @@ var PALETTES = [
 
     // Stagger: breaks hit first, rest follows quick (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
+    // Tension: energetic, sharp contrasts (SPEC_011 §3.4)
+    tension: { eventDensity: 0.8, retreatDepth: 0.18, spikeHeight: 0.28, plateauBias: -0.05 },
   },
 ];
 

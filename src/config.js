@@ -129,6 +129,25 @@ const CFG = {
   STAGGER_OVERRIDE: null,   // null = use palette defaults. Set to { rhythm, harmony, texture, melody, window } to override.
   STAGGER_DEFAULT: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
 
+  // ── Tension curve randomization (SPEC_011) ────────────────────────────────
+  TENSION: {
+    WINDOW_MIN: 32,          // minimum beats per candidate window
+    WINDOW_MAX: 64,          // maximum beats per candidate window
+    GRACE_BEATS: 16,         // no events before this beat
+    GAP_MIN: 8,              // minimum beats between events
+    BASE_PROBS: {            // base probabilities (before palette bias)
+      none: 0.40,
+      plateau: 0.25,
+      spike: 0.15,
+      retreat: 0.20,
+    },
+    DURATION: {
+      plateau: { min: 16, max: 32, easeIn: 0,  easeOut: 4 },
+      spike:   { min: 8,  max: 16, easeIn: 4,  easeOut: 4 },
+      retreat: { min: 12, max: 24, easeIn: 4,  easeOut: 8 },
+    },
+  },
+
   // ── Cycle mode timing (SPEC_008 §2/§3/§5) ────────────────────────────────
   CYCLE: {
     DECAY_BARS:           16,   // bars to strip instruments down

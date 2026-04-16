@@ -115,6 +115,9 @@ var Conductor = (function() {
       G.bpm = range[0] + Math.floor((_songRng || Math.random)() * (range[1] - range[0] + 1));
     }
 
+    // 6. Regenerate TensionMap for new palette (SPEC_011 §3.1 / §5.2)
+    if (typeof TensionMap !== 'undefined') TensionMap.generate(_songRng, _nextPalette);
+
     console.log('[Conductor] Cycle: palette swapped to ' + _nextPalette.name +
                 ' (seed=' + G.songSeed + ', bpm=' + G.bpm + ')');
   }
@@ -154,6 +157,11 @@ var Conductor = (function() {
 
     G.beatCount++;
     G.beatsSinceHit++;
+
+    // ── Tension suppression (SPEC_011 §5.1/§5.2) ─────────────────────────
+    if (typeof TensionMap !== 'undefined') {
+      TensionMap.setSuppressed(_cycleState !== null || !_autoPhase);
+    }
 
     // ── Cycle state processing (before normal phase logic) ──────────────
     if (_cycleState !== null) {

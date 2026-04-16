@@ -175,7 +175,6 @@
   <span><span class="label">Beat</span> <span class="value" id="statBeat">0</span></span>
   <span><span class="label">Phase</span> <span class="phase-value" id="statPhase">—</span></span>
   <span><span class="label">DC</span> <span class="value" id="statDC">0.00</span></span>
-  <span><span class="label">Combo</span> <span class="value" id="statCombo">0</span></span>
   <span><span class="label">BPM</span> <span class="value" id="statBPM">—</span></span>
   <span><span class="label">Palette</span> <span class="value" id="statPalette">—</span></span>
 </div>
@@ -217,16 +216,6 @@
   <!-- Conductor -->
   <div class="panel">
     <h2>Conductor</h2>
-    <div class="slider-row">
-      <label>Combo Rate</label>
-      <input type="range" min="0" max="5" step="0.5" value="1" id="slComboRate" oninput="onComboRate(this.value)">
-      <span class="slider-val" id="valComboRate">1</span>
-    </div>
-    <div class="slider-row">
-      <label>Set Combo</label>
-      <input type="range" min="0" max="100" value="0" id="slCombo" oninput="onSetCombo(this.value)">
-      <span class="slider-val" id="valCombo">0</span>
-    </div>
     <label style="font-size:12px; color:#555577; margin-bottom:6px; display:block;">Force Phase</label>
     <div class="phase-pills" id="phasePills">
       <span class="phase-pill active" data-phase="auto" onclick="onPhase('auto')">Auto</span>
@@ -9917,7 +9906,6 @@ var Conductor = (function() {
 
     // --- Controls ---
     setAutoIntensity: function(v) { _autoIntensity = !!v; },
-    setIntensityRate: function(r) { _intensityRate = Math.max(0, r); },
     setAutoPhase: function(v) { _autoPhase = !!v; },
     forcePhase: function(name) {
       // Locked during cycle transitions (SPEC_008 §10)
@@ -9945,12 +9933,6 @@ var Conductor = (function() {
       // G.bpm stays at current value until next resetRun(); that's acceptable —
       // the user pressed Auto so the next Play will pick the natural palette BPM.
     },
-    setIntensity: function(c) {
-      // Frozen during cycle transitions (SPEC_008 §10)
-      if (_cycleState !== null) return;
-      G.intensity = Math.max(0, c);
-    },
-
     // Simulate a "hit" — drops intensity, triggers audio effects
     simulateHit: function() {
       G.intensity = 0;
@@ -10025,14 +10007,6 @@ function onBPMAuto(checked) {
 function onCycleMode(checked) {
   Conductor.setCycleMode(checked);
 }
-function onComboRate(v) {
-  document.getElementById('valComboRate').textContent = v;
-  Conductor.setComboRate(parseFloat(v));
-}
-function onSetCombo(v) {
-  document.getElementById('valCombo').textContent = v;
-  Conductor.setCombo(parseInt(v));
-}
 function onPhase(p) {
   // Spec §10 edge case 5: force phase locked during cycle transition
   if (typeof Conductor !== 'undefined' && Conductor.getCycleState && Conductor.getCycleState()) return;
@@ -10087,12 +10061,6 @@ window.addEventListener('conductor:beat', function(e) {
     if (cyclePill) { cyclePill.style.display = 'none'; cyclePill.classList.remove('cycle-active'); }
   }
 
-  // Combo/intensity sliders: dim during decay (SPEC_008 §10 edge case 6)
-  var isDimmed = (d.cycleState === 'decay' || d.cycleState === 'bridge' || d.cycleState === 'rebuild');
-  var slComboRow = document.getElementById('slComboRate') && document.getElementById('slComboRate').closest('.slider-row');
-  var slCombo2Row = document.getElementById('slCombo') && document.getElementById('slCombo').closest('.slider-row');
-  if (slComboRow) slComboRow.classList.toggle('dimmed', isDimmed);
-  if (slCombo2Row) slCombo2Row.classList.toggle('dimmed', isDimmed);
 });
 
 // ── FFT Visualizer (canvas-based, no Phaser) ─────────────────────────────

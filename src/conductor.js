@@ -298,7 +298,6 @@ var Conductor = (function() {
 
     // --- Controls ---
     setAutoIntensity: function(v) { _autoIntensity = !!v; },
-    setIntensityRate: function(r) { _intensityRate = Math.max(0, r); },
     setAutoPhase: function(v) { _autoPhase = !!v; },
     forcePhase: function(name) {
       // Locked during cycle transitions (SPEC_008 §10)
@@ -326,12 +325,6 @@ var Conductor = (function() {
       // G.bpm stays at current value until next resetRun(); that's acceptable —
       // the user pressed Auto so the next Play will pick the natural palette BPM.
     },
-    setIntensity: function(c) {
-      // Frozen during cycle transitions (SPEC_008 §10)
-      if (_cycleState !== null) return;
-      G.intensity = Math.max(0, c);
-    },
-
     // Simulate a "hit" — drops intensity, triggers audio effects
     simulateHit: function() {
       G.intensity = 0;

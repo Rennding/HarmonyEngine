@@ -190,7 +190,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #29 awaiting QA. Next: #12 — Post-Maelstrom decay arc (plan).**
+**Status: #29 awaiting QA. #31 melody muted (applied, needs push). Next: #32 — Per-palette melody synth overhaul (plan, Opus), then #30.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -218,7 +218,10 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#27** Tension curve randomization — TensionMap + palette profiles + DC integration (Opus) — qa-pass
 ✅ **#28** Per-palette Storm/Maelstrom personality — plan complete → SPEC_028_PALETTE_STORM_PERSONALITY.md
 - **#29** Per-palette Storm/Maelstrom personality — tier caps + gain scalars + phase filters (Opus) — **awaiting QA**
-- **#12** Post-Maelstrom decay arc — break down → new cycle (plan)
+✅ **#31** Mute melody engine pending overhaul (applied, needs push)
+- **#32** Per-palette melody synth overhaul (plan, Opus) — **next plan session**
+✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
+- **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus)
 - **#13** Faster start — skip empty Pulse or add intro phrase (plan)
 
 ### Tier 5 · UI/UX (P2–P3)

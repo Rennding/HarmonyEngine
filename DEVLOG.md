@@ -9,6 +9,27 @@
 
 ---
 
+## 2026-04-17 — #31 Mute melody engine + #32 plan filed
+
+**What:** Melody engine muted across all phases. Single-osc synthesis path sounds identical across all 10 palettes — thin, artifact-like tones that ruin every listening session. Root cause: all palettes share the same synth topology (osc→LP→gain), wavetable swaps don't create real timbral variety, and `voiceConfig` isn't even read by the melody engine. Muted by zeroing `_PHASE_DENSITY` gains. Filed #32 for a full per-palette melody synth overhaul (plan session, Opus).
+
+**Files:** `src/melody.js`
+
+---
+
+## 2026-04-17 — #12 Plan: Post-Maelstrom theatrical decrescendo
+
+**What:** Planned the decay arc overhaul. Current cycle decay is pure gain ramps — musically inert. New design: each instrument gets a "musical exit" before its gain fade. Melody plays a final descending phrase (or sustains, or stutters — per palette). Bass drops to root-only. Drums go half-time. Pad freezes chord and rings out into reverb. 10 per-palette decay profiles control the feel: glitch = abrupt stutter-cut, ambient_dread = long reverb dissolve, noir_jazz = band wrapping up. 16-bar envelope preserved. Explored 4 options (album outro, DJ breakdown, radio crossfade, theatrical decrescendo) — Aram chose theatrical decrescendo.
+
+**Spec:** SPEC_012_POST_MAELSTROM_DECAY_ARC.md
+**Build issue:** #30 (Opus, ~35 edits, single session)
+
+---
+
+## 2026-04-17 — #27 QA pass
+
+---
+
 ## 2026-04-17 — #29 Build: Per-palette Storm/Maelstrom personality
 
 **What:** Implemented per-palette bass personality at Storm/Maelstrom. Added three new fields to each palette's bass config: `tierCap` (caps WalkingBass complexity — only noir_jazz gets full tier 4 walking), `gainScalar` (chiptune 0.7×, ambient_dread 1.2×, etc.), and `phaseFilter` (per-phase lowpass cutoff overrides for Storm/Maelstrom). Modified `WalkingBass._tier()` to accept a cap parameter with console logging when capped. Added `_activePalette` module-scope variable in sequencer.js for `_synthBass()` access to gain scalar and phase filter. FM modulation character preserved for dark_techno/glitch.

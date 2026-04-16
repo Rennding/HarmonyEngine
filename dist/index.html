@@ -8037,12 +8037,18 @@ var MelodyEngine = {
   // restRange: [min, max] beats of rest between phrases
   // maxPhraseLen: maximum notes per phrase
   // gain: volume multiplier for this phase
+  // ── MUTED: melody synth disabled pending overhaul (see #31) ────────────
+  // Original values preserved in comments for restoration after rebuild.
+  // swell:     { restRange: [4, 6],   maxPhraseLen: 3, gain: 0.35 }
+  // surge:     { restRange: [3, 5],   maxPhraseLen: 3, gain: 0.50 }
+  // storm:     { restRange: [2, 3],   maxPhraseLen: 4, gain: 0.75 }
+  // maelstrom: { restRange: [1, 2],   maxPhraseLen: 4, gain: 0.90 }
   _PHASE_DENSITY: {
-    pulse:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },      // silent
-    swell:     { restRange: [4, 6],   maxPhraseLen: 3, gain: 0.35 },   // sparse phrases: 3 notes, shorter rests (SPEC_022)
-    surge:     { restRange: [3, 5],   maxPhraseLen: 3, gain: 0.50 },   // moderate, sits behind drums (was 2-4, 0.65)
-    storm:     { restRange: [2, 3],   maxPhraseLen: 4, gain: 0.75 },   // active (was 1-3, 0.85)
-    maelstrom: { restRange: [1, 2],   maxPhraseLen: 4, gain: 0.90 },   // dense (was 1.0)
+    pulse:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
+    swell:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
+    surge:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
+    storm:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
+    maelstrom: { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
   },
 
   // ── Per-palette Markov transition matrices ────────────────────────────────

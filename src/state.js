@@ -29,7 +29,7 @@ const G = {
   bpm: CFG.BPM,
 
   // Settings
-  settings: { volume: 0.8, mood: 1, palette: 0, bpmOverride: null },  // palette: 0=random, 1..N=locked; bpmOverride: null=auto, number=locked BPM
+  settings: { volume: 0.8, mood: 1, palette: 0, bpmOverride: null, cycleMode: false },  // palette: 0=random, 1..N=locked; bpmOverride: null=auto, number=locked BPM; cycleMode: auto-rotate palettes
 
   // Per-run tracking
   songHash: '',

@@ -179,13 +179,14 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 | Date | Decision | Rationale |
 |---|---|---|
-<!-- Append decisions here as the project evolves. Keep entries to one line each. -->
+| 2026-04-16 | Cycle transition = musical bridge (decay→kick-only→rebuild), not crossfade or silence gap | Single audio graph, no resource doubling, phase-native. Crossfade doubles Web Audio cost; silence gap breaks radio fantasy. |
+| 2026-04-16 | Song arc = full Pulse→Maelstrom + randomized sustain (8–32 bars), rebuild starts at Surge | Complete phase journey every cycle. Random sustain adds variation. Surge entry avoids 30+ bar sparse gap. |
 
 ---
 
 ## 7 · DO THIS NEXT
 
-**Status: Next: #23 build-session — Cycle mode core engine (Opus).**
+**Status: #23 awaiting QA. Next: #24 build-session — Cycle mode track gain choreography (Sonnet).**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -200,7 +201,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#6** Palette lock — play one palette on repeat (P1) — qa-pass
 ✅ **#7** BPM override slider — independent of palette range (P1) — qa-pass
 ✅ **#8** Cycle mode — plan-session complete, spec written
-- **#23** Cycle mode — core engine + state machine (P1, Opus) — `SPEC_008_CYCLE_MODE.md`
+✅ **#22** Bug: Auto BPM always 120 — qa-pass
+- **#23** Cycle mode — core engine + state machine (P1, Opus) — **awaiting QA**
 - **#24** Cycle mode — track gain choreography (P1, Sonnet) — depends on #23
 - **#25** Cycle mode — UI + polish (P1, Sonnet) — depends on #24
 - **#9** Song identity — seed display + shareable URL params (P2)
@@ -222,9 +224,6 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 - **#19** PWA manifest — installable app
 - **#20** Dev server watch mode — rebuild on save
 - **#21** Production build — source maps + minification
-
-### Backlog
-- **#22** Bug: Auto BPM always 120 — palette bpmRange not applied (P2, pre-existing)
 
 ---
 

@@ -23,7 +23,8 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | CFG.COMBO_LAYER_THRESHOLDS | config.js | 50 | Combo needed per track above floor |
 | CFG.PHASE_FX | config.js | 60 | Per-phase additive FX |
 | CFG.GAIN | config.js | 82 | Volume levels for all audio elements |
-| CFG.VIZ | config.js | 132 | Visualizer constants |
+| CFG.CYCLE | config.js | 82 | Cycle mode timing constants (SPEC_008) |
+| CFG.VIZ | config.js | 142 | Visualizer constants |
 
 ---
 
@@ -129,8 +130,19 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| Conductor | conductor.js | 6 | Virtual game loop driving all subsystems |
-| Conductor.start() | conductor.js | ~60 | Start playback with optional palette |
-| Conductor.stop() | conductor.js | ~72 | Stop all audio |
-| Conductor.forcePhase() | conductor.js | ~90 | Override phase progression |
-| Conductor.triggerHit() | conductor.js | ~100 | Trigger impact event |
+| Conductor | conductor.js | 5 | Virtual game loop driving all subsystems |
+| _cycleState / _cycleBeats | conductor.js | 12–13 | Cycle mode internal state |
+| _barsToBts() | conductor.js | 18 | Convert bars to beats (4/4) |
+| _checkMaelstromSustain() | conductor.js | 21 | Check if sustain expired → enter decay |
+| _onMaelstromEntry() | conductor.js | 30 | Set randomized sustain timer |
+| _enterDecay/Bridge/Rebuild() | conductor.js | 38–60 | Cycle state transition functions |
+| _exitCycle() | conductor.js | 62 | End rebuild → resume at surge |
+| _doPaletteSwap() | conductor.js | 78 | Palette swap during bridge (§4) |
+| _processCycleBeat() | conductor.js | 100 | Per-beat cycle state machine |
+| _resetCycleState() | conductor.js | 153 | Reset all cycle state vars |
+| Conductor.start() | conductor.js | 161 | Start playback with optional palette |
+| Conductor.stop() | conductor.js | 176 | Stop all audio |
+| Conductor.setCycleMode() | conductor.js | 198 | Toggle cycle mode on/off |
+| Conductor.isCycleMode() | conductor.js | 202 | Read cycle mode state |
+| Conductor.getCycleState() | conductor.js | 203 | Current cycle transition state |
+| Conductor.forcePhase() | conductor.js | 221 | Override phase progression (locked during cycle) |

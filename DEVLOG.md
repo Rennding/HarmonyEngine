@@ -9,6 +9,18 @@
 
 ---
 
+## 2026-04-16 — #23 Build: Cycle mode core engine
+
+**What:** Conductor cycle state machine — `playing → decay → bridge → rebuild → playing`. Engine automatically transitions between palettes after Maelstrom sustain expires (randomized 8–32 bars). Palette swap happens on kick-only bridge, subsystems re-init without resetting beat clock or audio graph. Rebuild enters at Surge for continuous radio flow.
+
+**Files changed:** conductor.js (major rewrite — cycle state machine + all transition logic), config.js (CFG.CYCLE constants), state.js (G.settings.cycleMode).
+
+**QA #22 (auto BPM bug):** Passed, closed.
+
+**Test via console:** `Conductor.setCycleMode(true)` then play. Listen for Maelstrom sustain → instruments strip away → kick-only bridge → new palette layers in. Track gain choreography is #24 (separate session).
+
+---
+
 ## 2026-04-16 — #8 Plan: Cycle mode / radio station
 
 **Design decisions:**

@@ -128,6 +128,15 @@ const CFG = {
     death_note:  0.10,
   },
 
+  // ── Cycle mode timing (SPEC_008 §2/§3/§5) ────────────────────────────────
+  CYCLE: {
+    DECAY_BARS:           16,   // bars to strip instruments down
+    BRIDGE_BARS:           4,   // kick-only bars between palettes
+    REBUILD_BARS:         16,   // bars to layer new palette instruments in
+    MAELSTROM_SUSTAIN_MIN: 8,   // min bars before cycle triggers
+    MAELSTROM_SUSTAIN_MAX: 32,  // max bars before cycle triggers
+  },
+
   // ── Audio Visualizer (for UI) ─────────────────────────────────────────────
   VIZ: {
     CENTER_X:    300,

@@ -10502,10 +10502,9 @@ function doPlay() {
   // Seed is set by resetRun — read it back after a tick
   setTimeout(function() {
     if (typeof G !== 'undefined' && G.songSeed != null) {
-      var curPalIdx = (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette)
-        ? (typeof PALETTES !== 'undefined' ? PALETTES.indexOf(HarmonyEngine.getPalette()) : -1)
-        : -1;
-      _pushUrlParams(G.songSeed, curPalIdx);
+      // Only write palette to URL if user explicitly locked one — random stays -1
+      var lockedIdx = parseInt(document.getElementById('selPalette').value);
+      _pushUrlParams(G.songSeed, lockedIdx);
       var seedEl = document.getElementById('statSeed');
       if (seedEl) seedEl.textContent = G.songSeed;
     }

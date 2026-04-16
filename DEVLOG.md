@@ -9,6 +9,22 @@
 
 ---
 
+## 2026-04-16 — Dead code removal (#3)
+
+**What happened:**
+- Deleted 8 no-op stub functions from `state.js` (`loadHighScore`, `saveMeta`, `loadSettings`, etc.)
+- Removed 3 game-only G fields from declaration and `resetRun()`: `attunement`, `perkPaused`, `iframeUntil`
+- Removed `grazesLifetime` and `meta.unlocked` / `meta.achievements` (game-only, never read by audio)
+- Deleted entire `CFG.PERKS` block from `config.js` (~23 lines)
+- Removed all 4 `PerkAudioEngine` dead branches from `03d_state_mapper.js` and its `initRun` call from `state.js`
+- Updated stale comments in `03g_narrative.js` referencing the removed engine
+
+**Note:** `G.perks` kept — `StateMapper` still reads it for overdrive perk detection (future-compatible array, always `[]` standalone).
+
+**Files changed:** `src/state.js`, `src/config.js`, `src/03d_state_mapper.js`, `src/03g_narrative.js`, `INDEX.md`
+
+---
+
 ## 2026-04-16 — Foundation: AudioContext lifecycle + gate script (#1 + #2)
 
 **What happened:**

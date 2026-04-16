@@ -22,8 +22,8 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | CFG.PHASE_FLOOR | config.js | 40 | Tracks always audible per phase |
 | CFG.COMBO_LAYER_THRESHOLDS | config.js | 50 | Combo needed per track above floor |
 | CFG.PHASE_FX | config.js | 60 | Per-phase additive FX |
-| CFG.GAIN | config.js | 95 | Volume levels for all audio elements |
-| CFG.VIZ | config.js | 146 | Visualizer constants |
+| CFG.GAIN | config.js | 82 | Volume levels for all audio elements |
+| CFG.VIZ | config.js | 132 | Visualizer constants |
 
 ---
 
@@ -32,10 +32,10 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Symbol | File | Line | Description |
 |---|---|---|---|
 | _songRng / _createSongRng | state.js | 3–14 | Mulberry32 seeded PRNG |
-| G | state.js | 19 | Global mutable state |
-| updateDC() | state.js | 67 | Difficulty coefficient engine |
-| onPhaseChange() | state.js | 82 | Register phase-change listener |
-| resetRun() | state.js | 93 | Initialize all subsystems for new run |
+| G | state.js | 21 | Global mutable state |
+| updateDC() | state.js | 66 | Difficulty coefficient engine |
+| onPhaseChange() | state.js | 87 | Register phase-change listener |
+| resetRun() | state.js | 102 | Initialize all subsystems for new run |
 
 ---
 

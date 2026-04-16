@@ -41,13 +41,10 @@ const G = {
   phaseEntryBeat: 0,
   _phaseChangeListeners: [],
 
-  // Perk state (audio references these)
+  // Perk state
   perks: [],
-  attunement: null,
-  perkPaused: false,
 
-  // QoL state (audio references)
-  iframeUntil: 0,
+  // Playback state
   paused: false,
   beatsSinceHit: 0,
 
@@ -56,14 +53,11 @@ const G = {
   grazeStreakBeat: 0,
   pulseArmed: false,
   pulseCooldown: 0,
-  grazesLifetime: 0,
   grazesRun: 0,
 
-  // Meta (not used standalone, but referenced)
+  // Meta
   meta: {
     beatsLifetime: 0,
-    unlocked: [],
-    achievements: {},
   },
 };
 
@@ -118,8 +112,6 @@ function resetRun() {
   G.phaseEntryBeat = 0;
   G._phaseChangeListeners = [];
   G.perks = [];
-  G.attunement = null;
-  G.perkPaused = false;
   G.beatsSinceHit = 0;
   G.grazeStreak = 0;
   G.grazeStreakBeat = 0;
@@ -142,7 +134,6 @@ function resetRun() {
       : pal.bpmRange[0] + Math.floor(_songRng() * (pal.bpmRange[1] - pal.bpmRange[0] + 1));
     if (typeof Sequencer !== 'undefined') Sequencer.initRun(pal);
     if (typeof BulletVoicePool !== 'undefined') BulletVoicePool.initRun(pal);
-    if (typeof PerkAudioEngine !== 'undefined') PerkAudioEngine.initRun(pal);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.initRun(pal);
     if (typeof StateMapper !== 'undefined') StateMapper.initRun();
   } else {
@@ -154,7 +145,7 @@ function resetRun() {
   if (typeof applyVolumeSetting === 'function') applyVolumeSetting();
 }
 
-// ── Stubs for functions the audio engine may reference ─────────────────────
+// ── Song hash utility ─────────────────────────────────────────────────────
 
 function computeSongHash(paletteIdx, bpm, beats, combo, seed) {
   var n = seed
@@ -162,12 +153,3 @@ function computeSongHash(paletteIdx, bpm, beats, combo, seed) {
     : ((paletteIdx * 7919 + bpm * 6271 + beats * 1021 + combo * 3) & 0xFFFF);
   return n.toString(16).toUpperCase().padStart(4, '0');
 }
-
-function loadHighScore() {}
-function checkHighScore() {}
-function saveMeta() {}
-function loadMeta() {}
-function checkTierUnlocks() {}
-function checkAchievementUnlocks() {}
-function loadSettings() {}
-function saveSettings() {}

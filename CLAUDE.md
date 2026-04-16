@@ -185,8 +185,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #1+#2 QA passed. Foundation complete.**
-**Next build:** #3 (Sonnet) — Kill dead code (stubs, vestigial G fields, CFG.PERKS)
+**Status: #3 built, awaiting QA.**
+**Next build:** #4 (Sonnet) — Rename game vocabulary (combo→intensity, hp→energy, bullet→voice)
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass

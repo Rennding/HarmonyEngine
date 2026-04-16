@@ -79,30 +79,6 @@ const CFG = {
     COOLDOWN_MS: 150,
   },
 
-  // ── Perks config (audio references family/defs) ──────────────────────────
-  PERKS: {
-    OFFER_INTERVAL: 16,
-    ACCEPT_WINDOW:   3,
-    MAX_SLOTS:       5,
-    ATTUNE_SKEW:    0.6,
-    FAMILIES: ['low', 'mid', 'high', 'edge'],
-    DEFS: {
-      graviton:     { family: 'low',  cursed: false, tier: 0 },
-      timewarp:     { family: 'low',  cursed: false, tier: 1 },
-      void_well:    { family: 'low',  cursed: true,  tier: 2 },
-      phase:        { family: 'mid',  cursed: false, tier: 0 },
-      shrink:       { family: 'mid',  cursed: false, tier: 1 },
-      glass_dancer: { family: 'mid',  cursed: true,  tier: 2 },
-      resonance:    { family: 'high', cursed: false, tier: 0 },
-      echo:         { family: 'high', cursed: false, tier: 1 },
-      overdrive:    { family: 'high', cursed: true,  tier: 2 },
-      slash:        { family: 'edge', cursed: false, tier: 0 },
-      streak:       { family: 'edge', cursed: false, tier: 1 },
-      pulse:        { family: 'edge', cursed: true,  tier: 2 },
-    },
-    FAMILY_COLORS: { low: 0x7b2fff, mid: 0x00ffee, high: 0xffd700, edge: 0xcccccc },
-  },
-
   GAIN: {
     // Drums
     kick:        0.38,

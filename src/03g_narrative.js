@@ -739,7 +739,6 @@ var NarrativeConductor = {
 
   // ══════════════════════════════════════════════════════════════════════════
   // STREAK MILESTONES (SPEC_020 §5) — narrative-level graze streak rewards
-  // Uses PerkAudioEngine._baseGrazeStreak (always-active, not perk-gated).
   // Milestones at 3/5/8/12/20+. Reset on hit via resetStreakMilestones().
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -757,7 +756,7 @@ var NarrativeConductor = {
     this._streakUnison = false;
   },
 
-  // Called from StateMapper.registerNearMiss after PerkAudioEngine.playGrazeNote
+  // Called from StateMapper.registerNearMiss
   onGrazeStreak: function(streak) {
     if (!this._active || !audioCtx) return;
     var t = audioCtx.currentTime;

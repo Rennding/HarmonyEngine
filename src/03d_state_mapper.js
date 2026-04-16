@@ -270,13 +270,6 @@ var StateMapper = {
       Sequencer._comboComplexity = (combo >= 25) ? 'complex' : (combo >= 10) ? 'base' : 'simple';
     }
 
-    // Overdrive: scale pad/arp gains more aggressively with combo (SPEC_027 §4.5)
-    if (typeof PerkAudioEngine !== 'undefined' && typeof G !== 'undefined' &&
-        G.perks && G.perks.indexOf('overdrive') >= 0) {
-      PerkAudioEngine.applyOverdriveLayerBoost(combo);
-    } else if (typeof PerkAudioEngine !== 'undefined' && PerkAudioEngine.resetOverdriveLayerBoost) {
-      PerkAudioEngine.resetOverdriveLayerBoost();
-    }
   },
 
   // --- HP effects: filter + tremolo ---
@@ -687,14 +680,6 @@ var StateMapper = {
     // Play tier-based graze SFX (replaces old sine blip)
     if (typeof playGrazeSFX === 'function') playGrazeSFX(tier);
 
-    // Base graze chord-tone note (SPEC_027 §2.2 — replaces MelodyEngine.queueGraceNote)
-    if (typeof PerkAudioEngine !== 'undefined') {
-      PerkAudioEngine.playGrazeNote(tier, G.grazeStreak || 0);
-      // Streak milestones: narrative-level events at 3/5/8/12/20+ (SPEC_020 §5)
-      if (typeof NarrativeConductor !== 'undefined') {
-        NarrativeConductor.onGrazeStreak(PerkAudioEngine._baseGrazeStreak);
-      }
-    }
 
     // Detune active bullet voices ±25 cents for tension (tight/perfect only)
     if (tier !== 'normal' && typeof BulletVoicePool !== 'undefined') {
@@ -763,13 +748,6 @@ var StateMapper = {
     // HP=1 key darken (SPEC_017 §3)
     this._checkKeyDarken();
 
-    // Overdrive: harder hit duck — 60% on pad/arp/melody for 1 beat (SPEC_027 §4.5)
-    if (typeof PerkAudioEngine !== 'undefined' && typeof G !== 'undefined' &&
-        G.perks && G.perks.indexOf('overdrive') >= 0) {
-      PerkAudioEngine.applyOverdriveHitDuck();
-      PerkAudioEngine.resetOverdriveLayerBoost();
-    }
-
     // Immediate layer strip: mute above floor + gain drop (SPEC_020 §6)
     if (typeof Sequencer !== 'undefined') {
       var floor = CFG.PHASE_FLOOR[G.phase] || CFG.PHASE_FLOOR.pulse;
@@ -792,9 +770,6 @@ var StateMapper = {
 
     // Narrative motif fragment on hit (SPEC_020 §2)
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.onHit();
-
-    // Reset base graze streak for clean re-entry audio (SPEC_027)
-    if (typeof PerkAudioEngine !== 'undefined') PerkAudioEngine.resetBaseGrazeStreak();
 
     // Fade out pad voices if pad is not in floor
     if (typeof PadTrack !== 'undefined') {

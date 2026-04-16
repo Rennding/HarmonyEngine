@@ -303,30 +303,6 @@ const CFG = {
     COOLDOWN_MS: 150,
   },
 
-  // ── Perks config (audio references family/defs) ──────────────────────────
-  PERKS: {
-    OFFER_INTERVAL: 16,
-    ACCEPT_WINDOW:   3,
-    MAX_SLOTS:       5,
-    ATTUNE_SKEW:    0.6,
-    FAMILIES: ['low', 'mid', 'high', 'edge'],
-    DEFS: {
-      graviton:     { family: 'low',  cursed: false, tier: 0 },
-      timewarp:     { family: 'low',  cursed: false, tier: 1 },
-      void_well:    { family: 'low',  cursed: true,  tier: 2 },
-      phase:        { family: 'mid',  cursed: false, tier: 0 },
-      shrink:       { family: 'mid',  cursed: false, tier: 1 },
-      glass_dancer: { family: 'mid',  cursed: true,  tier: 2 },
-      resonance:    { family: 'high', cursed: false, tier: 0 },
-      echo:         { family: 'high', cursed: false, tier: 1 },
-      overdrive:    { family: 'high', cursed: true,  tier: 2 },
-      slash:        { family: 'edge', cursed: false, tier: 0 },
-      streak:       { family: 'edge', cursed: false, tier: 1 },
-      pulse:        { family: 'edge', cursed: true,  tier: 2 },
-    },
-    FAMILY_COLORS: { low: 0x7b2fff, mid: 0x00ffee, high: 0xffd700, edge: 0xcccccc },
-  },
-
   GAIN: {
     // Drums
     kick:        0.38,
@@ -445,13 +421,10 @@ const G = {
   phaseEntryBeat: 0,
   _phaseChangeListeners: [],
 
-  // Perk state (audio references these)
+  // Perk state
   perks: [],
-  attunement: null,
-  perkPaused: false,
 
-  // QoL state (audio references)
-  iframeUntil: 0,
+  // Playback state
   paused: false,
   beatsSinceHit: 0,
 
@@ -460,14 +433,11 @@ const G = {
   grazeStreakBeat: 0,
   pulseArmed: false,
   pulseCooldown: 0,
-  grazesLifetime: 0,
   grazesRun: 0,
 
-  // Meta (not used standalone, but referenced)
+  // Meta
   meta: {
     beatsLifetime: 0,
-    unlocked: [],
-    achievements: {},
   },
 };
 
@@ -522,8 +492,6 @@ function resetRun() {
   G.phaseEntryBeat = 0;
   G._phaseChangeListeners = [];
   G.perks = [];
-  G.attunement = null;
-  G.perkPaused = false;
   G.beatsSinceHit = 0;
   G.grazeStreak = 0;
   G.grazeStreakBeat = 0;
@@ -546,7 +514,6 @@ function resetRun() {
       : pal.bpmRange[0] + Math.floor(_songRng() * (pal.bpmRange[1] - pal.bpmRange[0] + 1));
     if (typeof Sequencer !== 'undefined') Sequencer.initRun(pal);
     if (typeof BulletVoicePool !== 'undefined') BulletVoicePool.initRun(pal);
-    if (typeof PerkAudioEngine !== 'undefined') PerkAudioEngine.initRun(pal);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.initRun(pal);
     if (typeof StateMapper !== 'undefined') StateMapper.initRun();
   } else {
@@ -558,7 +525,7 @@ function resetRun() {
   if (typeof applyVolumeSetting === 'function') applyVolumeSetting();
 }
 
-// ── Stubs for functions the audio engine may reference ─────────────────────
+// ── Song hash utility ─────────────────────────────────────────────────────
 
 function computeSongHash(paletteIdx, bpm, beats, combo, seed) {
   var n = seed
@@ -566,15 +533,6 @@ function computeSongHash(paletteIdx, bpm, beats, combo, seed) {
     : ((paletteIdx * 7919 + bpm * 6271 + beats * 1021 + combo * 3) & 0xFFFF);
   return n.toString(16).toUpperCase().padStart(4, '0');
 }
-
-function loadHighScore() {}
-function checkHighScore() {}
-function saveMeta() {}
-function loadMeta() {}
-function checkTierUnlocks() {}
-function checkAchievementUnlocks() {}
-function loadSettings() {}
-function saveSettings() {}
 
 
 // ── 03_audio.js ──────────────────────────────────────────
@@ -6796,13 +6754,6 @@ var StateMapper = {
       Sequencer._comboComplexity = (combo >= 25) ? 'complex' : (combo >= 10) ? 'base' : 'simple';
     }
 
-    // Overdrive: scale pad/arp gains more aggressively with combo (SPEC_027 §4.5)
-    if (typeof PerkAudioEngine !== 'undefined' && typeof G !== 'undefined' &&
-        G.perks && G.perks.indexOf('overdrive') >= 0) {
-      PerkAudioEngine.applyOverdriveLayerBoost(combo);
-    } else if (typeof PerkAudioEngine !== 'undefined' && PerkAudioEngine.resetOverdriveLayerBoost) {
-      PerkAudioEngine.resetOverdriveLayerBoost();
-    }
   },
 
   // --- HP effects: filter + tremolo ---
@@ -7213,14 +7164,6 @@ var StateMapper = {
     // Play tier-based graze SFX (replaces old sine blip)
     if (typeof playGrazeSFX === 'function') playGrazeSFX(tier);
 
-    // Base graze chord-tone note (SPEC_027 §2.2 — replaces MelodyEngine.queueGraceNote)
-    if (typeof PerkAudioEngine !== 'undefined') {
-      PerkAudioEngine.playGrazeNote(tier, G.grazeStreak || 0);
-      // Streak milestones: narrative-level events at 3/5/8/12/20+ (SPEC_020 §5)
-      if (typeof NarrativeConductor !== 'undefined') {
-        NarrativeConductor.onGrazeStreak(PerkAudioEngine._baseGrazeStreak);
-      }
-    }
 
     // Detune active bullet voices ±25 cents for tension (tight/perfect only)
     if (tier !== 'normal' && typeof BulletVoicePool !== 'undefined') {
@@ -7289,13 +7232,6 @@ var StateMapper = {
     // HP=1 key darken (SPEC_017 §3)
     this._checkKeyDarken();
 
-    // Overdrive: harder hit duck — 60% on pad/arp/melody for 1 beat (SPEC_027 §4.5)
-    if (typeof PerkAudioEngine !== 'undefined' && typeof G !== 'undefined' &&
-        G.perks && G.perks.indexOf('overdrive') >= 0) {
-      PerkAudioEngine.applyOverdriveHitDuck();
-      PerkAudioEngine.resetOverdriveLayerBoost();
-    }
-
     // Immediate layer strip: mute above floor + gain drop (SPEC_020 §6)
     if (typeof Sequencer !== 'undefined') {
       var floor = CFG.PHASE_FLOOR[G.phase] || CFG.PHASE_FLOOR.pulse;
@@ -7318,9 +7254,6 @@ var StateMapper = {
 
     // Narrative motif fragment on hit (SPEC_020 §2)
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.onHit();
-
-    // Reset base graze streak for clean re-entry audio (SPEC_027)
-    if (typeof PerkAudioEngine !== 'undefined') PerkAudioEngine.resetBaseGrazeStreak();
 
     // Fade out pad voices if pad is not in floor
     if (typeof PadTrack !== 'undefined') {
@@ -9328,7 +9261,6 @@ var NarrativeConductor = {
 
   // ══════════════════════════════════════════════════════════════════════════
   // STREAK MILESTONES (SPEC_020 §5) — narrative-level graze streak rewards
-  // Uses PerkAudioEngine._baseGrazeStreak (always-active, not perk-gated).
   // Milestones at 3/5/8/12/20+. Reset on hit via resetStreakMilestones().
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -9346,7 +9278,7 @@ var NarrativeConductor = {
     this._streakUnison = false;
   },
 
-  // Called from StateMapper.registerNearMiss after PerkAudioEngine.playGrazeNote
+  // Called from StateMapper.registerNearMiss
   onGrazeStreak: function(streak) {
     if (!this._active || !audioCtx) return;
     var t = audioCtx.currentTime;

@@ -9,6 +9,14 @@
 
 ---
 
+## 2026-04-16 — #25 Build: Cycle mode UI + polish
+
+**What:** Wired all Cycle Mode UI signals. The conductor:beat event already emitted cycleState + nextPalette from #23/#24 — this session connects those to the interface. Palette status bar now shows "synthwave → noir_jazz" format during transitions. Phase pills gain a teal "Cycle" pill and all other pills grey out + become unclickable during transitions. Force phase is gated on `Conductor.getCycleState()`. Combo/intensity sliders dim (opacity + pointer-events:none) during decay/bridge/rebuild. Cycle state label appears inline next to the checkbox. All controls restore to normal after rebuild.
+
+**Files changed:** shell.html
+
+---
+
 ## 2026-04-16 — #24 Build: Cycle mode track gain choreography
 
 **What:** Instruments now fade in/out smoothly during Cycle mode transitions. Decay phase: arp+melody → pad+perc → snare+bass → hat, each group over 4 bars, all ramps pre-scheduled via `linearRampToValueAtTime` from the beat clock time. Rebuild reverses the order. Kick protected at full gain throughout. StateMapper suppressed (`_cycleFrozen`) during transitions to prevent layer logic fighting the scheduled ramps. Fixed a subtle bug: `StateMapper.initRun()` on palette swap (bridge beat 1) was clearing the freeze flag — re-freeze now applied immediately after.

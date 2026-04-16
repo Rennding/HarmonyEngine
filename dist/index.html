@@ -153,6 +153,15 @@
     background: #7b2fff22;
   }
   .phase-pill:hover { border-color: #7b2fff88; }
+  .phase-pill.cycle-active {
+    border-color: #00ffcc;
+    color: #00ffcc;
+    background: #00ffcc22;
+  }
+  .phase-pills.cycle-locked .phase-pill { opacity: 0.3; cursor: default; pointer-events: none; }
+  .phase-pills.cycle-locked .phase-pill.cycle-active { opacity: 1; pointer-events: auto; }
+  .slider-row.dimmed label, .slider-row.dimmed .slider-val { opacity: 0.4; }
+  .slider-row.dimmed input[type=range] { opacity: 0.4; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -226,6 +235,7 @@
       <span class="phase-pill" data-phase="surge" onclick="onPhase('surge')">Surge</span>
       <span class="phase-pill" data-phase="storm" onclick="onPhase('storm')">Storm</span>
       <span class="phase-pill" data-phase="maelstrom" onclick="onPhase('maelstrom')">Maelstrom</span>
+      <span class="phase-pill" data-phase="cycle" style="display:none;">Cycle</span>
     </div>
     <div class="btn-row">
       <button class="btn danger" onclick="Conductor.simulateHit()">Sim Hit</button>
@@ -10156,6 +10166,8 @@ function onSetCombo(v) {
   Conductor.setCombo(parseInt(v));
 }
 function onPhase(p) {
+  // Spec §10 edge case 5: force phase locked during cycle transition
+  if (typeof Conductor !== 'undefined' && Conductor.getCycleState && Conductor.getCycleState()) return;
   document.querySelectorAll('.phase-pill').forEach(function(el) {
     el.classList.toggle('active', el.dataset.phase === p);
   });
@@ -10172,21 +10184,47 @@ window.addEventListener('conductor:beat', function(e) {
   document.getElementById('statBeat').textContent = d.beat;
   document.getElementById('statPhase').textContent = d.phase;
   document.getElementById('statDC').textContent = d.dc.toFixed(2);
-  document.getElementById('statCombo').textContent = d.combo;
   document.getElementById('statBPM').textContent = d.bpm;
   // Sync BPM slider to actual BPM when in Auto mode
   var chkAuto = document.getElementById('chkBPMAuto');
   if (chkAuto && chkAuto.checked) {
     document.getElementById('slBPM').value = d.bpm;
   }
-  if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette) {
+
+  // Palette status: show "current → next" during transition (SPEC_008 §9)
+  var palEl = document.getElementById('statPalette');
+  if (d.cycleState && d.nextPalette) {
+    var curPal = (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette)
+      ? (HarmonyEngine.getPalette() || {}).name || '—' : '—';
+    palEl.textContent = curPal + ' → ' + d.nextPalette;
+  } else if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette) {
     var pal = HarmonyEngine.getPalette();
-    document.getElementById('statPalette').textContent = pal ? pal.name : '—';
+    palEl.textContent = pal ? pal.name : '—';
   }
+
+  // Cycle state label next to checkbox
   var cycleEl = document.getElementById('valCycleState');
   if (cycleEl) {
-    cycleEl.textContent = d.cycleState ? ('→ ' + d.cycleState) : '';
+    cycleEl.textContent = d.cycleState ? d.cycleState : '';
   }
+
+  // Phase pills: lock and show "Cycle" pill during transition (SPEC_008 §9)
+  var pillsEl = document.getElementById('phasePills');
+  var cyclePill = pillsEl ? pillsEl.querySelector('[data-phase="cycle"]') : null;
+  if (d.cycleState) {
+    if (pillsEl) pillsEl.classList.add('cycle-locked');
+    if (cyclePill) { cyclePill.style.display = ''; cyclePill.classList.add('cycle-active'); }
+  } else {
+    if (pillsEl) pillsEl.classList.remove('cycle-locked');
+    if (cyclePill) { cyclePill.style.display = 'none'; cyclePill.classList.remove('cycle-active'); }
+  }
+
+  // Combo/intensity sliders: dim during decay (SPEC_008 §10 edge case 6)
+  var isDimmed = (d.cycleState === 'decay' || d.cycleState === 'bridge' || d.cycleState === 'rebuild');
+  var slComboRow = document.getElementById('slComboRate') && document.getElementById('slComboRate').closest('.slider-row');
+  var slCombo2Row = document.getElementById('slCombo') && document.getElementById('slCombo').closest('.slider-row');
+  if (slComboRow) slComboRow.classList.toggle('dimmed', isDimmed);
+  if (slCombo2Row) slCombo2Row.classList.toggle('dimmed', isDimmed);
 });
 
 // ── FFT Visualizer (canvas-based, no Phaser) ─────────────────────────────

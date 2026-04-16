@@ -186,7 +186,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #24 awaiting QA. Next: #25 build-session — Cycle mode UI + polish (Sonnet).**
+**Status: #25 awaiting QA. Next: #9 — Song identity (seed display + shareable URL params, Sonnet).**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -203,8 +203,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#8** Cycle mode — plan-session complete, spec written
 ✅ **#22** Bug: Auto BPM always 120 — qa-pass
 ✅ **#23** Cycle mode — core engine + state machine (P1, Opus) — qa-pass
-- **#24** Cycle mode — track gain choreography (P1, Sonnet) — **awaiting QA**
-- **#25** Cycle mode — UI + polish (P1, Sonnet) — depends on #24
+✅ **#24** Cycle mode — track gain choreography (P1, Sonnet) — qa-pass
+- **#25** Cycle mode — UI + polish (P1, Sonnet) — **awaiting QA**
 - **#9** Song identity — seed display + shareable URL params (P2)
 
 ### Tier 4 · Musicality (P2)

@@ -9,6 +9,19 @@
 
 ---
 
+## 2026-04-16 — Foundation: AudioContext lifecycle + gate script (#1 + #2)
+
+**What happened:**
+- Fixed AudioContext lifecycle: Stop now suspends the context (not abandons it); Start resumes it and waits for `running` state before the beat clock begins. Single context reused across all play/stop cycles — no leaks, no silent failures from browser context limits.
+- Fixed autoplay policy: `initAudio()` now calls `resume()` if the context already exists but is suspended. `Conductor.start()` chains `startBeatClock` off the resume promise so scheduled times are valid from beat 1.
+- Rewrote `npm run gate`: replaced the broken `node --check dist/index.html || true` with (1) `vm.Script` syntax check on the raw concatenated JS before HTML injection, (2) smoke test that verifies CFG, G, Conductor, HarmonyEngine, Sequencer are defined after top-level eval. Failures now exit loudly.
+
+**Files changed:** `src/03_audio.js`, `src/conductor.js`, `build.js`, `package.json`
+
+**What's next:** #3 dead code purge (stubs, vestigial G fields, CFG.PERKS)
+
+---
+
 ## 2026-04-16 — Extraction & Pipeline Setup
 
 **What happened:**

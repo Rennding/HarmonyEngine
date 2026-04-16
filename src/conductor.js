@@ -72,12 +72,22 @@ var Conductor = (function() {
       }
 
       initAudio();
-      startBeatClock(_onBeat);
+      // Resume AudioContext (may be suspended by autoplay policy or after stop()).
+      // startBeatClock after context is running so scheduled times are valid.
+      var self = this;
+      var resumePromise = (audioCtx && audioCtx.state !== 'running')
+        ? audioCtx.resume()
+        : Promise.resolve();
+      resumePromise.then(function() { startBeatClock(_onBeat); });
     },
 
     stop: function() {
       _running = false;
       stopBeatClock();
+      // Suspend (not close) AudioContext so it can be reused next play.
+      if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'running') {
+        audioCtx.suspend();
+      }
       if (typeof BulletVoicePool !== 'undefined') BulletVoicePool.shutdown();
       if (typeof StateMapper !== 'undefined') StateMapper.shutdown();
       if (typeof MelodyEngine !== 'undefined') MelodyEngine.shutdown();

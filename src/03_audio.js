@@ -127,7 +127,11 @@ function _makeImpulse(duration, decay) {
 }
 
 function initAudio() {
-  if (audioCtx) return;
+  if (audioCtx) {
+    // Already exists — resume if suspended (autoplay policy or after stop)
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return;
+  }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
   // --- Final output stage ---

@@ -7,7 +7,7 @@
     "build": "node build.js",
     "serve": "node scripts/dev-server.js",
     "dev": "node build.js && node scripts/dev-server.js",
-    "validate": "node build.js && node --check dist/index.html || true",
+    "validate": "node build.js",
     "gate": "npm run validate"
   }
 }

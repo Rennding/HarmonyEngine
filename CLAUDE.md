@@ -105,6 +105,8 @@ QA Briefs = user-facing: what changed, how to test (numbered steps), risks (obse
 ### Spec flow
 Draft → "Any revisions?" → confirm → fire in one pass: SPEC file + GitHub issues + DEVLOG. Never ask twice. Every SPEC includes a MODEL line (Sonnet=mechanical, Opus=judgment).
 
+Every build issue body must include a **Model:** line (e.g. `Model: Sonnet`) near the top, so Aram knows which model to select when starting the session.
+
 ### Issue-to-session mapping
 Default: one spec → one build issue → one session. Issues are fine-grained (one per deliverable) for QA tracking, but multiple issues can batch into a single build session.
 
@@ -183,15 +185,15 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Extraction complete. Audit done. 21 issues filed.**
-**Next build:** #1+#2 (one session, Sonnet) — AudioContext lifecycle + validate script fix
+**Status: #1+#2 QA passed. Foundation complete.**
+**Next build:** #3 (Sonnet) — Kill dead code (stubs, vestigial G fields, CFG.PERKS)
 
 ### Tier 1 · Foundation (P1)
-- **#1** AudioContext lifecycle — autoplay policy + start/stop leak
-- **#2** Fix validate/gate script — actually catch syntax errors
+✅ #1 AudioContext lifecycle — qa-pass
+✅ #2 Fix validate/gate script — qa-pass
 
 ### Tier 2 · Clean Extraction (P1–P3)
-- **#3** Kill dead code — stubs, vestigial G fields, CFG.PERKS (P1)
+- **#3** Kill dead code — stubs, vestigial G fields, CFG.PERKS (P1, Sonnet)
 - **#4** Rename game vocabulary — combo→intensity, hp→energy, bullet→voice (P2)
 - **#5** Rename source files — drop numeric prefixes (P3)
 

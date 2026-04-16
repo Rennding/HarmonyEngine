@@ -9,6 +9,14 @@
 
 ---
 
+## 2026-04-16 — #9 Build: Song identity — seed display + shareable URL
+
+**What:** Each song now has a visible seed in the status bar and a shareable URL. Pressing PLAY writes `?seed=XXXXX&palette=N` to the browser address bar via `history.replaceState`. Loading that URL and pressing PLAY replays the same song (same PRNG sequence, same palette, same BPM curve). `resetRun()` now accepts an optional `seedOverride` param; `Conductor.start()` passes it through. URL palette param pre-selects the dropdown on load if the user hasn't changed it.
+
+**Files changed:** src/state.js, src/conductor.js, src/shell.html
+
+---
+
 ## 2026-04-16 — #25 Build: Cycle mode UI + polish
 
 **What:** Wired all Cycle Mode UI signals. The conductor:beat event already emitted cycleState + nextPalette from #23/#24 — this session connects those to the interface. Palette status bar now shows "synthwave → noir_jazz" format during transitions. Phase pills gain a teal "Cycle" pill and all other pills grey out + become unclickable during transitions. Force phase is gated on `Conductor.getCycleState()`. Combo/intensity sliders dim (opacity + pointer-events:none) during decay/bridge/rebuild. Cycle state label appears inline next to the checkbox. All controls restore to normal after rebuild.

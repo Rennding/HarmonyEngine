@@ -99,7 +99,7 @@ function getPostMaelstromName() {
 
 // ── Run initialization (replaces resetRun) ────────────────────────────────
 
-function resetRun() {
+function resetRun(seedOverride) {
   G.score = 0;
   G.intensity = 0;
   G.bestIntensity = 0;
@@ -123,7 +123,12 @@ function resetRun() {
   if (typeof _selectPalette === 'function' && typeof HarmonyEngine !== 'undefined') {
     var pal = _selectPalette();
     var paletteIdx = (typeof PALETTES !== 'undefined') ? PALETTES.indexOf(pal) : 0;
-    G.songSeed = paletteIdx * 10000 + Math.floor(Math.random() * 10000);
+    // Seed override: use provided seed (URL param replay), else generate fresh
+    if (seedOverride != null && isFinite(seedOverride)) {
+      G.songSeed = seedOverride | 0;
+    } else {
+      G.songSeed = paletteIdx * 10000 + Math.floor(Math.random() * 10000);
+    }
     _songRng = _createSongRng(G.songSeed);
 
     HarmonyEngine.initRun(pal);

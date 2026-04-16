@@ -227,13 +227,13 @@ var Conductor = (function() {
   }
 
   return {
-    start: function() {
+    start: function(seedOverride) {
       if (_running) this.stop();
       _running = true;
       _paused = false;
       _resetCycleState();
 
-      resetRun();
+      resetRun(seedOverride);
 
       initAudio();
       // Resume AudioContext (may be suspended by autoplay policy or after stop()).

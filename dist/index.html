@@ -177,6 +177,7 @@
   <span><span class="label">DC</span> <span class="value" id="statDC">0.00</span></span>
   <span><span class="label">BPM</span> <span class="value" id="statBPM">—</span></span>
   <span><span class="label">Palette</span> <span class="value" id="statPalette">—</span></span>
+  <span><span class="label">Seed</span> <span class="value" id="statSeed">—</span></span>
 </div>
 
 <div class="controls">
@@ -498,7 +499,7 @@ function getPostMaelstromName() {
 
 // ── Run initialization (replaces resetRun) ────────────────────────────────
 
-function resetRun() {
+function resetRun(seedOverride) {
   G.score = 0;
   G.intensity = 0;
   G.bestIntensity = 0;
@@ -522,7 +523,12 @@ function resetRun() {
   if (typeof _selectPalette === 'function' && typeof HarmonyEngine !== 'undefined') {
     var pal = _selectPalette();
     var paletteIdx = (typeof PALETTES !== 'undefined') ? PALETTES.indexOf(pal) : 0;
-    G.songSeed = paletteIdx * 10000 + Math.floor(Math.random() * 10000);
+    // Seed override: use provided seed (URL param replay), else generate fresh
+    if (seedOverride != null && isFinite(seedOverride)) {
+      G.songSeed = seedOverride | 0;
+    } else {
+      G.songSeed = paletteIdx * 10000 + Math.floor(Math.random() * 10000);
+    }
     _songRng = _createSongRng(G.songSeed);
 
     HarmonyEngine.initRun(pal);
@@ -9835,13 +9841,13 @@ var Conductor = (function() {
   }
 
   return {
-    start: function() {
+    start: function(seedOverride) {
       if (_running) this.stop();
       _running = true;
       _paused = false;
       _resetCycleState();
 
-      resetRun();
+      resetRun(seedOverride);
 
       initAudio();
       // Resume AudioContext (may be suspended by autoplay policy or after stop()).
@@ -9967,16 +9973,61 @@ var Conductor = (function() {
   }
 })();
 
+// ── URL param helpers ────────────────────────────────────────────────────
+function _getUrlParams() {
+  var params = {};
+  var search = window.location.search;
+  if (!search) return params;
+  search.slice(1).split('&').forEach(function(part) {
+    var kv = part.split('=');
+    if (kv.length === 2) params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]);
+  });
+  return params;
+}
+
+function _pushUrlParams(seed, paletteIdx) {
+  var base = window.location.pathname;
+  var q = '?seed=' + seed;
+  if (paletteIdx >= 0) q += '&palette=' + paletteIdx;
+  window.history.replaceState(null, '', base + q);
+}
+
 // ── Transport controls ───────────────────────────────────────────────────
 function doPlay() {
   var sel = document.getElementById('selPalette');
   var idx = parseInt(sel.value);
+
+  // Read seed from URL if present (replay mode)
+  var urlParams = _getUrlParams();
+  var seedOverride = null;
+  if (urlParams.seed != null && isFinite(urlParams.seed)) {
+    seedOverride = parseInt(urlParams.seed, 10);
+  }
+  // Pre-select palette from URL if not explicitly set by user
+  if (urlParams.palette != null && sel.value === '-1') {
+    var urlPal = parseInt(urlParams.palette, 10);
+    if (urlPal >= 0) { sel.value = urlPal; idx = urlPal; }
+  }
+
   if (idx >= 0) {
     Conductor.lockPalette(idx);
   } else {
     Conductor.unlockPalette();
   }
-  Conductor.start();
+  Conductor.start(seedOverride);
+
+  // Write URL params so this song can be shared/replayed
+  // Seed is set by resetRun — read it back after a tick
+  setTimeout(function() {
+    if (typeof G !== 'undefined' && G.songSeed != null) {
+      var curPalIdx = (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette)
+        ? (typeof PALETTES !== 'undefined' ? PALETTES.indexOf(HarmonyEngine.getPalette()) : -1)
+        : -1;
+      _pushUrlParams(G.songSeed, curPalIdx);
+      var seedEl = document.getElementById('statSeed');
+      if (seedEl) seedEl.textContent = G.songSeed;
+    }
+  }, 50);
 }
 function doPause() {
   if (Conductor.isPaused()) Conductor.resume();
@@ -10027,6 +10078,10 @@ window.addEventListener('conductor:beat', function(e) {
   document.getElementById('statPhase').textContent = d.phase;
   document.getElementById('statDC').textContent = d.dc.toFixed(2);
   document.getElementById('statBPM').textContent = d.bpm;
+  // Seed display (G.songSeed set after resetRun)
+  if (typeof G !== 'undefined' && G.songSeed != null) {
+    document.getElementById('statSeed').textContent = G.songSeed;
+  }
   // Sync BPM slider to actual BPM when in Auto mode
   var chkAuto = document.getElementById('chkBPMAuto');
   if (chkAuto && chkAuto.checked) {

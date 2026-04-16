@@ -119,7 +119,6 @@ const CFG = {
     regen:         0.08,
     voice:       0.03,
     perk:        0.12,
-    stinger:     0.10,
     bass_fill:   0.12,
     death_swell: 0.08,
     death_note:  0.10,

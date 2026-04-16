@@ -357,7 +357,6 @@ const CFG = {
     regen:         0.08,
     voice:       0.03,
     perk:        0.12,
-    stinger:     0.10,
     bass_fill:   0.12,
     death_swell: 0.08,
     death_note:  0.10,
@@ -6781,7 +6780,6 @@ var StateMapper = {
   _deathFading:       false,
   _modulatedUp:       false,   // true if key was modulated up at Storm
   _phaseRegistered:   false,   // ensures one-time listener registration
-  _stingerGain:       null,    // dedicated one-shot gain node for stingers
   _fxBaselines:       null,    // { reverbWet, delayFb, dist } captured at initRun
   _sidechainPhaseMult: 1.0,    // per-phase sidechain intensity multiplier (SPEC_016 §5)
   _cycleFrozen: false,         // true during decay/bridge — suppress _updateLayers
@@ -6810,8 +6808,6 @@ var StateMapper = {
     this._effectiveFloor    = null;
     this._initEnergyFilter();
     this._initTremolo();
-    this._initStingerGain();
-
     // Capture FX baselines from audio graph (set during initAudio)
     this._fxBaselines = {
       reverbWet: (_reverbWet ? _reverbWet.gain.value : 0.3),
@@ -7205,17 +7201,6 @@ var StateMapper = {
     }
   },
 
-  // --- Stinger gain node: dedicated one-shot path → submixGain ---
-  _initStingerGain: function() {
-    if (!audioCtx || !submixGain) return;
-    if (this._stingerGain) {
-      try { this._stingerGain.disconnect(); } catch(e) {}
-    }
-    this._stingerGain = audioCtx.createGain();
-    this._stingerGain.gain.value = CFG.GAIN.stinger;
-    this._stingerGain.connect(sfxGain);
-  },
-
   // --- Apply phase FX: ramp reverb/delay/dist/sidechain over 2 beats (SPEC_011 §3.4, SPEC_016 §7) ---
   _applyPhaseEffects: function(newPhase, beatTime) {
     if (!audioCtx || !this._fxBaselines) return;
@@ -7322,163 +7307,6 @@ var StateMapper = {
     }
   },
 
-  // --- Play transition stinger: short one-shot sound (SPEC_011 §3.3) ---
-  _playStinger: function(newPhase, beatTime) {
-    if (!audioCtx || !this._stingerGain) return;
-    var t = beatTime || audioCtx.currentTime;
-    var g = this._stingerGain;
-
-    if (newPhase === 'swell') {
-      // Rising bass sweep: low→mid sine, 300ms
-      var osc = audioCtx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(55, t);
-      osc.frequency.exponentialRampToValueAtTime(220, t + 0.3);
-      var env = audioCtx.createGain();
-      env.gain.setValueAtTime(CFG.GAIN.stinger, t);
-      env.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-      osc.connect(env);
-      env.connect(g);
-      osc.start(t);
-      osc.stop(t + 0.4);
-    } else if (newPhase === 'surge') {
-      // Crash cymbal (noise burst) + chord stab
-      if (typeof _getNoiseBuffer === 'function') {
-        var nb = _getNoiseBuffer();
-        if (nb) {
-          var src = audioCtx.createBufferSource();
-          src.buffer = nb;
-          var bp = audioCtx.createBiquadFilter();
-          bp.type = 'highpass';
-          bp.frequency.value = 3000;
-          var env2 = audioCtx.createGain();
-          env2.gain.setValueAtTime(CFG.GAIN.stinger, t);
-          env2.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
-          src.connect(bp);
-          bp.connect(env2);
-          env2.connect(g);
-          src.start(t);
-          src.stop(t + 0.45);
-        }
-      }
-      // Chord stab (root + 5th)
-      if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine._currentChord) {
-        var root = HarmonyEngine._currentChord.rootSemitone + 48;
-        [root, root + 7].forEach(function(midi) {
-          var o = audioCtx.createOscillator();
-          o.type = 'sawtooth';
-          o.frequency.value = midiToFreq(midi);
-          var eg = audioCtx.createGain();
-          eg.gain.setValueAtTime(CFG.GAIN.stinger * 0.6, t);
-          eg.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-          o.connect(eg);
-          eg.connect(g);
-          o.start(t);
-          o.stop(t + 0.3);
-        });
-      }
-    } else if (newPhase === 'storm') {
-      // Descending chromatic run (3 notes, 100ms each) + sub drop
-      if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine._currentChord) {
-        var base = HarmonyEngine._currentChord.rootSemitone + 60;
-        [0, -1, -2].forEach(function(off, i) {
-          var o = audioCtx.createOscillator();
-          o.type = 'square';
-          o.frequency.value = midiToFreq(base + off);
-          var eg = audioCtx.createGain();
-          eg.gain.setValueAtTime(0.0001, t + i * 0.1);
-          eg.gain.linearRampToValueAtTime(CFG.GAIN.stinger * 0.7, t + i * 0.1 + 0.01);
-          eg.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.1 + 0.1);
-          o.connect(eg);
-          eg.connect(g);
-          o.start(t + i * 0.1);
-          o.stop(t + i * 0.1 + 0.12);
-        });
-      }
-      // Sub drop
-      var sub = audioCtx.createOscillator();
-      sub.type = 'sine';
-      sub.frequency.setValueAtTime(80, t);
-      sub.frequency.exponentialRampToValueAtTime(30, t + 0.3);
-      var subEnv = audioCtx.createGain();
-      subEnv.gain.setValueAtTime(CFG.GAIN.stinger, t);
-      subEnv.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-      sub.connect(subEnv);
-      subEnv.connect(g);
-      sub.start(t);
-      sub.stop(t + 0.4);
-    } else if (newPhase === 'maelstrom') {
-      // Reverse cymbal swell (200ms) into distorted chord hit
-      if (typeof _getNoiseBuffer === 'function') {
-        var nb2 = _getNoiseBuffer();
-        if (nb2) {
-          var src2 = audioCtx.createBufferSource();
-          src2.buffer = nb2;
-          var bp2 = audioCtx.createBiquadFilter();
-          bp2.type = 'bandpass';
-          bp2.frequency.value = 2000;
-          bp2.Q.value = 0.5;
-          var env3 = audioCtx.createGain();
-          env3.gain.setValueAtTime(0.0001, t);
-          env3.gain.exponentialRampToValueAtTime(CFG.GAIN.stinger * 1.2, t + 0.2);
-          env3.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
-          src2.connect(bp2);
-          bp2.connect(env3);
-          env3.connect(g);
-          src2.start(t);
-          src2.stop(t + 0.45);
-        }
-      }
-      // Distorted chord hit (root + tritone for tension)
-      if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine._currentChord) {
-        var rt = HarmonyEngine._currentChord.rootSemitone + 48;
-        [rt, rt + 6].forEach(function(midi) {
-          var o = audioCtx.createOscillator();
-          o.type = 'sawtooth';
-          o.frequency.value = midiToFreq(midi);
-          var eg = audioCtx.createGain();
-          eg.gain.setValueAtTime(CFG.GAIN.stinger * 0.8, t + 0.2);
-          eg.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-          o.connect(eg);
-          eg.connect(g);
-          o.start(t + 0.2);
-          o.stop(t + 0.55);
-        });
-      }
-    }
-  },
-
-  // --- Swell bass fill: rising octave on transition (SPEC_011 §3.2) ---
-  _playBassFill: function(beatTime) {
-    if (!audioCtx || !submixGain) return;
-    if (typeof HarmonyEngine === 'undefined' || !HarmonyEngine._currentChord) return;
-    var t = beatTime || audioCtx.currentTime;
-    var rootSemi = HarmonyEngine._currentChord.rootSemitone;
-    var baseMidi = rootSemi + 36; // octave 3
-    var stepDur = 0.12;
-    // Rising octave fill: root, 5th, octave, 5th (one bar)
-    var notes = [baseMidi, baseMidi + 7, baseMidi + 12, baseMidi + 7];
-    for (var i = 0; i < notes.length; i++) {
-      var osc = audioCtx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = midiToFreq(notes[i]);
-      var filt = audioCtx.createBiquadFilter();
-      filt.type = 'lowpass';
-      filt.frequency.value = 600;
-      filt.Q.value = 2;
-      var env = audioCtx.createGain();
-      var noteStart = t + i * stepDur;
-      env.gain.setValueAtTime(0.0001, noteStart);
-      env.gain.linearRampToValueAtTime(CFG.GAIN.bass_fill, noteStart + 0.02);
-      env.gain.exponentialRampToValueAtTime(0.0001, noteStart + stepDur - 0.01);
-      osc.connect(filt);
-      filt.connect(env);
-      env.connect(sfxGain);
-      osc.start(noteStart);
-      osc.stop(noteStart + stepDur + 0.02);
-    }
-  },
-
   // ══════════════════════════════════════════════════════════════════════════
   // PhaseStagger — scheduler + group dispatch (SPEC_010)
   // ══════════════════════════════════════════════════════════════════════════
@@ -7554,10 +7382,6 @@ var StateMapper = {
 
   // --- Group dispatch: rhythm (SPEC_010 §2.2) ---
   _dispatchRhythm: function(phase, oldPhase, beatTime) {
-    // Stinger + fill fire with rhythm group (transition audio cue)
-    if (oldPhase) this._playStinger(phase, beatTime);
-    if (phase === 'swell') this._playBassFill(beatTime);
-
     // Groove phase scaling (SPEC_018 §1)
     if (typeof GrooveEngine !== 'undefined') GrooveEngine.onPhaseChange(phase);
 
@@ -7969,11 +7793,6 @@ var StateMapper = {
     if (_upstream && _compressor) {
       try { _upstream.disconnect(_compressor); } catch(e) {}  // remove stale direct edge
       try { _upstream.connect(_compressor); } catch(e) {}
-    }
-    // Tear down stinger gain
-    if (this._stingerGain) {
-      try { this._stingerGain.disconnect(); } catch(e) {}
-      this._stingerGain = null;
     }
     this._fxBaselines   = null;
     this._sidechainTarget = null;

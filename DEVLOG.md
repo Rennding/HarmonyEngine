@@ -9,6 +9,32 @@
 
 ---
 
+## 2026-04-16 — #8 Plan: Cycle mode / radio station
+
+**Design decisions:**
+- **Transition:** Musical bridge — instruments strip away in reverse-phase order over 16 bars, 4-bar kick-only bridge, new palette layers back in over 16 bars. Single audio graph, no resource doubling.
+- **Song arc:** Full Pulse→Maelstrom with randomized Maelstrom sustain (8–32 bars) before rotation.
+- **Palette sequence:** Weighted recency (existing logic). Palette lock = same genre, new seed.
+- **Rebuild starts at Surge** — skipping Pulse/Swell avoids a 30+ bar sparse gap mid-radio.
+
+**Spec:** `SPEC_008_CYCLE_MODE.md`
+
+**Build chain:** #23 core engine (Opus) → #24 gain choreography (Sonnet) → #25 UI (Sonnet). Sequential — model mismatch + dependency chain.
+
+Next: #23 build-session — Cycle mode core engine + state machine.
+
+---
+
+## 2026-04-16 — #7 QA pass
+
+BPM override slider passed QA. Slider adjusts tempo mid-playback, Auto restores palette default.
+
+Pre-existing bug found: Auto BPM always starts at 120 regardless of palette — the palette's `bpmRange` isn't being applied. Filed as #22 (P2, not a regression from #7).
+
+Next: #8 plan-session — Cycle mode / radio station.
+
+---
+
 ## 2026-04-16 — BPM override slider (#7)
 
 **What happened:**

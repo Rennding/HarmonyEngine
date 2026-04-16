@@ -128,11 +128,9 @@ function resetRun() {
 
     HarmonyEngine.initRun(pal);
     if (typeof PaletteBlender !== 'undefined') PaletteBlender.initRun(pal);
-    var moodBpm = CFG.MOODS[G.settings.mood] ? CFG.MOODS[G.settings.mood].bpm : null;
-    G.bpm = moodBpm !== null
-      ? moodBpm
-      : pal.bpmRange[0] + Math.floor(_songRng() * (pal.bpmRange[1] - pal.bpmRange[0] + 1));
-    // BPM override: user-set value takes priority over palette/mood
+    // Auto BPM: always pick from palette's natural range
+    G.bpm = pal.bpmRange[0] + Math.floor(_songRng() * (pal.bpmRange[1] - pal.bpmRange[0] + 1));
+    // BPM override: user-set value takes priority
     if (G.settings.bpmOverride !== null) G.bpm = G.settings.bpmOverride;
     if (typeof Sequencer !== 'undefined') Sequencer.initRun(pal);
     if (typeof VoicePool !== 'undefined') VoicePool.initRun(pal);

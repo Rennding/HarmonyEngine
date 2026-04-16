@@ -185,8 +185,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #7 built, awaiting QA.**
-**Next build:** #8 (plan-session) — Cycle mode / radio station
+**Status: Next: #23 build-session — Cycle mode core engine (Opus).**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -199,8 +198,11 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ### Tier 3 · Core Product (P1–P2)
 ✅ **#6** Palette lock — play one palette on repeat (P1) — qa-pass
-- **#7** BPM override slider — independent of palette range (P1) ← awaiting QA
-- **#8** Cycle mode — auto palette rotation / radio station (P1, plan-session)
+✅ **#7** BPM override slider — independent of palette range (P1) — qa-pass
+✅ **#8** Cycle mode — plan-session complete, spec written
+- **#23** Cycle mode — core engine + state machine (P1, Opus) — `SPEC_008_CYCLE_MODE.md`
+- **#24** Cycle mode — track gain choreography (P1, Sonnet) — depends on #23
+- **#25** Cycle mode — UI + polish (P1, Sonnet) — depends on #24
 - **#9** Song identity — seed display + shareable URL params (P2)
 
 ### Tier 4 · Musicality (P2)
@@ -222,6 +224,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 - **#21** Production build — source maps + minification
 
 ### Backlog
+- **#22** Bug: Auto BPM always 120 — palette bpmRange not applied (P2, pre-existing)
 
 ---
 

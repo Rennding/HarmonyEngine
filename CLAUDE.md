@@ -190,7 +190,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #31 melody muted (applied, needs push). Next: #32 — Per-palette voice overhaul: melody synth + chord articulation (plan, Opus), then #30.**
+**Status: #32 plan complete. Next: #33 — Melody synth rebuild (Opus), then #34 ChordTrack (Opus), then #35 stagger wiring (Sonnet), then #30.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -218,8 +218,11 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#27** Tension curve randomization — TensionMap + palette profiles + DC integration (Opus) — qa-pass
 ✅ **#28** Per-palette Storm/Maelstrom personality — plan complete → SPEC_028_PALETTE_STORM_PERSONALITY.md
 ✅ **#29** Per-palette Storm/Maelstrom personality — tier caps + gain scalars + phase filters (Opus) — qa-pass
-✅ **#31** Mute melody engine pending overhaul (applied, needs push)
-- **#32** Per-palette voice overhaul — melody synth + chord articulation (plan, Opus) — **next plan session**
+✅ **#31** Mute melody engine pending overhaul — applied
+✅ **#32** Per-palette voice overhaul — plan complete → SPEC_032_PER_PALETTE_VOICE_OVERHAUL.md
+- **#33** Melody synth rebuild — per-palette synthesis chain (Opus) — **next build session**
+- **#34** ChordTrack — rhythmic chord articulation engine (Opus) — after #33 QA pass
+- **#35** ChordTrack stagger + phase tuning (Sonnet) — after #34
 ✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
 - **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus)
 - **#13** Faster start — skip empty Pulse or add intro phrase (plan)

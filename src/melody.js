@@ -21,22 +21,28 @@ var MelodyEngine = {
   _melodyStep: 0,      // melody's own 16th-note step counter for groove (SPEC_023 §B3)
   _barBeat: 0,         // beat position within current bar (0–3) for rest alignment (SPEC_023 §B4)
 
+  // ── Legato state (SPEC_032 §3.4) ──────────────────────────────────────────
+  _liveOsc: null,          // persistent oscillator for legato mode
+  _liveOsc2: null,         // PWM second oscillator (chiptune)
+  _liveGain: null,         // persistent gain node for legato
+  _liveFilter: null,       // persistent LPF for legato
+  _liveVibrato: null,      // vibrato LFO oscillator
+  _liveVibratoGain: null,  // vibrato depth gain node
+  _livePwmLfo: null,       // PWM LFO oscillator
+  _livePwmGain: null,      // PWM depth gain node
+  _liveNoteEnd: 0,         // scheduled end time of current legato note
+
   // ── Phase density config ──────────────────────────────────────────────────
   // restRange: [min, max] beats of rest between phrases
   // maxPhraseLen: maximum notes per phrase
   // gain: volume multiplier for this phase
-  // ── MUTED: melody synth disabled pending overhaul (see #31) ────────────
-  // Original values preserved in comments for restoration after rebuild.
-  // swell:     { restRange: [4, 6],   maxPhraseLen: 3, gain: 0.35 }
-  // surge:     { restRange: [3, 5],   maxPhraseLen: 3, gain: 0.50 }
-  // storm:     { restRange: [2, 3],   maxPhraseLen: 4, gain: 0.75 }
-  // maelstrom: { restRange: [1, 2],   maxPhraseLen: 4, gain: 0.90 }
+  // ── UNMUTED: melody synth rebuilt with per-palette chains (SPEC_032 #33) ──
   _PHASE_DENSITY: {
     pulse:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
-    swell:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
-    surge:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
-    storm:     { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
-    maelstrom: { restRange: [99, 99], maxPhraseLen: 0, gain: 0 },
+    swell:     { restRange: [4, 6],   maxPhraseLen: 3, gain: 0.35 },
+    surge:     { restRange: [3, 5],   maxPhraseLen: 3, gain: 0.50 },
+    storm:     { restRange: [2, 3],   maxPhraseLen: 4, gain: 0.75 },
+    maelstrom: { restRange: [1, 2],   maxPhraseLen: 4, gain: 0.90 },
   },
 
   // ── Per-palette Markov transition matrices ────────────────────────────────
@@ -525,6 +531,7 @@ var MelodyEngine = {
     this._muted = true; // starts muted; StateMapper._updateLayers unmutes at Swell+
     this._voice = null;
     this._voiceGain = null;
+    this._killLiveVoice(); // clean up any legato state from previous run
     this._subQueue = [];
     this._melodyStep = 0;
     this._barBeat = 0;
@@ -930,25 +937,115 @@ var MelodyEngine = {
     return bestDeg;
   },
 
-  // ── Play a melody note ────────────────────────────────────────────────────
+  // ── Kill persistent legato voice (SPEC_032 §3.4) ──────────────────────────
+  _killLiveVoice: function(time) {
+    var t = time || (audioCtx ? audioCtx.currentTime : 0);
+    try {
+      if (this._liveGain) {
+        this._liveGain.gain.cancelScheduledValues(t);
+        this._liveGain.gain.setValueAtTime(this._liveGain.gain.value || 0.0001, t);
+        this._liveGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+      }
+      if (this._liveOsc) { try { this._liveOsc.stop(t + 0.03); } catch(e) {} }
+      if (this._liveOsc2) { try { this._liveOsc2.stop(t + 0.03); } catch(e) {} }
+      if (this._liveVibrato) { try { this._liveVibrato.stop(t + 0.03); } catch(e) {} }
+      if (this._livePwmLfo) { try { this._livePwmLfo.stop(t + 0.03); } catch(e) {} }
+    } catch(e) { /* nodes already stopped */ }
+    this._liveOsc = null;
+    this._liveOsc2 = null;
+    this._liveGain = null;
+    this._liveFilter = null;
+    this._liveVibrato = null;
+    this._liveVibratoGain = null;
+    this._livePwmLfo = null;
+    this._livePwmGain = null;
+    this._liveNoteEnd = 0;
+  },
+
+  // ── Play a melody note (SPEC_032 §3.4 — rebuilt) ─────────────────────────
+  // AHDSR envelope, filter envelope, legato/staccato, PWM, detune, vibrato delay
   // subDurHint: optional sub-beat duration for envelope scaling (SPEC_023 §B2)
   _playMelodyNote: function(midiNote, time, volumeOverride, subDurHint) {
     if (!audioCtx) return;
 
     var phase = G.phase || 'pulse';
     var density = this._PHASE_DENSITY[phase] || this._PHASE_DENSITY.pulse;
-    var gain = volumeOverride || density.gain;
+    var mCfg = (this._palette && this._palette.melody) || {};
 
-    // Scale by GAIN.melody config
+    // ── Gain calculation ──────────────────────────────────────────────────
+    var phaseGain = volumeOverride || density.gain;
+    // Per-palette phaseGain override
+    if (!volumeOverride && mCfg.phaseGain && mCfg.phaseGain[phase] != null) {
+      phaseGain = mCfg.phaseGain[phase];
+    }
     var baseGain = (typeof CFG !== 'undefined' && CFG.GAIN && CFG.GAIN.melody) ? CFG.GAIN.melody : 0.07;
-    var finalGain = baseGain * gain;
-
-    // Octave drop halves volume
+    var gainScalar = (mCfg.gainScalar !== undefined) ? mCfg.gainScalar : 1.0;
+    var finalGain = baseGain * phaseGain * gainScalar;
     if (this._octaveDrop > 0) finalGain *= 0.5;
 
     var freq = (typeof midiToFreq === 'function') ? midiToFreq(midiNote) : 440 * Math.pow(2, (midiNote - 69) / 12);
 
-    // Use wavetable if available — melody role first, pad fallback, then sine
+    // ── Timing ────────────────────────────────────────────────────────────
+    var beatDurSec = 60 / G.bpm;
+    var noteBasis = subDurHint || beatDurSec;
+    var attack = (mCfg.attack !== undefined) ? mCfg.attack : ((phase === 'swell') ? 0.08 : (phase === 'surge') ? 0.04 : 0.02);
+    var hold = (mCfg.hold !== undefined) ? mCfg.hold : 0;
+    var decay = (mCfg.decay !== undefined) ? mCfg.decay : 0.1;
+    var sustainLevel = (mCfg.sustainLevel !== undefined) ? mCfg.sustainLevel : 0.8;
+    var release = (mCfg.release !== undefined) ? mCfg.release : 0.1;
+
+    // Staccato: note plays 60% of nominal duration
+    var durFactor = mCfg.staccato ? 0.6 : ((phase === 'swell') ? 0.95 : 0.80);
+    var dur = noteBasis * durFactor;
+    dur = Math.max(dur, attack + hold + 0.02); // floor: at least attack + hold
+
+    // ── Legato path: reuse live oscillator ────────────────────────────────
+    if (mCfg.legato && this._liveOsc && this._liveGain && this._liveNoteEnd > time) {
+      var legatoTime = (mCfg.legatoTime !== undefined) ? mCfg.legatoTime : 0.06;
+      // Pitch glide
+      this._liveOsc.frequency.cancelScheduledValues(time);
+      this._liveOsc.frequency.setValueAtTime(this._liveOsc.frequency.value, time);
+      this._liveOsc.frequency.exponentialRampToValueAtTime(Math.max(freq, 1), time + legatoTime);
+      if (this._liveOsc2) {
+        this._liveOsc2.frequency.cancelScheduledValues(time);
+        this._liveOsc2.frequency.setValueAtTime(this._liveOsc2.frequency.value, time);
+        this._liveOsc2.frequency.exponentialRampToValueAtTime(Math.max(freq, 1), time + legatoTime);
+      }
+      // Re-trigger gain envelope from current level (smooth)
+      var sustainGain = finalGain * sustainLevel;
+      this._liveGain.gain.cancelScheduledValues(time);
+      this._liveGain.gain.setValueAtTime(this._liveGain.gain.value || sustainGain, time);
+      this._liveGain.gain.linearRampToValueAtTime(finalGain, time + attack);
+      if (hold > 0) this._liveGain.gain.setValueAtTime(finalGain, time + attack + hold);
+      this._liveGain.gain.linearRampToValueAtTime(sustainGain, time + attack + hold + decay);
+      // Schedule release
+      var noteOff = time + dur;
+      this._liveGain.gain.setValueAtTime(sustainGain, noteOff - release);
+      this._liveGain.gain.exponentialRampToValueAtTime(0.0001, noteOff);
+      // Re-trigger filter envelope
+      if (this._liveFilter && mCfg.lpfEnvAmount) {
+        var lpfBase = (mCfg.lpfCutoff !== undefined) ? mCfg.lpfCutoff : 3000;
+        var lpfPeak = lpfBase + (mCfg.lpfEnvAmount || 0);
+        var lpfDecay = (mCfg.lpfEnvDecay !== undefined) ? mCfg.lpfEnvDecay : 0.1;
+        this._liveFilter.frequency.cancelScheduledValues(time);
+        this._liveFilter.frequency.setValueAtTime(Math.min(lpfPeak, 20000), time);
+        this._liveFilter.frequency.exponentialRampToValueAtTime(Math.max(lpfBase, 20), time + lpfDecay);
+      }
+      // Extend stop times
+      this._liveNoteEnd = noteOff + 0.05;
+      try { this._liveOsc.stop(this._liveNoteEnd); } catch(e) {}
+      if (this._liveOsc2) { try { this._liveOsc2.stop(this._liveNoteEnd); } catch(e) {} }
+      if (this._liveVibrato) { try { this._liveVibrato.stop(this._liveNoteEnd); } catch(e) {} }
+      if (this._livePwmLfo) { try { this._livePwmLfo.stop(this._liveNoteEnd); } catch(e) {} }
+      this._lastNoteMidi = midiNote;
+      return;
+    }
+
+    // ── Non-legato (or first legato note): create fresh chain ─────────────
+    // Kill any existing legato voice
+    if (this._liveOsc) this._killLiveVoice(time);
+
+    // Oscillator
     var osc = audioCtx.createOscillator();
     if (typeof Wavetables !== 'undefined' && this._paletteName) {
       var wave = Wavetables.get(this._paletteName, 'melody')
@@ -961,88 +1058,128 @@ var MelodyEngine = {
     } else {
       osc.type = 'sine';
     }
-
     osc.frequency.value = freq;
 
-    // Per-palette melody envelope overrides (SPEC_023 §A3)
-    var mCfg = (this._palette && this._palette.melody) || {};
-
-    // Note duration: use sub-beat duration if provided, else beat duration (SPEC_023 §B2)
-    var durFactor = (phase === 'swell') ? 0.95 : 0.80;
-    var beatDurSec = 60 / G.bpm;
-    var noteBasis = subDurHint || beatDurSec;
-    var dur = noteBasis * durFactor;
-    // Override release extends note tail
-    if (mCfg.release !== undefined) dur = Math.max(dur, mCfg.release + 0.05);
-
-    // FM vibrato — Swell/Surge: gentle 2 cents; Storm: 4 cents; Maelstrom: 8 cents (SPEC_022)
-    // Palette melody config can override vibratoDepth/vibratoRate
-    var vibrato = null;
-    var vibratoGain = null;
-    var vibratoDepth = 0;
-    if (mCfg.vibratoDepth !== undefined) {
-      vibratoDepth = mCfg.vibratoDepth;
-    } else if (phase === 'swell' || phase === 'surge') {
-      vibratoDepth = 2;
-    } else if (phase === 'storm') {
-      vibratoDepth = 4;
-    } else if (phase === 'maelstrom') {
-      vibratoDepth = 8;
-    }
-    var vibratoRate = (mCfg.vibratoRate !== undefined) ? mCfg.vibratoRate : 5;
-    if (vibratoDepth > 0) {
-      vibrato = audioCtx.createOscillator();
-      vibratoGain = audioCtx.createGain();
-      vibrato.frequency.value = vibratoRate;
-      vibratoGain.gain.value = vibratoDepth;
-      vibrato.connect(vibratoGain);
-      vibratoGain.connect(osc.frequency);
-      vibrato.start(time);
-      vibrato.stop(time + dur + 0.05);
+    // Per-note random detune (SPEC_032 §3.2)
+    var detuneSpread = (mCfg.detuneSpread !== undefined) ? mCfg.detuneSpread : 0;
+    if (detuneSpread > 0) {
+      var _rng = (_songRng || Math.random);
+      osc.detune.value = (_rng() * 2 - 1) * detuneSpread;
     }
 
-    // Phase-aware attack: Swell=80ms (breath-like), Surge=40ms, Storm+=20ms (SPEC_022)
-    // Palette melody config can override attack
-    var attack;
-    if (mCfg.attack !== undefined) {
-      attack = mCfg.attack;
-    } else {
-      attack = (phase === 'swell') ? 0.08 : (phase === 'surge') ? 0.04 : 0.02;
+    // PWM — second oscillator for chiptune duty-cycle sweep (SPEC_032 §3.2)
+    var osc2 = null;
+    var pwmLfo = null;
+    var pwmGain = null;
+    var pwmRate = (mCfg.pwmRate !== undefined) ? mCfg.pwmRate : 0;
+    var pwmDepth = (mCfg.pwmDepth !== undefined) ? mCfg.pwmDepth : 0;
+    if (pwmRate > 0 && pwmDepth > 0) {
+      osc2 = audioCtx.createOscillator();
+      osc2.type = 'sawtooth'; // inverse sawtooth via inversion for PWM effect
+      osc2.frequency.value = freq;
+      if (detuneSpread > 0) osc2.detune.value = osc.detune.value;
+      pwmLfo = audioCtx.createOscillator();
+      pwmLfo.type = 'sine';
+      pwmLfo.frequency.value = pwmRate;
+      pwmGain = audioCtx.createGain();
+      pwmGain.gain.value = pwmDepth * 100; // detune cents
+      pwmLfo.connect(pwmGain);
+      pwmGain.connect(osc2.detune);
     }
 
-    // Release time — palette override or default short tail
-    var release = (mCfg.release !== undefined) ? mCfg.release : (dur * 0.3);
-
-    // Gain envelope
-    var env = audioCtx.createGain();
-    env.gain.setValueAtTime(0.0001, time);
-    env.gain.linearRampToValueAtTime(finalGain, time + attack);
-    env.gain.setValueAtTime(finalGain, time + dur - release);
-    env.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-
-    // EQ: LP — palette melody config can override cutoff (default 3kHz)
-    var lpfCutoff = (mCfg.lpfCutoff !== undefined) ? mCfg.lpfCutoff : 3000;
+    // LPF with envelope (SPEC_032 §3.2)
+    var lpfBase = (mCfg.lpfCutoff !== undefined) ? mCfg.lpfCutoff : 3000;
+    var lpfEnvAmount = (mCfg.lpfEnvAmount !== undefined) ? mCfg.lpfEnvAmount : 0;
+    var lpfEnvDecay = (mCfg.lpfEnvDecay !== undefined) ? mCfg.lpfEnvDecay : 0.1;
+    var lpfRes = (mCfg.lpfResonance !== undefined) ? mCfg.lpfResonance : 0.7;
     var lpf = audioCtx.createBiquadFilter();
     lpf.type = 'lowpass';
-    lpf.frequency.value = lpfCutoff;
-    lpf.Q.value = 0.7;
+    lpf.Q.value = lpfRes;
+    if (lpfEnvAmount > 0) {
+      var lpfPeak = Math.min(lpfBase + lpfEnvAmount, 20000);
+      lpf.frequency.setValueAtTime(lpfPeak, time);
+      lpf.frequency.exponentialRampToValueAtTime(Math.max(lpfBase, 20), time + lpfEnvDecay);
+    } else {
+      lpf.frequency.value = lpfBase;
+    }
 
-    // Route: osc → lpf → env → melody track gain → mix chain
+    // AHDSR gain envelope (SPEC_032 §3.2)
+    var env = audioCtx.createGain();
+    var sustainGain = finalGain * sustainLevel;
+    env.gain.setValueAtTime(0.0001, time);
+    env.gain.linearRampToValueAtTime(finalGain, time + attack);
+    if (hold > 0) {
+      env.gain.setValueAtTime(finalGain, time + attack + hold);
+    }
+    env.gain.linearRampToValueAtTime(Math.max(sustainGain, 0.0001), time + attack + hold + decay);
+    // Hold sustain until release
+    var noteOff = time + dur;
+    env.gain.setValueAtTime(Math.max(sustainGain, 0.0001), noteOff - release);
+    env.gain.exponentialRampToValueAtTime(0.0001, noteOff);
+
+    // Vibrato with delay (SPEC_032 §3.2)
+    var vibrato = null;
+    var vibratoGainNode = null;
+    var vibratoDepth = (mCfg.vibratoDepth !== undefined) ? mCfg.vibratoDepth : 0;
+    // Fallback to phase-based vibrato if palette doesn't specify
+    if (vibratoDepth === 0 && mCfg.vibratoDepth === undefined) {
+      if (phase === 'swell' || phase === 'surge') vibratoDepth = 2;
+      else if (phase === 'storm') vibratoDepth = 4;
+      else if (phase === 'maelstrom') vibratoDepth = 8;
+    }
+    var vibratoRate = (mCfg.vibratoRate !== undefined) ? mCfg.vibratoRate : 5;
+    var vibratoDelay = (mCfg.vibratoDelay !== undefined) ? mCfg.vibratoDelay : 0;
+    if (vibratoDepth > 0) {
+      vibrato = audioCtx.createOscillator();
+      vibratoGainNode = audioCtx.createGain();
+      vibrato.frequency.value = vibratoRate;
+      // Delayed vibrato: start at 0, ramp to full depth
+      if (vibratoDelay > 0) {
+        vibratoGainNode.gain.setValueAtTime(0, time);
+        vibratoGainNode.gain.linearRampToValueAtTime(vibratoDepth, time + vibratoDelay);
+      } else {
+        vibratoGainNode.gain.value = vibratoDepth;
+      }
+      vibrato.connect(vibratoGainNode);
+      vibratoGainNode.connect(osc.frequency);
+      if (osc2) vibratoGainNode.connect(osc2.frequency);
+      vibrato.start(time);
+    }
+
+    // ── Routing: osc(+osc2) → lpf → env → track gain ─────────────────────
     osc.connect(lpf);
+    if (osc2) osc2.connect(lpf);
     lpf.connect(env);
 
-    // Connect to melody track if available, else to pad track as fallback
+    // Connect to melody track if available
     if (typeof _trackGains !== 'undefined' && _trackGains.melody) {
       env.connect(_trackGains.melody);
     } else if (typeof _trackGains !== 'undefined' && _trackGains.pad) {
-      // Fallback: route through pad track
       env.connect(_trackGains.pad);
     } else if (typeof submixGain !== 'undefined') {
       env.connect(submixGain);
     }
 
+    // Schedule start/stop
+    var stopTime = noteOff + 0.05;
     osc.start(time);
-    osc.stop(time + dur + 0.02);
+    osc.stop(stopTime);
+    if (osc2) { osc2.start(time); osc2.stop(stopTime); }
+    if (pwmLfo) { pwmLfo.start(time); pwmLfo.stop(stopTime); }
+    if (vibrato) { vibrato.stop(stopTime); }
+
+    // ── Persist refs for legato mode ──────────────────────────────────────
+    if (mCfg.legato) {
+      this._liveOsc = osc;
+      this._liveOsc2 = osc2;
+      this._liveGain = env;
+      this._liveFilter = lpf;
+      this._liveVibrato = vibrato;
+      this._liveVibratoGain = vibratoGainNode;
+      this._livePwmLfo = pwmLfo;
+      this._livePwmGain = pwmGain;
+      this._liveNoteEnd = stopTime;
+    }
 
     this._lastNoteMidi = midiNote;
   },

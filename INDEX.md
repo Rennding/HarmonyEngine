@@ -123,6 +123,9 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Symbol | File | Line | Description |
 |---|---|---|---|
 | MelodyEngine | melody.js | 6 | Markov melody generator |
+| MelodyEngine._killLiveVoice | melody.js | 941 | Kill persistent legato oscillator chain (SPEC_032) |
+| MelodyEngine._playMelodyNote | melody.js | 968 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
+| MelodyEngine._liveOsc/Gain/Filter | melody.js | 25 | Legato state: persistent osc, gain, filter refs (SPEC_032) |
 
 ---
 

@@ -9,6 +9,15 @@
 
 ---
 
+## 2026-04-17 — #32 Plan: Per-palette voice overhaul (melody synth + chord articulation)
+
+**What:** Planned the melody synth rebuild and a new ChordTrack system. Melody was muted (#31) because all 10 palettes share the same single-oscillator synth chain — wavetable swaps alone don't create genre identity. The fix: full per-palette synthesis profiles with AHDSR envelopes, filter envelope sweeps (acid techno), legato/staccato articulation modes, PWM (chiptune), per-note detune (glitch/vaporwave), and delayed vibrato. Also identified a missing layer: no rhythmic chord component exists (pad is just a sustained wash). New ChordTrack adds per-palette stabs, comps, and arpeggiated triads — synthwave power stabs on 2+4, NES arp cycling for chiptune, ghosted jazz comps for noir_jazz, nothing for ambient/vaporwave.
+
+**Spec:** SPEC_032_PER_PALETTE_VOICE_OVERHAUL.md
+**Build issues:** #33 melody synth rebuild (Opus), #34 ChordTrack engine (Opus), #35 stagger wiring (Sonnet)
+
+---
+
 ## 2026-04-17 — #31 Mute melody engine + #32 plan filed
 
 **What:** Melody engine muted across all phases. Single-osc synthesis path sounds identical across all 10 palettes — thin, artifact-like tones that ruin every listening session. Root cause: all palettes share the same synth topology (osc→LP→gain), wavetable swaps don't create real timbral variety, and `voiceConfig` isn't even read by the melody engine. Muted by zeroing `_PHASE_DENSITY` gains. Filed #32 for a full per-palette melody synth overhaul (plan session, Opus).

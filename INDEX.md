@@ -66,10 +66,10 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| PALETTES | harmony.js | 83 | 10 genre palette objects |
-| HarmonyEngine | harmony.js | 1214 | Chord/scale/voice-leading methods |
-| PaletteBlender | harmony.js | 1862 | Maelstrom cross-palette interpolation |
-| _selectPalette() | harmony.js | 1812 | Weighted recency palette picker |
+| PALETTES | harmony.js | 84 | 10 genre palette objects (each .bass has tierCap, gainScalar, phaseFilter — SPEC_028) |
+| HarmonyEngine | harmony.js | 1400 | Chord/scale/voice-leading methods |
+| PaletteBlender | harmony.js | 2049 | Maelstrom cross-palette interpolation |
+| _selectPalette() | harmony.js | 2000 | Weighted recency palette picker |
 | midiToFreq() | harmony.js | 78 | MIDI to Hz conversion |
 
 ---
@@ -86,10 +86,9 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| Sequencer | sequencer.js | ~1968 | Main sequencer object |
-| PadTrack | sequencer.js | 764 | Pad/chord track |
-| ArpTrack | sequencer.js | 945 | Monophonic arp |
-| WalkingBass | sequencer.js | ~1251 | Dynamic bass pitch engine |
+| Sequencer | sequencer.js | 1938 | Main sequencer object |
+| PadTrack | sequencer.js | 1018 | Pad/chord track |
+| WalkingBass | sequencer.js | 1453 | Dynamic bass pitch engine (tierCap from palette — SPEC_028) |
 
 ---
 

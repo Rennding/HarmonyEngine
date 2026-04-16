@@ -109,6 +109,9 @@ var PALETTES = [
       patterns: ['root_pump', 'octave_bounce', 'fifth_walk'],
       filterCutoff: 400,
       filterResonance: 8,
+      tierCap: 2,
+      gainScalar: 1.0,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 500, maelstrom: 600 },
     },
 
     pad: {
@@ -215,6 +218,9 @@ var PALETTES = [
       patterns: ['root_pump', 'octave_bounce'],
       filterCutoff: 600,
       filterResonance: 5,
+      tierCap: 3,
+      gainScalar: 1.1,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 700, maelstrom: 800 },
     },
 
     pad: {
@@ -319,6 +325,9 @@ var PALETTES = [
       patterns: ['stutter_bass', 'root_pump'],
       filterCutoff: 300,
       filterResonance: 12,
+      tierCap: 2,
+      gainScalar: 0.85,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 350, maelstrom: 400 },
     },
 
     pad: {
@@ -424,6 +433,9 @@ var PALETTES = [
       patterns: ['drone_root'],
       filterCutoff: 200,
       filterResonance: 3,
+      tierCap: 1,
+      gainScalar: 1.2,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 180, maelstrom: 200 },
     },
 
     pad: {
@@ -536,6 +548,9 @@ var PALETTES = [
       patterns: ['root_pump', 'fifth_walk'],
       filterCutoff: 300,
       filterResonance: 3,
+      tierCap: 2,
+      gainScalar: 1.1,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 350, maelstrom: 400 },
     },
 
     pad: {
@@ -645,6 +660,9 @@ var PALETTES = [
       patterns: ['octave_bounce', 'fifth_walk'],
       filterCutoff: 800,
       filterResonance: 2,
+      tierCap: 2,
+      gainScalar: 0.7,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 600, maelstrom: 700 },
     },
 
     pad: {
@@ -837,6 +855,9 @@ var PALETTES = [
       patterns: ['jazz_walk', 'fifth_walk'],
       filterCutoff: 500,
       filterResonance: 4,
+      tierCap: 4,
+      gainScalar: 1.0,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 600, maelstrom: 700 },
     },
 
     pad: {
@@ -1063,6 +1084,9 @@ var PALETTES = [
       patterns: ['root_pump', 'stutter_bass'],
       filterCutoff: 250,
       filterResonance: 15,
+      tierCap: 2,
+      gainScalar: 0.9,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 300, maelstrom: 350 },
     },
 
     pad: {
@@ -1175,6 +1199,9 @@ var PALETTES = [
       patterns: ['drone_root', 'root_pump'],
       filterCutoff: 250,
       filterResonance: 5,
+      tierCap: 1,
+      gainScalar: 1.15,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 220, maelstrom: 250 },
     },
 
     pad: {
@@ -1284,6 +1311,9 @@ var PALETTES = [
       patterns: ['stutter_bass', 'root_pump', 'octave_bounce'],
       filterCutoff: 350,
       filterResonance: 10,
+      tierCap: 3,
+      gainScalar: 0.95,
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 400, maelstrom: 500 },
     },
 
     pad: {

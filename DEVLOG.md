@@ -9,6 +9,15 @@
 
 ---
 
+## 2026-04-17 — #29 Build: Per-palette Storm/Maelstrom personality
+
+**What:** Implemented per-palette bass personality at Storm/Maelstrom. Added three new fields to each palette's bass config: `tierCap` (caps WalkingBass complexity — only noir_jazz gets full tier 4 walking), `gainScalar` (chiptune 0.7×, ambient_dread 1.2×, etc.), and `phaseFilter` (per-phase lowpass cutoff overrides for Storm/Maelstrom). Modified `WalkingBass._tier()` to accept a cap parameter with console logging when capped. Added `_activePalette` module-scope variable in sequencer.js for `_synthBass()` access to gain scalar and phase filter. FM modulation character preserved for dark_techno/glitch.
+
+**Files:** harmony.js (×10 palette bass sections), sequencer.js (_tier, getNote, _synthBass, _activePalette var), INDEX.md
+**Awaiting QA:** #29
+
+---
+
 ## 2026-04-17 — #27 Build: Tension curve randomization
 
 **What:** Implemented the TensionMap system. Songs now modulate DC with plateaus (freeze), spikes (false climaxes), and retreats (breath/dip) generated deterministically from the song seed. Each palette has a unique tension profile tuning density, retreat depth, spike height, and plateau bias. Plateaus freeze DC for 16–32 beats with easeOut lerp back. Spikes are capped to prevent skipping more than 1 phase. Retreats clamp at DC≥0. Tension is suppressed during manual phase override and cycle transitions, and regenerated on palette swap.

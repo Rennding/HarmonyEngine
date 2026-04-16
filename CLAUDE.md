@@ -189,7 +189,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #27 build complete, awaiting QA. Next: #29 — Per-palette Storm/Maelstrom personality build (Opus).**
+**Status: #27 + #29 builds complete, both awaiting QA. Next: #12 — Post-Maelstrom decay arc (plan).**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -216,7 +216,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#11** Tension curve randomization — plan complete → SPEC_011_TENSION_CURVE_RANDOMIZATION.md
 - **#27** Tension curve randomization — TensionMap + palette profiles + DC integration (Opus) — **awaiting QA**
 ✅ **#28** Per-palette Storm/Maelstrom personality — plan complete → SPEC_028_PALETTE_STORM_PERSONALITY.md
-- **#29** Per-palette Storm/Maelstrom personality — tier caps + gain scalars + phase filters (Opus)
+- **#29** Per-palette Storm/Maelstrom personality — tier caps + gain scalars + phase filters (Opus) — **awaiting QA**
 - **#12** Post-Maelstrom decay arc — break down → new cycle (plan)
 - **#13** Faster start — skip empty Pulse or add intro phrase (plan)
 
@@ -251,6 +251,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | MCP validation errors | Fix ALL fields from error payload in one pass, propagate to sibling calls. Never use \n in body fields — use real newlines. |
 | Game state reference in audio | All G.* fields must exist in state.js — grep for G. references after any audio module change |
 | StateMapper expects game objects | StateMapper references PerkEffects* — stub or guard with typeof checks |
+| Standalone synth fns lack palette access | _synthBass/_synthDrum are module-scope functions, not Sequencer methods — they only see _activePaletteName, not the full palette object. When adding per-palette config reads, ensure _activePalette (full object) is set alongside _activePaletteName in Sequencer.initRun(). |
 
 ---
 

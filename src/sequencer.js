@@ -756,6 +756,7 @@ function _getNoiseBuffer() {
 
 // ---- Active palette name (set in Sequencer.initRun, used by synth fns for wavetable lookup) ----
 var _activePaletteName = null;
+var _activePalette = null;      // full palette object (SPEC_028: gainScalar, phaseFilter)
 
 // ---- FM pair helper (SPEC_016) ----
 // Creates a modulator→carrier pair.  Carrier output goes to the provided destination.
@@ -963,14 +964,24 @@ function _synthBass(t, freq, vel, cutoff, resonance, wave) {
   osc.frequency.value = freq;
 
   // Filter envelope: open bright → close to cutoff (pluck-like)
+  // Per-phase filter override (SPEC_028): tighter cutoff at Storm/Maelstrom
+  var baseCutoff = cutoff;
+  if (_activePalette && _activePalette.bass && _activePalette.bass.phaseFilter) {
+    var phaseOverride = _activePalette.bass.phaseFilter[G.phase];
+    if (typeof phaseOverride === 'number') baseCutoff = phaseOverride;
+  }
   filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(cutoff * 4, t);
-  filter.frequency.exponentialRampToValueAtTime(cutoff, t + 0.06);
+  filter.frequency.setValueAtTime(baseCutoff * 4, t);
+  filter.frequency.exponentialRampToValueAtTime(baseCutoff, t + 0.06);
   filter.Q.value = resonance;
+
+  // Per-palette gain scalar (SPEC_028)
+  var scalar = (_activePalette && _activePalette.bass && typeof _activePalette.bass.gainScalar === 'number')
+    ? _activePalette.bass.gainScalar : 1.0;
 
   // Amplitude envelope: tight note (palm-muted feel)
   var noteDur = 0.22;
-  gain.gain.setValueAtTime(vel * CFG.GAIN.bass, t);
+  gain.gain.setValueAtTime(vel * CFG.GAIN.bass * scalar, t);
   gain.gain.exponentialRampToValueAtTime(0.0001, t + noteDur);
   osc.start(t); osc.stop(t + noteDur + 0.01);
 
@@ -994,7 +1005,7 @@ function _synthBass(t, freq, vel, cutoff, resonance, wave) {
       // Actually FM pair connects carrier→outGain→filter, so we need to disconnect the
       // primary osc and use the FM carrier instead — but that changes the graph.
       // Simpler: keep both — primary osc provides body, FM carrier adds harmonics on top.
-      fm.outGain.gain.setValueAtTime(vel * CFG.GAIN.bass * 0.3, t);
+      fm.outGain.gain.setValueAtTime(vel * CFG.GAIN.bass * scalar * 0.3, t);
       fm.outGain.gain.exponentialRampToValueAtTime(0.0001, t + noteDur);
     }
   }
@@ -1463,12 +1474,19 @@ var WalkingBass = {
   },
 
   // --- Complexity tier ---
-  _tier: function(intensity) {
-    if (intensity >= 50) return 4;   // chromatic approach + syncopation
-    if (intensity >= 35) return 3;   // walking bass (stepwise to target)
-    if (intensity >= 20) return 2;   // chord tones + passing
-    if (intensity >= 10) return 1;   // root + 5th
-    return 0;                        // root only
+  _tier: function(intensity, cap) {
+    var raw;
+    if (intensity >= 50) raw = 4;        // chromatic approach + syncopation
+    else if (intensity >= 35) raw = 3;   // walking bass (stepwise to target)
+    else if (intensity >= 20) raw = 2;   // chord tones + passing
+    else if (intensity >= 10) raw = 1;   // root + 5th
+    else raw = 0;                        // root only
+    if (typeof cap === 'number' && raw > cap) {
+      var pName = (this._palette && this._palette.name) ? this._palette.name : 'unknown';
+      console.log('[WalkingBass] tier capped at ' + cap + ' (palette: ' + pName + ', raw: ' + raw + ')');
+      return cap;
+    }
+    return raw;
   },
 
   // --- Get the target root MIDI for the current chord at a given octave ---
@@ -1538,7 +1556,9 @@ var WalkingBass = {
     if (!this._active || !bStep || !bStep.active) return -1;
     if (typeof HarmonyEngine === 'undefined' || !HarmonyEngine._currentChord) return -1;
 
-    var tier = this._tier(intensity);
+    var tierCap = (this._palette && this._palette.bass && typeof this._palette.bass.tierCap === 'number')
+      ? this._palette.bass.tierCap : undefined;
+    var tier = this._tier(intensity, tierCap);
     var root = this._chordRoot(octave);
     if (root < 0) return root;
 
@@ -1930,6 +1950,7 @@ var Sequencer = {
   initRun: function(palette) {
     this._palette  = palette;
     _activePaletteName = palette.name || null;  // for wavetable lookup in synth fns
+    _activePalette = palette;                    // full object for bass personality (SPEC_028)
     if (typeof Wavetables !== 'undefined') Wavetables.clearCache();  // fresh waves per run
     this._stepIdx  = 0;
     this._globalStep = 0;

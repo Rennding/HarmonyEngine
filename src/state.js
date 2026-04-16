@@ -29,7 +29,7 @@ const G = {
   bpm: CFG.BPM,
 
   // Settings
-  settings: { volume: 0.8, mood: 1 },
+  settings: { volume: 0.8, mood: 1, palette: 0 },  // palette: 0=random, 1..N=locked to PALETTES[idx-1]
 
   // Per-run tracking
   songHash: '',

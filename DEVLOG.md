@@ -9,6 +9,21 @@
 
 ---
 
+## 2026-04-16 — Palette lock (#6)
+
+**What happened:**
+- Added `Conductor.lockPalette(idx)` and `Conductor.unlockPalette()` — writes to `G.settings.palette` (0=random, 1..N=locked)
+- `_selectPalette()` already read `G.settings.palette` but nothing wrote to it — now the lock path is wired up
+- Removed the old `paletteOverride` parameter from `Conductor.start()` and the `window._selectPalette` monkey-patch hack
+- `doPlay()` in shell.html now calls `lockPalette`/`unlockPalette` before `start()`
+- Initialized `G.settings.palette = 0` in state.js (was missing, would have been `undefined`)
+
+**Result:** Dropdown selection persists across stop/start. Lock survives pause/resume. Random mode works as before. Gate passes, 380.1 KB.
+
+**Files changed:** `src/conductor.js`, `src/shell.html`, `src/state.js`
+
+---
+
 ## 2026-04-16 — Source file rename (#5)
 
 **What happened:**

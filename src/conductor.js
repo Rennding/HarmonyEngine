@@ -56,20 +56,12 @@ var Conductor = (function() {
   }
 
   return {
-    start: function(paletteOverride) {
+    start: function() {
       if (_running) this.stop();
       _running = true;
       _paused = false;
 
-      // If palette override, temporarily replace _selectPalette
-      if (paletteOverride !== undefined && typeof PALETTES !== 'undefined') {
-        var savedSelect = window._selectPalette;
-        window._selectPalette = function() { return PALETTES[paletteOverride]; };
-        resetRun();
-        window._selectPalette = savedSelect;
-      } else {
-        resetRun();
-      }
+      resetRun();
 
       initAudio();
       // Resume AudioContext (may be suspended by autoplay policy or after stop()).
@@ -108,6 +100,20 @@ var Conductor = (function() {
 
     isRunning: function() { return _running; },
     isPaused: function() { return _paused; },
+
+    // --- Palette lock ---
+    lockPalette: function(idx) {
+      // idx = 0-based palette index. Stores as 1-based in G.settings.palette.
+      // _selectPalette() treats 0=random, 1..N=locked.
+      if (typeof G !== 'undefined' && G.settings) {
+        G.settings.palette = (idx >= 0) ? idx + 1 : 0;
+      }
+    },
+    unlockPalette: function() {
+      if (typeof G !== 'undefined' && G.settings) {
+        G.settings.palette = 0;
+      }
+    },
 
     // --- Controls ---
     setAutoIntensity: function(v) { _autoIntensity = !!v; },

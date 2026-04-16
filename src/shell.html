@@ -240,7 +240,12 @@
 function doPlay() {
   var sel = document.getElementById('selPalette');
   var idx = parseInt(sel.value);
-  Conductor.start(idx >= 0 ? idx : undefined);
+  if (idx >= 0) {
+    Conductor.lockPalette(idx);
+  } else {
+    Conductor.unlockPalette();
+  }
+  Conductor.start();
 }
 function doPause() {
   if (Conductor.isPaused()) Conductor.resume();

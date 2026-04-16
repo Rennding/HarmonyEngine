@@ -161,9 +161,9 @@ Pulse → Swell → Surge → Storm → Maelstrom. Each phase adds instruments, 
 ### File structure
 ```
 src/ → config.js, state.js, conductor.js,
-       03_audio.js, 03a_harmony.js, 03b_sequencer.js,
-       03c_bullet_voice.js, 03d_groove.js, 03d_state_mapper.js,
-       03e_wavetables.js, 03f_melody.js, 03g_narrative.js,
+       audio.js, harmony.js, sequencer.js,
+       voice_pool.js, groove.js, state_mapper.js,
+       wavetables.js, melody.js, narrative.js,
        shell.html
 scripts/dev-server.js
 build.js, package.json, CLAUDE.md, DEVLOG.md, INDEX.md
@@ -185,8 +185,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #4 built, awaiting QA.**
-**Next build:** #5 (Sonnet) — Rename source files (drop numeric prefixes)
+**Status: #5 built, awaiting QA.**
+**Next build:** #6 (Sonnet) — Palette lock
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -194,8 +194,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ### Tier 2 · Clean Extraction (P1–P3)
 ✅ **#3** Kill dead code — stubs, vestigial G fields, CFG.PERKS (P1, Sonnet) — qa-pass
-- **#4** Rename game vocabulary — combo→intensity, hp→energy, bullet→voice (P2)
-- **#5** Rename source files — drop numeric prefixes (P3)
+✅ **#4** Rename game vocabulary — combo→intensity, hp→energy, bullet→voice (P2) — qa-pass
+- **#5** Rename source files — drop numeric prefixes (P3) ← awaiting QA
 
 ### Tier 3 · Core Product (P1–P2)
 - **#6** Palette lock — play one palette on repeat (P1)

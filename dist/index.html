@@ -535,7 +535,7 @@ function computeSongHash(paletteIdx, bpm, beats, intensity, seed) {
 }
 
 
-// ── 03_audio.js ──────────────────────────────────────────
+// ── audio.js ──────────────────────────────────────────
 // ========== PROCEDURAL AUDIO — RHYTHM ENGINE ==========
 
 var audioCtx = null;
@@ -1304,7 +1304,7 @@ function playRegenSFX() {
 }
 
 
-// ── 03a_harmony.js ──────────────────────────────────────────
+// ── harmony.js ──────────────────────────────────────────
 // ========== HARMONY ENGINE + PALETTES ==========
 
 // --- Scale intervals (semitones from root) ---
@@ -3384,7 +3384,7 @@ var PaletteBlender = {
 };
 
 
-// ── 03e_wavetables.js ──────────────────────────────────────────
+// ── wavetables.js ──────────────────────────────────────────
 // ── 03e_wavetables.js — Wavetable library (SPEC_016 §1) ──────────────────────
 // Builds PeriodicWave objects from harmonic recipes.  Each palette × role
 // combination gets a unique timbre.  Waves are lazily built on first request
@@ -3631,7 +3631,7 @@ var Wavetables = (function() {
 })();
 
 
-// ── 03d_groove.js ──────────────────────────────────────────
+// ── groove.js ──────────────────────────────────────────
 // ========== GROOVE ENGINE — Swing, Humanization, Probability Scaling ==========
 // SPEC_018 §1 — Session 1
 //
@@ -3719,7 +3719,7 @@ var GrooveEngine = {
 };
 
 
-// ── 03b_sequencer.js ──────────────────────────────────────────
+// ── sequencer.js ──────────────────────────────────────────
 // ========== SEQUENCER — DRUMS + BASS ==========
 
 // ---- Euclidean rhythm generator ----
@@ -6241,7 +6241,7 @@ var BreakRewind = {
 };
 
 
-// ── 03c_bullet_voice.js ──────────────────────────────────────────
+// ── voice_pool.js ──────────────────────────────────────────
 // ========== VOICE POOL ==========
 // 16-voice polyphonic pool. Each voice is an instrument.
 // On spawn: request voice → assign chord tone → play.
@@ -6481,7 +6481,7 @@ var VoicePool = {
 };
 
 
-// ── 03d_state_mapper.js ──────────────────────────────────────────
+// ── state_mapper.js ──────────────────────────────────────────
 // ========== STATE MAPPER — GAME DRIVES MUSIC ==========
 // Maps game state (intensity, energy, near-misses, beatCount) to musical parameters.
 // Section progression: intro → build → groove → peak → evolve.
@@ -7424,7 +7424,7 @@ var StateMapper = {
 };
 
 
-// ── 03f_melody.js ──────────────────────────────────────────
+// ── melody.js ──────────────────────────────────────────
 // ========== 03f_melody.js — Procedural Melody Engine (SPEC_017 §5) ==========
 // 2nd-order Markov chain melody generator with per-palette transition matrices,
 // phrase generation with music-theory constraints, and gameplay interactions.
@@ -8519,7 +8519,7 @@ var MelodyEngine = {
 };
 
 
-// ── 03g_narrative.js ──────────────────────────────────────────
+// ── narrative.js ──────────────────────────────────────────
 // ========== NARRATIVE CONDUCTOR (SPEC_020 §1–§2) ==========
 // High-level musical narrative state machine. Sits above StateMapper.
 // Generates a 4-note theme motif per run and plays variations at phase transitions.

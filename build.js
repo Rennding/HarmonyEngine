@@ -8,19 +8,19 @@ const vm = require('vm');
 const SRC = path.join(__dirname, 'src');
 const DIST = path.join(__dirname, 'dist');
 
-// Module load order — mirrors DemoShooter's audio chain
+// Module load order
 const MODULE_ORDER = [
   'config.js',
   'state.js',
-  '03_audio.js',
-  '03a_harmony.js',
-  '03e_wavetables.js',
-  '03d_groove.js',
-  '03b_sequencer.js',
-  '03c_bullet_voice.js',
-  '03d_state_mapper.js',
-  '03f_melody.js',
-  '03g_narrative.js',
+  'audio.js',
+  'harmony.js',
+  'wavetables.js',
+  'groove.js',
+  'sequencer.js',
+  'voice_pool.js',
+  'state_mapper.js',
+  'melody.js',
+  'narrative.js',
   'conductor.js',
 ];
 

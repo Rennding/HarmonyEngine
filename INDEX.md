@@ -39,89 +39,89 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 ---
 
-## A · 03_audio.js — Web Audio core
+## A · audio.js — Web Audio core
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| initAudio() | 03_audio.js | 129 | Builds full Web Audio graph |
-| startBeatClock() | 03_audio.js | 419 | Chris Wilson lookahead scheduler |
-| stopBeatClock() | 03_audio.js | 437 | Clears scheduler |
-| _trackGains | 03_audio.js | 24 | Per-track gain nodes |
-| _pumpTrackSidechains() | 03_audio.js | 478 | Per-track sidechain pump |
-| playHitSFX() | 03_audio.js | 513 | Hit feedback SFX |
-| playGrazeSFX() | 03_audio.js | 596 | 3-tier graze SFX |
-| getAnalyser() | 03_audio.js | 401 | FFT analyser node |
+| initAudio() | audio.js | 129 | Builds full Web Audio graph |
+| startBeatClock() | audio.js | 419 | Chris Wilson lookahead scheduler |
+| stopBeatClock() | audio.js | 437 | Clears scheduler |
+| _trackGains | audio.js | 24 | Per-track gain nodes |
+| _pumpTrackSidechains() | audio.js | 478 | Per-track sidechain pump |
+| playImpactSFX() | audio.js | 513 | Hit feedback SFX |
+| playNearSFX() | audio.js | 596 | 3-tier near-event SFX |
+| getAnalyser() | audio.js | 401 | FFT analyser node |
 
 ---
 
-## H · 03a_harmony.js — Harmonic engine
+## H · harmony.js — Harmonic engine
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| PALETTES | 03a_harmony.js | 83 | 10 genre palette objects |
-| HarmonyEngine | 03a_harmony.js | 1214 | Chord/scale/voice-leading methods |
-| PaletteBlender | 03a_harmony.js | 1862 | Maelstrom cross-palette interpolation |
-| _selectPalette() | 03a_harmony.js | 1812 | Weighted recency palette picker |
-| midiToFreq() | 03a_harmony.js | 78 | MIDI to Hz conversion |
+| PALETTES | harmony.js | 83 | 10 genre palette objects |
+| HarmonyEngine | harmony.js | 1214 | Chord/scale/voice-leading methods |
+| PaletteBlender | harmony.js | 1862 | Maelstrom cross-palette interpolation |
+| _selectPalette() | harmony.js | 1812 | Weighted recency palette picker |
+| midiToFreq() | harmony.js | 78 | MIDI to Hz conversion |
 
 ---
 
-## T · 03e_wavetables.js — Wavetable library
+## T · wavetables.js — Wavetable library
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| Wavetables | 03e_wavetables.js | 10 | 80 palette×role wavetable recipes |
+| Wavetables | wavetables.js | 10 | 80 palette×role wavetable recipes |
 
 ---
 
-## Q · 03b_sequencer.js — Sequencer + drums + bass + arp
+## Q · sequencer.js — Sequencer + drums + bass + arp
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| Sequencer | 03b_sequencer.js | ~1968 | Main sequencer object |
-| PadTrack | 03b_sequencer.js | 764 | Pad/chord track |
-| ArpTrack | 03b_sequencer.js | 945 | Monophonic arp |
-| WalkingBass | 03b_sequencer.js | ~1251 | Dynamic bass pitch engine |
+| Sequencer | sequencer.js | ~1968 | Main sequencer object |
+| PadTrack | sequencer.js | 764 | Pad/chord track |
+| ArpTrack | sequencer.js | 945 | Monophonic arp |
+| WalkingBass | sequencer.js | ~1251 | Dynamic bass pitch engine |
 
 ---
 
-## V · 03c_bullet_voice.js — Voice pool
+## V · voice_pool.js — Voice pool
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| VoicePool | 03c_bullet_voice.js | 7 | 16-voice polyphonic pool |
+| VoicePool | voice_pool.js | 7 | 16-voice polyphonic pool |
 
 ---
 
-## M · 03d_state_mapper.js — State→Audio mapper
+## M · state_mapper.js — State→Audio mapper
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| StateMapper | 03d_state_mapper.js | 6 | Maps virtual state to audio params |
+| StateMapper | state_mapper.js | 6 | Maps virtual state to audio params |
 
 ---
 
-## F · 03f_melody.js — Melody engine
+## F · melody.js — Melody engine
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| MelodyEngine | 03f_melody.js | 6 | Markov melody generator |
+| MelodyEngine | melody.js | 6 | Markov melody generator |
 
 ---
 
-## R · 03d_groove.js — Groove engine
+## R · groove.js — Groove engine
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| GrooveEngine | 03d_groove.js | 14 | Swing, humanize, ghost-note probability |
+| GrooveEngine | groove.js | 14 | Swing, humanize, ghost-note probability |
 
 ---
 
-## N · 03g_narrative.js — Narrative conductor
+## N · narrative.js — Narrative conductor
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| NarrativeConductor | 03g_narrative.js | 7 | Musical narrative state machine |
+| NarrativeConductor | narrative.js | 7 | Musical narrative state machine |
 
 ---
 
@@ -133,4 +133,4 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Conductor.start() | conductor.js | ~60 | Start playback with optional palette |
 | Conductor.stop() | conductor.js | ~72 | Stop all audio |
 | Conductor.forcePhase() | conductor.js | ~90 | Override phase progression |
-| Conductor.simulateHit() | conductor.js | ~100 | Simulate damage event |
+| Conductor.triggerHit() | conductor.js | ~100 | Trigger impact event |

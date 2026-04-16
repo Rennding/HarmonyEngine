@@ -9,6 +9,33 @@
 
 ---
 
+## 2026-04-16 — Source file rename (#5)
+
+**What happened:**
+- Renamed 9 `src/` files — dropped all numeric prefixes (e.g. `03_audio.js` → `audio.js`, `03c_bullet_voice.js` → `voice_pool.js`)
+- Updated `build.js MODULE_ORDER` to match new names
+- Updated `INDEX.md` file references throughout
+- Updated `CLAUDE.md §5` file structure table
+
+**Note:** Pure rename, zero logic changes. Gate passes, 379.9 KB build.
+
+**Files changed:** `src/` (9 renames), `build.js`, `INDEX.md`, `CLAUDE.md`
+
+---
+
+## 2026-04-16 — Vocabulary rename (#4)
+
+**What happened:**
+- Renamed all game-origin state fields: `G.combo` → `G.intensity`, `G.hp` → `G.energy`, `G.grazeStreak` → `G.nearStreak`, `G.beatsSinceHit` → `G.beatsSinceImpact`
+- Renamed class `BulletVoicePool` → `VoicePool`, file `src/03c_bullet_voice.js` still pending #5
+- Renamed functions: `simulateHit()` → `triggerHit()`, `simulateGraze()` → `triggerNearEvent()`, `playHitSFX()` → `playImpactSFX()`, `playGrazeSFX()` → `playNearSFX()`
+- Updated shell.html button labels to match
+- Updated INDEX.md symbol names throughout
+
+**Status:** qa-pass
+
+---
+
 ## 2026-04-16 — Dead code removal (#3)
 
 **What happened:**

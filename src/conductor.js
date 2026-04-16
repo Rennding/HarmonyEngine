@@ -75,18 +75,24 @@ var Conductor = (function() {
     _maelstromSustainBeats = 0;
     // Hand gain control back to StateMapper._updateLayers (SPEC_008 §5)
     if (typeof StateMapper !== 'undefined') StateMapper.endCycleRebuild();
-    // Set phase to pulse, restart DC progression from the beginning (full song arc per cycle)
+    // Enter at Swell — the cycle transition *was* Pulse, new palette picks up from Swell onward.
+    // Back-compute a beatCountCycleBase so the power curve lands at exactly dc=0.30 (Swell threshold)
+    // on the very next updateDC tick, giving a continuous arc without a Pulse snap.
+    var moodKey = (CFG.MOODS[G.settings.mood] || CFG.MOODS[1]).name.toLowerCase();
+    var curve = CFG.DIFFICULTY.CURVES[moodKey] || CFG.DIFFICULTY.CURVES.normal;
+    var swellDC = 0.30; // CFG.PHASES[1].dc
+    // beat that produces swellDC on the power curve: beat = scale * dc^(1/exp)
+    var swellBeat = Math.round(curve.scale * Math.pow(swellDC, 1 / curve.exp));
+    G.beatCountCycleBase = G.beatCount - swellBeat;
+
     var oldPhase = G.phase;
-    G.phase = 'pulse';
+    G.phase = 'swell';
     G.phaseEntryBeat = G.beatCount;
-    // Anchor cycle-relative beat so updateDC's power curve restarts from 0
-    G.beatCountCycleBase = G.beatCount;
-    // Reset DC to 0 so the full Pulse→Maelstrom arc replays
-    G.dc = 0;
+    G.dc = swellDC;
     for (var j = 0; j < G._phaseChangeListeners.length; j++) {
-      G._phaseChangeListeners[j]('pulse', oldPhase, 0);
+      G._phaseChangeListeners[j]('swell', oldPhase, 0);
     }
-    console.log('[Conductor] Cycle: rebuild complete, restarting at pulse');
+    console.log('[Conductor] Cycle: rebuild complete, entering at swell (cycleBeat=' + swellBeat + ')');
   }
 
   // ── Palette swap during bridge (SPEC_008 §4) ─────────────────────────────
@@ -293,16 +299,20 @@ var Conductor = (function() {
       // When turning cycle mode off, anchor beatCountCycleBase so updateDC
       // restarts its power curve from the current beat (avoids Maelstrom snap).
       if (was && !G.settings.cycleMode) {
-        G.beatCountCycleBase = G.beatCount;
-        G.dc = 0;
-        var oldPhase = G.phase;
-        G.phase = 'pulse';
+        // Abort any in-progress cycle transition
+        _resetCycleState();
+        // Re-enter at Swell so the arc continues naturally (same logic as _exitCycle)
+        var moodKey2 = (CFG.MOODS[G.settings.mood] || CFG.MOODS[1]).name.toLowerCase();
+        var curve2 = CFG.DIFFICULTY.CURVES[moodKey2] || CFG.DIFFICULTY.CURVES.normal;
+        var swellBeat2 = Math.round(curve2.scale * Math.pow(0.30, 1 / curve2.exp));
+        G.beatCountCycleBase = G.beatCount - swellBeat2;
+        G.dc = 0.30;
+        var oldPhase2 = G.phase;
+        G.phase = 'swell';
         G.phaseEntryBeat = G.beatCount;
         for (var j = 0; j < G._phaseChangeListeners.length; j++) {
-          G._phaseChangeListeners[j]('pulse', oldPhase, 0);
+          G._phaseChangeListeners[j]('swell', oldPhase2, 0);
         }
-        // Also abort any in-progress cycle transition
-        _resetCycleState();
       }
       console.log('[Conductor] Cycle mode: ' + (G.settings.cycleMode ? 'ON' : 'OFF'));
     },

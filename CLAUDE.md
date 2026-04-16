@@ -181,7 +181,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 |---|---|---|
 | 2026-04-16 | Cycle transition = musical bridge (decay→kick-only→rebuild), not crossfade or silence gap | Single audio graph, no resource doubling, phase-native. Crossfade doubles Web Audio cost; silence gap breaks radio fantasy. |
 | 2026-04-16 | Song arc = full Pulse→Maelstrom + randomized sustain (8–32 bars), rebuild starts at Surge | Complete phase journey every cycle. Random sustain adds variation. Surge entry avoids 30+ bar sparse gap. |
-| 2026-04-17 | Cycle exit resets to Pulse (dc=0), not Surge — full arc replays every cycle | Bug: new cycles were starting at Maelstrom. Rebuild was setting dc=0.60 which immediately pushed phase to Maelstrom on resume. |
+| 2026-04-17 | Cycle exit enters at Swell (dc=0.30), not Pulse — cycle transition *is* the Pulse phase | Full arc per cycle, but new palette starts audible at Swell. beatCountCycleBase back-computed from mood curve so power curve is continuous with no snap. |
 | 2026-04-16 | Stagger timing = per-palette hardcoded + optional override, not UI-configurable initially | Palette identity drives transition feel (techno=tight, ambient=wide). Override exists for future tuning. Avoids premature UI complexity. |
 | 2026-04-16 | Manual phase forcing still staggers (no snap) | Consistency — user expects same musical behavior regardless of trigger source. Snap would break the "band shifting gears" feel. |
 | 2026-04-16 | Downward phase transitions reverse stagger order (melody out first, rhythm last) | Mirrors real arrangement: lead instruments drop first, rhythm section is last to simplify. Musical convention. |

@@ -125,6 +125,10 @@ const CFG = {
     death_note:  0.10,
   },
 
+  // ── Staggered phase transitions (SPEC_010) ────────────────────────────────
+  STAGGER_OVERRIDE: null,   // null = use palette defaults. Set to { rhythm, harmony, texture, melody, window } to override.
+  STAGGER_DEFAULT: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
+
   // ── Cycle mode timing (SPEC_008 §2/§3/§5) ────────────────────────────────
   CYCLE: {
     DECAY_BARS:           16,   // bars to strip instruments down

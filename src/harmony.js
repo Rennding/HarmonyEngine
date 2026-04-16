@@ -181,6 +181,9 @@ var PALETTES = [
       allow9th: false,
       preferOpen: false,
     },
+
+    // Stagger: tight mechanical (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
   },
 
   {
@@ -281,6 +284,9 @@ var PALETTES = [
       allow9th: true,
       preferOpen: true,
     },
+
+    // Stagger: cinematic build, melody enters last (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 6, window: 6 },
   },
   {
     name: 'glitch',
@@ -380,6 +386,9 @@ var PALETTES = [
       allow9th: false,
       preferOpen: false,
     },
+
+    // Stagger: chaotic, near-instant (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 1, texture: 1, melody: 2, window: 2 },
   },
 
   {
@@ -486,6 +495,9 @@ var PALETTES = [
       allow9th: true,
       preferOpen: true,
     },
+
+    // Stagger: glacial drift, maximum spread (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 4, texture: 8, melody: 12, window: 12 },
   },
 
   // ── lo-fi_chill (SPEC_019 §1.1) ──────────────────────────────────────────
@@ -590,6 +602,9 @@ var PALETTES = [
 
     // Special: vinyl crackle texture (continuous quiet noise)
     special: 'vinyl_crackle',
+
+    // Stagger: lazy, unhurried drift (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 2, texture: 6, melody: 8, window: 8 },
   },
 
   // ── chiptune (SPEC_019 §1.3) ─────────────────────────────────────────────
@@ -698,6 +713,9 @@ var PALETTES = [
       allow9th: false,
       preferOpen: false,
     },
+
+    // Stagger: snappy 8-bit, fast transitions (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 1, texture: 1, melody: 2, window: 2 },
   },
 
   // ── noir_jazz (SPEC_019 §1.4) ──────────────────────────────────────────
@@ -885,6 +903,9 @@ var PALETTES = [
       allow9th: true,
       preferOpen: true,
     },
+
+    // Stagger: smoky patience, bass walks in then sax (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 4, texture: 6, melody: 8, window: 8 },
   },
 
   // ── industrial (SPEC_019 §1.2) ──────────────────────────────────────────
@@ -1105,6 +1126,9 @@ var PALETTES = [
       allow9th: false,
       preferOpen: false,
     },
+
+    // Stagger: harsh but controlled (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 2, texture: 2, melody: 4, window: 4 },
   },
 
   // ── vaporwave (SPEC_019 §1.5) ────────────────────────────────────────────
@@ -1209,6 +1233,9 @@ var PALETTES = [
 
     // Special: pitch wobble — slow LFO ±10 cents on master detune
     special: 'pitch_wobble',
+
+    // Stagger: dreamy, slowed, everything takes its time (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 4, texture: 8, melody: 10, window: 10 },
   },
 
   // ── breakbeat (SPEC_019 §1.6) ────────────────────────────────────────────
@@ -1313,6 +1340,9 @@ var PALETTES = [
 
     // Special: break rewind — reversed pattern every 8 bars for 1 bar
     special: 'break_rewind',
+
+    // Stagger: breaks hit first, rest follows quick (SPEC_010 §3)
+    stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
   },
 ];
 

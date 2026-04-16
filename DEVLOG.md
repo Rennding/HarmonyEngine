@@ -9,6 +9,28 @@
 
 ---
 
+## 2026-04-16 — #26 Build: Staggered phase transitions
+
+**What:** Implemented PhaseStagger scheduler. Phase transitions now spread instrument entries over several beats instead of everything hitting at once. Each genre has its own timing profile (techno=4 beats, ambient=12 beats, chiptune=2 beats). Refactored `_onPhaseChange` into 4 group dispatch functions (rhythm, harmony, texture, melody). Added `_effectiveFloor` mechanism so `_updateLayers` respects stagger state. Downward transitions reverse group order. Cycle mode bypasses stagger entirely. Rapid phase changes cancel active stagger cleanly.
+
+**Files:** config.js, harmony.js (10 palettes), state_mapper.js (major refactor), conductor.js
+**Awaiting QA:** #26
+
+---
+
+## 2026-04-16 — #25 QA Pass: Cycle mode UI + polish
+
+---
+
+## 2026-04-16 — #10 Plan: Staggered phase transitions
+
+**What:** Designed the stagger system for phase transitions. Currently all subsystems fire on the same beat when phase changes — drums, bass, pads, melody all snap at once. The spec introduces a PhaseStagger scheduler that spreads subsystem activations over a configurable beat window. Four stagger groups (rhythm → harmony → texture → melody) fire at per-palette offsets. Dark techno staggers over 4 beats, ambient dread drifts over 12. Manual phase forcing still staggers. Cycle mode bypasses it. Downward transitions reverse the group order.
+
+**Spec:** `SPEC_010_STAGGERED_PHASE_TRANSITIONS.md`
+**Build issue:** #26 (Opus, ~35 edits, depends on #25 QA pass)
+
+---
+
 ## 2026-04-16 — #9 Build: Song identity — seed display + shareable URL
 
 **What:** Each song now has a visible seed in the status bar and a shareable URL. Pressing PLAY writes `?seed=XXXXX&palette=N` to the browser address bar via `history.replaceState`. Loading that URL and pressing PLAY replays the same song (same PRNG sequence, same palette, same BPM curve). `resetRun()` now accepts an optional `seedOverride` param; `Conductor.start()` passes it through. URL palette param pre-selects the dropdown on load if the user hasn't changed it.

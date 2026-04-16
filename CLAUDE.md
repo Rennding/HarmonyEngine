@@ -181,12 +181,15 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 |---|---|---|
 | 2026-04-16 | Cycle transition = musical bridge (decay→kick-only→rebuild), not crossfade or silence gap | Single audio graph, no resource doubling, phase-native. Crossfade doubles Web Audio cost; silence gap breaks radio fantasy. |
 | 2026-04-16 | Song arc = full Pulse→Maelstrom + randomized sustain (8–32 bars), rebuild starts at Surge | Complete phase journey every cycle. Random sustain adds variation. Surge entry avoids 30+ bar sparse gap. |
+| 2026-04-16 | Stagger timing = per-palette hardcoded + optional override, not UI-configurable initially | Palette identity drives transition feel (techno=tight, ambient=wide). Override exists for future tuning. Avoids premature UI complexity. |
+| 2026-04-16 | Manual phase forcing still staggers (no snap) | Consistency — user expects same musical behavior regardless of trigger source. Snap would break the "band shifting gears" feel. |
+| 2026-04-16 | Downward phase transitions reverse stagger order (melody out first, rhythm last) | Mirrors real arrangement: lead instruments drop first, rhythm section is last to simplify. Musical convention. |
 
 ---
 
 ## 7 · DO THIS NEXT
 
-**Status: #25 awaiting QA. Next: #10 — Staggered phase transitions (plan session).**
+**Status: #26 awaiting QA. Next: #11 — Tension curve randomization (plan session).**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -204,11 +207,12 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#22** Bug: Auto BPM always 120 — qa-pass
 ✅ **#23** Cycle mode — core engine + state machine (P1, Opus) — qa-pass
 ✅ **#24** Cycle mode — track gain choreography (P1, Sonnet) — qa-pass
-- **#25** Cycle mode — UI + polish (P1, Sonnet) — **awaiting QA**
+✅ **#25** Cycle mode — UI + polish (P1, Sonnet) — qa-pass
 ✅ **#9** Song identity — seed display + shareable URL params (P2, Sonnet) — qa-pass
 
 ### Tier 4 · Musicality (P2)
-- **#10** Staggered phase transitions — spread subsystem changes over beats (plan)
+✅ **#10** Staggered phase transitions — plan-session complete, spec written
+- **#26** Staggered phase transitions — PhaseStagger scheduler + per-palette profiles (P2, Opus) — **awaiting QA**
 - **#11** Tension curve randomization — plateaus, false climaxes, retreats (plan)
 - **#12** Post-Maelstrom decay arc — break down → new cycle (plan)
 - **#13** Faster start — skip empty Pulse or add intro phrase

@@ -18,6 +18,12 @@ var StateMapper = {
   _sidechainPhaseMult: 1.0,    // per-phase sidechain intensity multiplier (SPEC_016 §5)
   _cycleFrozen: false,         // true during decay/bridge — suppress _updateLayers
 
+  // ── PhaseStagger state (SPEC_010) ──────────────────────────────────────────
+  _staggerQueue:    [],      // { group, triggerBeat, phase, oldPhase }
+  _staggerActive:   false,   // true while stagger window is in progress
+  _staggerBaseBeat: 0,       // beat when phase change was initiated
+  _effectiveFloor:  null,    // per-track floor override during stagger (or null = use G.phase)
+
   // --- Init per run ---
   initRun: function() {
     this._nearMisses        = [];
@@ -30,6 +36,10 @@ var StateMapper = {
     this._darkenedKey       = false;   // energy=1 key darken active
     this._sidechainPhaseMult = 1.0;
     this._cycleFrozen       = false;
+    this._staggerQueue      = [];
+    this._staggerActive     = false;
+    this._staggerBaseBeat   = 0;
+    this._effectiveFloor    = null;
     this._initEnergyFilter();
     this._initTremolo();
     this._initStingerGain();
@@ -129,6 +139,11 @@ var StateMapper = {
     // --- Cycle transition: suppress layer management, skip energy/near-miss effects ---
     // Gain ramps are pre-scheduled; _updateLayers would fight them. (SPEC_008 §3/§5)
     if (this._cycleFrozen) return;
+
+    // --- PhaseStagger queue processing (SPEC_010 §2.1) ---
+    if (this._staggerActive) {
+      this._processStaggerQueue(beatTime);
+    }
 
     // --- Hit strip countdown ---
     if (this._hitStrip) {
@@ -310,7 +325,8 @@ var StateMapper = {
   _updateLayers: function(phase, intensity) {
     if (typeof Sequencer === 'undefined') return;
     var m = Sequencer._mute;
-    var floor = CFG.PHASE_FLOOR[phase] || CFG.PHASE_FLOOR.pulse;
+    // During stagger, use _effectiveFloor (per-track overrides) instead of phase floor
+    var floor = this._effectiveFloor || CFG.PHASE_FLOOR[phase] || CFG.PHASE_FLOOR.pulse;
     var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
     var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'melody'];
     var hasGainNodes = (typeof _trackGains !== 'undefined');
@@ -695,88 +711,261 @@ var StateMapper = {
     }
   },
 
-  // --- Phase transition handler (registered via onPhaseChange) ---
-  _onPhaseChange: function(newPhase, oldPhase, beatTime) {
-    console.log('[StateMapper] Phase: ' + (oldPhase || 'none') + ' → ' + newPhase +
-                ' (beat ' + G.beatCount + ', DC ' + G.dc.toFixed(2) + ')');
+  // ══════════════════════════════════════════════════════════════════════════
+  // PhaseStagger — scheduler + group dispatch (SPEC_010)
+  // ══════════════════════════════════════════════════════════════════════════
 
-    // --- Phase FX ramping (SPEC_011 §3.4) ---
-    this._applyPhaseEffects(newPhase, beatTime);
-
-    // --- Phase transition stinger (SPEC_011 §3.3) ---
-    if (oldPhase) this._playStinger(newPhase, beatTime);
-
-    // --- Swell bass fill ornament (SPEC_011 §3.2) ---
-    if (newPhase === 'swell') this._playBassFill(beatTime);
-
-    // Advance HarmonyEngine progression at every phase boundary (SPEC_017 §1)
-    if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.onPhaseChange) {
-      HarmonyEngine.onPhaseChange(newPhase);
+  // --- Resolve the stagger profile to use (override → palette → default) ---
+  _resolveStagger: function() {
+    if (CFG.STAGGER_OVERRIDE) return CFG.STAGGER_OVERRIDE;
+    if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine._palette && HarmonyEngine._palette.stagger) {
+      return HarmonyEngine._palette.stagger;
     }
+    return CFG.STAGGER_DEFAULT;
+  },
 
-    // Melody resolution phrase on phase change (SPEC_017 §5)
-    if (typeof MelodyEngine !== 'undefined' && MelodyEngine.onPhaseChange) {
-      MelodyEngine.onPhaseChange(newPhase, beatTime);
-    }
+  // --- Cancel any active stagger (SPEC_010 §5.1, §5.4) ---
+  cancelStagger: function() {
+    if (!this._staggerActive) return;
+    this._staggerQueue = [];
+    this._staggerActive = false;
+    this._effectiveFloor = null;
+    console.log('[StateMapper] Stagger cancelled');
+  },
 
-    // Narrative motif variation on phase transition (SPEC_020 §2)
-    if (typeof NarrativeConductor !== 'undefined') {
-      NarrativeConductor.onPhaseChange(newPhase, oldPhase, beatTime);
+  // --- Process stagger queue: fire groups whose beat has arrived ---
+  _processStaggerQueue: function(beatTime) {
+    var fired = false;
+    var bc = G.beatCount;
+    for (var i = this._staggerQueue.length - 1; i >= 0; i--) {
+      var entry = this._staggerQueue[i];
+      if (bc >= entry.triggerBeat) {
+        this._staggerQueue.splice(i, 1);
+        this._fireStaggerGroup(entry.group, entry.phase, entry.oldPhase, beatTime);
+        fired = true;
+      }
     }
+    if (this._staggerQueue.length === 0 && fired) {
+      this._staggerActive = false;
+      this._effectiveFloor = null;
+      console.log('[StateMapper] Stagger complete');
+    }
+  },
 
-    // Groove phase scaling: swing/humanize/prob multipliers (SPEC_018 §1)
-    if (typeof GrooveEngine !== 'undefined') {
-      GrooveEngine.onPhaseChange(newPhase);
+  // --- Fire a single stagger group's subsystems ---
+  _fireStaggerGroup: function(group, phase, oldPhase, beatTime) {
+    console.log('[StateMapper] Stagger group: ' + group + ' → ' + phase);
+    if (group === 'rhythm') {
+      this._dispatchRhythm(phase, oldPhase, beatTime);
+    } else if (group === 'harmony') {
+      this._dispatchHarmony(phase, oldPhase, beatTime);
+    } else if (group === 'texture') {
+      this._dispatchTexture(phase, beatTime);
+    } else if (group === 'melody') {
+      this._dispatchMelody(phase, beatTime);
     }
+    // Update _effectiveFloor for this group's tracks
+    this._updateEffectiveFloor(group, phase);
+  },
+
+  // --- Update _effectiveFloor for tracks belonging to a group ---
+  _updateEffectiveFloor: function(group, phase) {
+    if (!this._effectiveFloor) return;
+    var newFloor = CFG.PHASE_FLOOR[phase] || CFG.PHASE_FLOOR.pulse;
+    var trackMap = {
+      rhythm:  ['kick', 'hat', 'snare', 'perc'],
+      harmony: ['bass'],
+      texture: ['pad'],
+      melody:  ['melody']
+    };
+    var tracks = trackMap[group] || [];
+    for (var i = 0; i < tracks.length; i++) {
+      this._effectiveFloor[tracks[i]] = !!newFloor[tracks[i]];
+    }
+  },
+
+  // --- Group dispatch: rhythm (SPEC_010 §2.2) ---
+  _dispatchRhythm: function(phase, oldPhase, beatTime) {
+    // Stinger + fill fire with rhythm group (transition audio cue)
+    if (oldPhase) this._playStinger(phase, beatTime);
+    if (phase === 'swell') this._playBassFill(beatTime);
+
+    // Groove phase scaling (SPEC_018 §1)
+    if (typeof GrooveEngine !== 'undefined') GrooveEngine.onPhaseChange(phase);
 
     // Drum fill on phase transition (SPEC_018 §2)
-    if (typeof FillSystem !== 'undefined' && oldPhase) {
-      FillSystem.triggerPhaseFill(newPhase, G.beatCount);
-    }
+    if (typeof FillSystem !== 'undefined' && oldPhase) FillSystem.triggerPhaseFill(phase, G.beatCount);
 
-    // Polyrhythm tracks: unmute at phase gates (SPEC_018 §5)
-    if (typeof PolyTrack !== 'undefined') {
-      PolyTrack.onPhaseChange(newPhase);
-    }
-
-    // Pattern mutations revert to originals at phase transitions (SPEC_018 §6)
+    // Pattern mutations revert (SPEC_018 §6)
     if (typeof PatternMutator !== 'undefined' && typeof Sequencer !== 'undefined') {
       PatternMutator.revertToOriginals(Sequencer._drumPatterns);
     }
 
-    // Maelstrom entry: double-time hat + palette blending (SPEC_019 §2)
-    if (newPhase === 'maelstrom') {
-      if (typeof Sequencer !== 'undefined') Sequencer.switchHatDouble();
-      if (typeof PaletteBlender !== 'undefined') PaletteBlender.onMaelstromEntry();
+    // Maelstrom: double-time hat (SPEC_019 §2)
+    if (phase === 'maelstrom' && typeof Sequencer !== 'undefined') Sequencer.switchHatDouble();
+  },
+
+  // --- Group dispatch: harmony (SPEC_010 §2.2) ---
+  _dispatchHarmony: function(phase, oldPhase, beatTime) {
+    // HarmonyEngine progression advance (SPEC_017 §1)
+    if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.onPhaseChange) {
+      HarmonyEngine.onPhaseChange(phase);
     }
 
     // Storm entry: bass pattern switch + key modulation (SPEC_017 §3)
-    if (newPhase === 'storm') {
+    if (phase === 'storm') {
       if (typeof Sequencer !== 'undefined') Sequencer.switchBassPattern();
-
-      // Storm entry: +1 semitone direct modulation
       if (!this._modulatedUp && typeof HarmonyEngine !== 'undefined') {
         this._modulatedUp = true;
         HarmonyEngine.modulateTo(HarmonyEngine.root + 1, 'direct');
       }
     }
 
-    // Maelstrom entry: tritone modulation (+6 semitones) + reset mod counter
-    if (newPhase === 'maelstrom' && typeof HarmonyEngine !== 'undefined') {
+    // Maelstrom entry: tritone modulation + reset mod counter
+    if (phase === 'maelstrom' && typeof HarmonyEngine !== 'undefined') {
       HarmonyEngine.resetModulationCount();
       HarmonyEngine.modulateTo(HarmonyEngine.root + 6, 'direct');
     }
 
-    // Post-Storm periodic modulation: every 64 beats after Storm, +2 or +5 semitones via pivot
+    // Post-Storm periodic modulation registration
     if (oldPhase && typeof HarmonyEngine !== 'undefined' && G.beatCount > 0) {
       var phaseOrder = ['pulse', 'swell', 'surge', 'storm', 'maelstrom'];
-      var pIdx = phaseOrder.indexOf(newPhase);
+      var pIdx = phaseOrder.indexOf(phase);
       if (pIdx < 0) pIdx = phaseOrder.indexOf(G.phase);
-      // Only register the 64-beat modulation listener once
       if (pIdx >= 3 && !this._postStormModRegistered) {
         this._postStormModRegistered = true;
       }
     }
+  },
+
+  // --- Group dispatch: texture (SPEC_010 §2.2) ---
+  _dispatchTexture: function(phase, beatTime) {
+    // Phase FX ramping (SPEC_011 §3.4)
+    this._applyPhaseEffects(phase, beatTime);
+
+    // Narrative conductor (SPEC_020 §2)
+    if (typeof NarrativeConductor !== 'undefined') {
+      NarrativeConductor.onPhaseChange(phase, null, beatTime);
+    }
+  },
+
+  // --- Group dispatch: melody (SPEC_010 §2.2) ---
+  _dispatchMelody: function(phase, beatTime) {
+    // Melody resolution phrase (SPEC_017 §5)
+    if (typeof MelodyEngine !== 'undefined' && MelodyEngine.onPhaseChange) {
+      MelodyEngine.onPhaseChange(phase, beatTime);
+    }
+
+    // Polyrhythm tracks: unmute at phase gates (SPEC_018 §5)
+    if (typeof PolyTrack !== 'undefined') PolyTrack.onPhaseChange(phase);
+
+    // Maelstrom: palette blending (SPEC_019 §2)
+    if (phase === 'maelstrom' && typeof PaletteBlender !== 'undefined') {
+      PaletteBlender.onMaelstromEntry();
+    }
+  },
+
+  // --- Phase transition handler (registered via onPhaseChange) ---
+  _onPhaseChange: function(newPhase, oldPhase, beatTime) {
+    console.log('[StateMapper] Phase: ' + (oldPhase || 'none') + ' → ' + newPhase +
+                ' (beat ' + G.beatCount + ', DC ' + G.dc.toFixed(2) + ')');
+
+    // --- Cycle mode active: bypass stagger entirely (SPEC_010 §5.5) ---
+    if (this._cycleFrozen) {
+      this._fireAllGroups(newPhase, oldPhase, beatTime);
+      return;
+    }
+
+    // --- Cancel any in-progress stagger (SPEC_010 §5.1, §5.4) ---
+    if (this._staggerActive) {
+      this.cancelStagger();
+    }
+
+    // --- Resolve stagger profile ---
+    var stagger = this._resolveStagger();
+
+    // --- Check direction for reverse stagger (SPEC_010 §6) ---
+    var phaseOrder = ['pulse', 'swell', 'surge', 'storm', 'maelstrom'];
+    var newIdx = phaseOrder.indexOf(newPhase);
+    var oldIdx = oldPhase ? phaseOrder.indexOf(oldPhase) : -1;
+    var isDownward = (oldIdx >= 0 && newIdx < oldIdx);
+
+    // Group order: normal = rhythm→harmony→texture→melody; downward = reversed
+    var groups = isDownward
+      ? ['melody', 'texture', 'harmony', 'rhythm']
+      : ['rhythm', 'harmony', 'texture', 'melody'];
+
+    // Map group names to their beat offsets (for downward: re-assign offsets in reverse order)
+    var offsets;
+    if (isDownward) {
+      // Reverse: melody gets rhythm's offset (0), texture gets harmony's, etc.
+      offsets = {
+        melody:  stagger.rhythm,
+        texture: stagger.harmony,
+        harmony: stagger.texture,
+        rhythm:  stagger.melody
+      };
+    } else {
+      offsets = {
+        rhythm:  stagger.rhythm,
+        harmony: stagger.harmony,
+        texture: stagger.texture,
+        melody:  stagger.melody
+      };
+    }
+
+    // --- Zero-offset fast path: all offsets 0 → fire everything immediately (SPEC_010 §5.6) ---
+    var allZero = true;
+    for (var gi = 0; gi < groups.length; gi++) {
+      if (offsets[groups[gi]] !== 0) { allZero = false; break; }
+    }
+    if (allZero) {
+      this._fireAllGroups(newPhase, oldPhase, beatTime);
+      return;
+    }
+
+    // --- Build stagger queue ---
+    this._staggerActive = true;
+    this._staggerBaseBeat = G.beatCount;
+
+    // Initialize _effectiveFloor from old phase (tracks stay at old floor until their group fires)
+    var oldFloor = CFG.PHASE_FLOOR[oldPhase || 'pulse'] || CFG.PHASE_FLOOR.pulse;
+    this._effectiveFloor = {};
+    var allTracks = ['kick', 'hat', 'snare', 'bass', 'pad', 'perc', 'melody'];
+    for (var ti = 0; ti < allTracks.length; ti++) {
+      this._effectiveFloor[allTracks[ti]] = !!oldFloor[allTracks[ti]];
+    }
+
+    this._staggerQueue = [];
+    for (var qi = 0; qi < groups.length; qi++) {
+      var grp = groups[qi];
+      var offset = offsets[grp];
+      if (offset === 0) {
+        // Fire immediately
+        this._fireStaggerGroup(grp, newPhase, oldPhase, beatTime);
+      } else {
+        this._staggerQueue.push({
+          group: grp,
+          triggerBeat: G.beatCount + offset,
+          phase: newPhase,
+          oldPhase: oldPhase
+        });
+      }
+    }
+
+    // If queue ended up empty (all were offset 0), finalize
+    if (this._staggerQueue.length === 0) {
+      this._staggerActive = false;
+      this._effectiveFloor = null;
+    }
+  },
+
+  // --- Fire all groups synchronously (no stagger) ---
+  _fireAllGroups: function(phase, oldPhase, beatTime) {
+    this._dispatchRhythm(phase, oldPhase, beatTime);
+    this._dispatchHarmony(phase, oldPhase, beatTime);
+    this._dispatchTexture(phase, beatTime);
+    this._dispatchMelody(phase, beatTime);
   },
 
   // --- Register a graze event (called from GameScene collision check) ---
@@ -972,6 +1161,9 @@ var StateMapper = {
   shutdown: function() {
     this._deathFading = false;
     this._cycleFrozen = false;
+    this._staggerQueue = [];
+    this._staggerActive = false;
+    this._effectiveFloor = null;
 
     // --- Narrative conductor cleanup (SPEC_020) ---
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.shutdown();

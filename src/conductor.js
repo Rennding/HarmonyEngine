@@ -46,6 +46,8 @@ var Conductor = (function() {
     _cycleState = 'decay';
     _cycleBeats = 0;
     _frozenIntensity = G.intensity;
+    // Cancel any active phase stagger — cycle choreography takes over (SPEC_010 §5.5)
+    if (typeof StateMapper !== 'undefined') StateMapper.cancelStagger();
     // Schedule staggered gain ramps downward (SPEC_008 §3)
     if (typeof StateMapper !== 'undefined') StateMapper.startCycleDecay(beatTime);
     console.log('[Conductor] Cycle: entering decay (' + CFG.CYCLE.DECAY_BARS + ' bars)');

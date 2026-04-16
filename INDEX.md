@@ -23,7 +23,9 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | CFG.COMBO_LAYER_THRESHOLDS | config.js | 50 | Combo needed per track above floor |
 | CFG.PHASE_FX | config.js | 60 | Per-phase additive FX |
 | CFG.GAIN | config.js | 82 | Volume levels for all audio elements |
-| CFG.CYCLE | config.js | 82 | Cycle mode timing constants (SPEC_008) |
+| CFG.STAGGER_OVERRIDE | config.js | 129 | Override stagger profile (null = palette default) |
+| CFG.STAGGER_DEFAULT | config.js | 130 | Fallback stagger profile when palette has none |
+| CFG.CYCLE | config.js | 85 | Cycle mode timing constants (SPEC_008) |
 | CFG.VIZ | config.js | 142 | Visualizer constants |
 
 ---
@@ -99,6 +101,16 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Symbol | File | Line | Description |
 |---|---|---|---|
 | StateMapper | state_mapper.js | 6 | Maps virtual state to audio params |
+| StateMapper._resolveStagger | state_mapper.js | 719 | Resolve stagger profile (override→palette→default) |
+| StateMapper.cancelStagger | state_mapper.js | 728 | Cancel active stagger queue |
+| StateMapper._processStaggerQueue | state_mapper.js | 737 | Per-beat stagger queue processing |
+| StateMapper._fireStaggerGroup | state_mapper.js | 756 | Fire single stagger group's subsystems |
+| StateMapper._dispatchRhythm | state_mapper.js | 788 | Rhythm group dispatch (drums, groove, fills) |
+| StateMapper._dispatchHarmony | state_mapper.js | 809 | Harmony group dispatch (chords, bass, modulation) |
+| StateMapper._dispatchTexture | state_mapper.js | 842 | Texture group dispatch (FX, narrative, pad) |
+| StateMapper._dispatchMelody | state_mapper.js | 853 | Melody group dispatch (melody, poly, blender) |
+| StateMapper._fireAllGroups | state_mapper.js | 964 | Fire all groups synchronously (no stagger) |
+| StateMapper._effectiveFloor | state_mapper.js | 24 | Per-track floor override during stagger |
 
 ---
 

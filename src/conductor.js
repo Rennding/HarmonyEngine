@@ -22,14 +22,14 @@ var Conductor = (function() {
   function _barsToBts(bars) { return bars * 4; }
 
   // ── Maelstrom sustain check (SPEC_008 §2) ─────────────────────────────────
-  function _checkMaelstromSustain() {
+  function _checkMaelstromSustain(beatTime) {
     if (!G.settings.cycleMode) return;
     if (_cycleState !== null) return;       // already transitioning
     if (G.phase !== 'maelstrom') return;
 
     _maelstromSustainBeats++;
     if (_maelstromSustainBeats >= _barsToBts(_maelstromSustainTarget)) {
-      _enterDecay();
+      _enterDecay(beatTime);
     }
   }
 
@@ -42,22 +42,26 @@ var Conductor = (function() {
   }
 
   // ── Cycle state transitions (SPEC_008 §3/§4/§5/§6) ───────────────────────
-  function _enterDecay() {
+  function _enterDecay(beatTime) {
     _cycleState = 'decay';
     _cycleBeats = 0;
     _frozenIntensity = G.intensity;
+    // Schedule staggered gain ramps downward (SPEC_008 §3)
+    if (typeof StateMapper !== 'undefined') StateMapper.startCycleDecay(beatTime);
     console.log('[Conductor] Cycle: entering decay (' + CFG.CYCLE.DECAY_BARS + ' bars)');
   }
 
-  function _enterBridge() {
+  function _enterBridge(beatTime) {
     _cycleState = 'bridge';
     _cycleBeats = 0;
     console.log('[Conductor] Cycle: entering bridge (' + CFG.CYCLE.BRIDGE_BARS + ' bars)');
   }
 
-  function _enterRebuild() {
+  function _enterRebuild(beatTime) {
     _cycleState = 'rebuild';
     _cycleBeats = 0;
+    // Schedule staggered gain ramps upward from 0 (SPEC_008 §5)
+    if (typeof StateMapper !== 'undefined') StateMapper.startCycleRebuild(beatTime, _frozenIntensity);
     console.log('[Conductor] Cycle: entering rebuild (' + CFG.CYCLE.REBUILD_BARS + ' bars)');
   }
 
@@ -66,6 +70,8 @@ var Conductor = (function() {
     _cycleBeats = 0;
     _nextPalette = null;
     _maelstromSustainBeats = 0;
+    // Hand gain control back to StateMapper._updateLayers (SPEC_008 §5)
+    if (typeof StateMapper !== 'undefined') StateMapper.endCycleRebuild();
     // Set phase to surge, resume DC progression from surge threshold (SPEC_008 §5)
     var oldPhase = G.phase;
     G.phase = 'surge';
@@ -94,7 +100,11 @@ var Conductor = (function() {
     if (typeof Sequencer !== 'undefined') Sequencer.initRun(_nextPalette);
     if (typeof VoicePool !== 'undefined') VoicePool.initRun(_nextPalette);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.initRun(_nextPalette);
-    if (typeof StateMapper !== 'undefined') StateMapper.initRun();
+    if (typeof StateMapper !== 'undefined') {
+      StateMapper.initRun();
+      // Re-freeze after initRun reset — we're still in bridge, ramps not yet started (SPEC_008 §4)
+      StateMapper._cycleFrozen = true;
+    }
 
     // 5. Auto BPM from new palette's range
     if (G.settings.bpmOverride === null) {
@@ -116,7 +126,7 @@ var Conductor = (function() {
       // Freeze intensity during decay (SPEC_008 §3)
       G.intensity = _frozenIntensity;
       if (_cycleBeats >= _barsToBts(CFG.CYCLE.DECAY_BARS)) {
-        _enterBridge();
+        _enterBridge(beatTime);
       }
     } else if (_cycleState === 'bridge') {
       G.intensity = _frozenIntensity;
@@ -125,7 +135,7 @@ var Conductor = (function() {
         _doPaletteSwap();
       }
       if (_cycleBeats >= _barsToBts(CFG.CYCLE.BRIDGE_BARS)) {
-        _enterRebuild();
+        _enterRebuild(beatTime);
       }
     } else if (_cycleState === 'rebuild') {
       // Intensity stays frozen until rebuild completes
@@ -154,18 +164,23 @@ var Conductor = (function() {
         if (G.phase === 'maelstrom' && prevPhase !== 'maelstrom') {
           _onMaelstromEntry();
         }
-        // Check if sustain expired
-        if (G.phase === 'maelstrom') {
-          _checkMaelstromSustain();
-        }
       } else if (_manualPhase && _manualPhase !== G.phase) {
-        // Force phase
+        // Force phase — detect Maelstrom entry to start sustain timer
         var oldPhase = G.phase;
+        var wasManualMaelstrom = (_manualPhase === 'maelstrom' && G.phase !== 'maelstrom');
         G.phase = _manualPhase;
         G.phaseEntryBeat = G.beatCount;
         for (var j = 0; j < G._phaseChangeListeners.length; j++) {
           G._phaseChangeListeners[j](_manualPhase, oldPhase, beatTime);
         }
+        if (wasManualMaelstrom) {
+          _onMaelstromEntry();
+        }
+      }
+
+      // Check Maelstrom sustain regardless of auto/manual phase mode
+      if (G.phase === 'maelstrom') {
+        _checkMaelstromSustain(beatTime);
       }
 
       // Virtual intensity ramp (only when not in cycle transition)

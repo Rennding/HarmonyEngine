@@ -198,6 +198,11 @@
       <input type="checkbox" id="chkBPMAuto" checked onchange="onBPMAuto(this.checked)">
       <label for="chkBPMAuto" style="font-size:12px; color:#555577; cursor:pointer;">Auto BPM</label>
     </div>
+    <div style="display:flex; align-items:center; gap:6px; margin-top:6px; margin-bottom:4px;">
+      <input type="checkbox" id="chkCycleMode" onchange="onCycleMode(this.checked)">
+      <label for="chkCycleMode" style="font-size:12px; color:#555577; cursor:pointer;">Cycle Mode</label>
+      <span id="valCycleState" style="font-size:11px; color:#00ffcc; margin-left:4px;"></span>
+    </div>
   </div>
 
   <!-- Conductor -->
@@ -6519,6 +6524,7 @@ var StateMapper = {
   _stingerGain:       null,    // dedicated one-shot gain node for stingers
   _fxBaselines:       null,    // { reverbWet, delayFb, dist } captured at initRun
   _sidechainPhaseMult: 1.0,    // per-phase sidechain intensity multiplier (SPEC_016 §5)
+  _cycleFrozen: false,         // true during decay/bridge — suppress _updateLayers
 
   // --- Init per run ---
   initRun: function() {
@@ -6531,6 +6537,7 @@ var StateMapper = {
     this._lastPostStormModBeat = 0;
     this._darkenedKey       = false;   // energy=1 key darken active
     this._sidechainPhaseMult = 1.0;
+    this._cycleFrozen       = false;
     this._initEnergyFilter();
     this._initTremolo();
     this._initStingerGain();
@@ -6627,6 +6634,10 @@ var StateMapper = {
     var energy    = G.energy;
     var beatCount = G.beatCount;
 
+    // --- Cycle transition: suppress layer management, skip energy/near-miss effects ---
+    // Gain ramps are pre-scheduled; _updateLayers would fight them. (SPEC_008 §3/§5)
+    if (this._cycleFrozen) return;
+
     // --- Hit strip countdown ---
     if (this._hitStrip) {
       this._hitStripBeatsLeft--;
@@ -6691,6 +6702,113 @@ var StateMapper = {
         }
       }
     }
+  },
+
+  // --- Cycle mode: compute per-track target gain for surge phase (SPEC_008 §5) ---
+  _surgeTargetGain: function(track, intensity) {
+    var floor = CFG.PHASE_FLOOR.surge;
+    var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
+    var inFlr = !!floor[track];
+    var intensityThresh = thresh[track] || Infinity;
+    var intensityUnlocked = intensity >= intensityThresh;
+    if (!inFlr && !intensityUnlocked) return 0.0;
+    if (inFlr) {
+      return 0.3 + 0.7 * Math.min(intensity / 50, 1.0);
+    }
+    var above = Math.min(Math.max(intensity - intensityThresh, 0) / 30, 1.0);
+    return 0.3 + 0.7 * above;
+  },
+
+  // --- Cycle decay: stagger-ramp all non-kick tracks to 0 (SPEC_008 §3) ---
+  // Called on first beat of decay. Schedules all ramps upfront using beatTime.
+  startCycleDecay: function(beatTime) {
+    if (!audioCtx || typeof _trackGains === 'undefined') return;
+    this._cycleFrozen = true;
+    var t = beatTime || audioCtx.currentTime;
+    var beatSec = (CFG.BEAT_MS || (60000 / (G.bpm || 120))) / 1000;
+    var barSec = beatSec * 4;
+
+    // Groups with ramp start offsets (bars): arp+melody=0, pad+perc=4, snare+bass=8, hat=12
+    // Ramp duration: 4 bars each
+    var groups = [
+      { tracks: ['arp', 'melody'], startBar: 0 },
+      { tracks: ['pad', 'perc'],   startBar: 4 },
+      { tracks: ['snare', 'bass'], startBar: 8 },
+      { tracks: ['hat'],           startBar: 12 },
+    ];
+
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      var rampStart = t + g.startBar * barSec;
+      var rampEnd   = rampStart + 4 * barSec;
+      for (var ti = 0; ti < g.tracks.length; ti++) {
+        var trk = g.tracks[ti];
+        var node = _trackGains[trk];
+        if (!node) continue;
+        node.gain.cancelScheduledValues(rampStart);
+        node.gain.setValueAtTime(node.gain.value, rampStart);
+        node.gain.linearRampToValueAtTime(0.0, rampEnd);
+      }
+    }
+    // Kick stays full — explicitly protect it
+    if (_trackGains.kick) {
+      _trackGains.kick.gain.cancelScheduledValues(t);
+      _trackGains.kick.gain.setValueAtTime(_trackGains.kick.gain.value, t);
+    }
+    console.log('[StateMapper] Cycle decay ramps scheduled at t=' + t.toFixed(3));
+  },
+
+  // --- Cycle rebuild: stagger-ramp tracks from 0 to surge targets (SPEC_008 §5) ---
+  // Called on first beat of rebuild. All non-kick tracks should already be at 0 (post-bridge).
+  startCycleRebuild: function(beatTime, frozenIntensity) {
+    if (!audioCtx || typeof _trackGains === 'undefined') return;
+    this._cycleFrozen = true;  // still frozen during rebuild
+    var t = beatTime || audioCtx.currentTime;
+    var intensity = (typeof frozenIntensity === 'number') ? frozenIntensity : (G.intensity || 0);
+    var beatSec = (CFG.BEAT_MS || (60000 / (G.bpm || 120))) / 1000;
+    var barSec = beatSec * 4;
+
+    // Groups with ramp start offsets (bars): hat=0, snare+bass=4, pad+perc=8, arp+melody=12
+    var groups = [
+      { tracks: ['hat'],           startBar: 0 },
+      { tracks: ['snare', 'bass'], startBar: 4 },
+      { tracks: ['pad', 'perc'],   startBar: 8 },
+      { tracks: ['arp', 'melody'], startBar: 12 },
+    ];
+
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      var rampStart = t + g.startBar * barSec;
+      var rampEnd   = rampStart + 4 * barSec;
+      for (var ti = 0; ti < g.tracks.length; ti++) {
+        var trk = g.tracks[ti];
+        var node = _trackGains[trk];
+        if (!node) continue;
+        var target = this._surgeTargetGain(trk, intensity);
+        node.gain.cancelScheduledValues(rampStart);
+        node.gain.setValueAtTime(0.0, rampStart);
+        node.gain.linearRampToValueAtTime(target, rampEnd);
+      }
+    }
+    // Kick: already at full — ensure it stays there
+    if (_trackGains.kick) {
+      _trackGains.kick.gain.cancelScheduledValues(t);
+      _trackGains.kick.gain.setValueAtTime(_trackGains.kick.gain.value, t);
+    }
+    // Unmute all tracks in sequencer so they produce sound
+    if (typeof Sequencer !== 'undefined') {
+      var m = Sequencer._mute;
+      var allTracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'arp', 'melody'];
+      for (var i = 0; i < allTracks.length; i++) m[allTracks[i]] = false;
+      m.kick = false;
+    }
+    console.log('[StateMapper] Cycle rebuild ramps scheduled at t=' + t.toFixed(3));
+  },
+
+  // --- Cycle rebuild complete: hand control back to _updateLayers (SPEC_008 §5) ---
+  endCycleRebuild: function() {
+    this._cycleFrozen = false;
+    console.log('[StateMapper] Cycle rebuild done — _updateLayers resumed');
   },
 
   // --- Layer activation: continuous arrangement engine (SPEC_020 §6) ---
@@ -7366,6 +7484,7 @@ var StateMapper = {
   // --- Shutdown: disconnect custom nodes ---
   shutdown: function() {
     this._deathFading = false;
+    this._cycleFrozen = false;
 
     // --- Narrative conductor cleanup (SPEC_020) ---
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.shutdown();
@@ -9645,14 +9764,14 @@ var Conductor = (function() {
   function _barsToBts(bars) { return bars * 4; }
 
   // ── Maelstrom sustain check (SPEC_008 §2) ─────────────────────────────────
-  function _checkMaelstromSustain() {
+  function _checkMaelstromSustain(beatTime) {
     if (!G.settings.cycleMode) return;
     if (_cycleState !== null) return;       // already transitioning
     if (G.phase !== 'maelstrom') return;
 
     _maelstromSustainBeats++;
     if (_maelstromSustainBeats >= _barsToBts(_maelstromSustainTarget)) {
-      _enterDecay();
+      _enterDecay(beatTime);
     }
   }
 
@@ -9665,22 +9784,26 @@ var Conductor = (function() {
   }
 
   // ── Cycle state transitions (SPEC_008 §3/§4/§5/§6) ───────────────────────
-  function _enterDecay() {
+  function _enterDecay(beatTime) {
     _cycleState = 'decay';
     _cycleBeats = 0;
     _frozenIntensity = G.intensity;
+    // Schedule staggered gain ramps downward (SPEC_008 §3)
+    if (typeof StateMapper !== 'undefined') StateMapper.startCycleDecay(beatTime);
     console.log('[Conductor] Cycle: entering decay (' + CFG.CYCLE.DECAY_BARS + ' bars)');
   }
 
-  function _enterBridge() {
+  function _enterBridge(beatTime) {
     _cycleState = 'bridge';
     _cycleBeats = 0;
     console.log('[Conductor] Cycle: entering bridge (' + CFG.CYCLE.BRIDGE_BARS + ' bars)');
   }
 
-  function _enterRebuild() {
+  function _enterRebuild(beatTime) {
     _cycleState = 'rebuild';
     _cycleBeats = 0;
+    // Schedule staggered gain ramps upward from 0 (SPEC_008 §5)
+    if (typeof StateMapper !== 'undefined') StateMapper.startCycleRebuild(beatTime, _frozenIntensity);
     console.log('[Conductor] Cycle: entering rebuild (' + CFG.CYCLE.REBUILD_BARS + ' bars)');
   }
 
@@ -9689,6 +9812,8 @@ var Conductor = (function() {
     _cycleBeats = 0;
     _nextPalette = null;
     _maelstromSustainBeats = 0;
+    // Hand gain control back to StateMapper._updateLayers (SPEC_008 §5)
+    if (typeof StateMapper !== 'undefined') StateMapper.endCycleRebuild();
     // Set phase to surge, resume DC progression from surge threshold (SPEC_008 §5)
     var oldPhase = G.phase;
     G.phase = 'surge';
@@ -9717,7 +9842,11 @@ var Conductor = (function() {
     if (typeof Sequencer !== 'undefined') Sequencer.initRun(_nextPalette);
     if (typeof VoicePool !== 'undefined') VoicePool.initRun(_nextPalette);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.initRun(_nextPalette);
-    if (typeof StateMapper !== 'undefined') StateMapper.initRun();
+    if (typeof StateMapper !== 'undefined') {
+      StateMapper.initRun();
+      // Re-freeze after initRun reset — we're still in bridge, ramps not yet started (SPEC_008 §4)
+      StateMapper._cycleFrozen = true;
+    }
 
     // 5. Auto BPM from new palette's range
     if (G.settings.bpmOverride === null) {
@@ -9739,7 +9868,7 @@ var Conductor = (function() {
       // Freeze intensity during decay (SPEC_008 §3)
       G.intensity = _frozenIntensity;
       if (_cycleBeats >= _barsToBts(CFG.CYCLE.DECAY_BARS)) {
-        _enterBridge();
+        _enterBridge(beatTime);
       }
     } else if (_cycleState === 'bridge') {
       G.intensity = _frozenIntensity;
@@ -9748,7 +9877,7 @@ var Conductor = (function() {
         _doPaletteSwap();
       }
       if (_cycleBeats >= _barsToBts(CFG.CYCLE.BRIDGE_BARS)) {
-        _enterRebuild();
+        _enterRebuild(beatTime);
       }
     } else if (_cycleState === 'rebuild') {
       // Intensity stays frozen until rebuild completes
@@ -9777,18 +9906,23 @@ var Conductor = (function() {
         if (G.phase === 'maelstrom' && prevPhase !== 'maelstrom') {
           _onMaelstromEntry();
         }
-        // Check if sustain expired
-        if (G.phase === 'maelstrom') {
-          _checkMaelstromSustain();
-        }
       } else if (_manualPhase && _manualPhase !== G.phase) {
-        // Force phase
+        // Force phase — detect Maelstrom entry to start sustain timer
         var oldPhase = G.phase;
+        var wasManualMaelstrom = (_manualPhase === 'maelstrom' && G.phase !== 'maelstrom');
         G.phase = _manualPhase;
         G.phaseEntryBeat = G.beatCount;
         for (var j = 0; j < G._phaseChangeListeners.length; j++) {
           G._phaseChangeListeners[j](_manualPhase, oldPhase, beatTime);
         }
+        if (wasManualMaelstrom) {
+          _onMaelstromEntry();
+        }
+      }
+
+      // Check Maelstrom sustain regardless of auto/manual phase mode
+      if (G.phase === 'maelstrom') {
+        _checkMaelstromSustain(beatTime);
       }
 
       // Virtual intensity ramp (only when not in cycle transition)
@@ -10010,6 +10144,9 @@ function onBPMAuto(checked) {
     Conductor.setBPM(parseInt(v));
   }
 }
+function onCycleMode(checked) {
+  Conductor.setCycleMode(checked);
+}
 function onComboRate(v) {
   document.getElementById('valComboRate').textContent = v;
   Conductor.setComboRate(parseFloat(v));
@@ -10045,6 +10182,10 @@ window.addEventListener('conductor:beat', function(e) {
   if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette) {
     var pal = HarmonyEngine.getPalette();
     document.getElementById('statPalette').textContent = pal ? pal.name : '—';
+  }
+  var cycleEl = document.getElementById('valCycleState');
+  if (cycleEl) {
+    cycleEl.textContent = d.cycleState ? ('→ ' + d.cycleState) : '';
   }
 });
 

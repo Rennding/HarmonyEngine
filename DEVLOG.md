@@ -9,6 +9,14 @@
 
 ---
 
+## 2026-04-16 — #24 Build: Cycle mode track gain choreography
+
+**What:** Instruments now fade in/out smoothly during Cycle mode transitions. Decay phase: arp+melody → pad+perc → snare+bass → hat, each group over 4 bars, all ramps pre-scheduled via `linearRampToValueAtTime` from the beat clock time. Rebuild reverses the order. Kick protected at full gain throughout. StateMapper suppressed (`_cycleFrozen`) during transitions to prevent layer logic fighting the scheduled ramps. Fixed a subtle bug: `StateMapper.initRun()` on palette swap (bridge beat 1) was clearing the freeze flag — re-freeze now applied immediately after.
+
+**Files changed:** state_mapper.js (startCycleDecay, startCycleRebuild, endCycleRebuild, _cycleFrozen flag), conductor.js (beatTime threading through cycle transitions, freeze re-apply after palette swap initRun).
+
+---
+
 ## 2026-04-16 — #23 Build: Cycle mode core engine
 
 **What:** Conductor cycle state machine — `playing → decay → bridge → rebuild → playing`. Engine automatically transitions between palettes after Maelstrom sustain expires (randomized 8–32 bars). Palette swap happens on kick-only bridge, subsystems re-init without resetting beat clock or audio graph. Rebuild enters at Surge for continuous radio flow.

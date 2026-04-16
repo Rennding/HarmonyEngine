@@ -16,6 +16,7 @@ var StateMapper = {
   _stingerGain:       null,    // dedicated one-shot gain node for stingers
   _fxBaselines:       null,    // { reverbWet, delayFb, dist } captured at initRun
   _sidechainPhaseMult: 1.0,    // per-phase sidechain intensity multiplier (SPEC_016 §5)
+  _cycleFrozen: false,         // true during decay/bridge — suppress _updateLayers
 
   // --- Init per run ---
   initRun: function() {
@@ -28,6 +29,7 @@ var StateMapper = {
     this._lastPostStormModBeat = 0;
     this._darkenedKey       = false;   // energy=1 key darken active
     this._sidechainPhaseMult = 1.0;
+    this._cycleFrozen       = false;
     this._initEnergyFilter();
     this._initTremolo();
     this._initStingerGain();
@@ -124,6 +126,10 @@ var StateMapper = {
     var energy    = G.energy;
     var beatCount = G.beatCount;
 
+    // --- Cycle transition: suppress layer management, skip energy/near-miss effects ---
+    // Gain ramps are pre-scheduled; _updateLayers would fight them. (SPEC_008 §3/§5)
+    if (this._cycleFrozen) return;
+
     // --- Hit strip countdown ---
     if (this._hitStrip) {
       this._hitStripBeatsLeft--;
@@ -188,6 +194,113 @@ var StateMapper = {
         }
       }
     }
+  },
+
+  // --- Cycle mode: compute per-track target gain for surge phase (SPEC_008 §5) ---
+  _surgeTargetGain: function(track, intensity) {
+    var floor = CFG.PHASE_FLOOR.surge;
+    var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
+    var inFlr = !!floor[track];
+    var intensityThresh = thresh[track] || Infinity;
+    var intensityUnlocked = intensity >= intensityThresh;
+    if (!inFlr && !intensityUnlocked) return 0.0;
+    if (inFlr) {
+      return 0.3 + 0.7 * Math.min(intensity / 50, 1.0);
+    }
+    var above = Math.min(Math.max(intensity - intensityThresh, 0) / 30, 1.0);
+    return 0.3 + 0.7 * above;
+  },
+
+  // --- Cycle decay: stagger-ramp all non-kick tracks to 0 (SPEC_008 §3) ---
+  // Called on first beat of decay. Schedules all ramps upfront using beatTime.
+  startCycleDecay: function(beatTime) {
+    if (!audioCtx || typeof _trackGains === 'undefined') return;
+    this._cycleFrozen = true;
+    var t = beatTime || audioCtx.currentTime;
+    var beatSec = (CFG.BEAT_MS || (60000 / (G.bpm || 120))) / 1000;
+    var barSec = beatSec * 4;
+
+    // Groups with ramp start offsets (bars): arp+melody=0, pad+perc=4, snare+bass=8, hat=12
+    // Ramp duration: 4 bars each
+    var groups = [
+      { tracks: ['arp', 'melody'], startBar: 0 },
+      { tracks: ['pad', 'perc'],   startBar: 4 },
+      { tracks: ['snare', 'bass'], startBar: 8 },
+      { tracks: ['hat'],           startBar: 12 },
+    ];
+
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      var rampStart = t + g.startBar * barSec;
+      var rampEnd   = rampStart + 4 * barSec;
+      for (var ti = 0; ti < g.tracks.length; ti++) {
+        var trk = g.tracks[ti];
+        var node = _trackGains[trk];
+        if (!node) continue;
+        node.gain.cancelScheduledValues(rampStart);
+        node.gain.setValueAtTime(node.gain.value, rampStart);
+        node.gain.linearRampToValueAtTime(0.0, rampEnd);
+      }
+    }
+    // Kick stays full — explicitly protect it
+    if (_trackGains.kick) {
+      _trackGains.kick.gain.cancelScheduledValues(t);
+      _trackGains.kick.gain.setValueAtTime(_trackGains.kick.gain.value, t);
+    }
+    console.log('[StateMapper] Cycle decay ramps scheduled at t=' + t.toFixed(3));
+  },
+
+  // --- Cycle rebuild: stagger-ramp tracks from 0 to surge targets (SPEC_008 §5) ---
+  // Called on first beat of rebuild. All non-kick tracks should already be at 0 (post-bridge).
+  startCycleRebuild: function(beatTime, frozenIntensity) {
+    if (!audioCtx || typeof _trackGains === 'undefined') return;
+    this._cycleFrozen = true;  // still frozen during rebuild
+    var t = beatTime || audioCtx.currentTime;
+    var intensity = (typeof frozenIntensity === 'number') ? frozenIntensity : (G.intensity || 0);
+    var beatSec = (CFG.BEAT_MS || (60000 / (G.bpm || 120))) / 1000;
+    var barSec = beatSec * 4;
+
+    // Groups with ramp start offsets (bars): hat=0, snare+bass=4, pad+perc=8, arp+melody=12
+    var groups = [
+      { tracks: ['hat'],           startBar: 0 },
+      { tracks: ['snare', 'bass'], startBar: 4 },
+      { tracks: ['pad', 'perc'],   startBar: 8 },
+      { tracks: ['arp', 'melody'], startBar: 12 },
+    ];
+
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      var rampStart = t + g.startBar * barSec;
+      var rampEnd   = rampStart + 4 * barSec;
+      for (var ti = 0; ti < g.tracks.length; ti++) {
+        var trk = g.tracks[ti];
+        var node = _trackGains[trk];
+        if (!node) continue;
+        var target = this._surgeTargetGain(trk, intensity);
+        node.gain.cancelScheduledValues(rampStart);
+        node.gain.setValueAtTime(0.0, rampStart);
+        node.gain.linearRampToValueAtTime(target, rampEnd);
+      }
+    }
+    // Kick: already at full — ensure it stays there
+    if (_trackGains.kick) {
+      _trackGains.kick.gain.cancelScheduledValues(t);
+      _trackGains.kick.gain.setValueAtTime(_trackGains.kick.gain.value, t);
+    }
+    // Unmute all tracks in sequencer so they produce sound
+    if (typeof Sequencer !== 'undefined') {
+      var m = Sequencer._mute;
+      var allTracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'arp', 'melody'];
+      for (var i = 0; i < allTracks.length; i++) m[allTracks[i]] = false;
+      m.kick = false;
+    }
+    console.log('[StateMapper] Cycle rebuild ramps scheduled at t=' + t.toFixed(3));
+  },
+
+  // --- Cycle rebuild complete: hand control back to _updateLayers (SPEC_008 §5) ---
+  endCycleRebuild: function() {
+    this._cycleFrozen = false;
+    console.log('[StateMapper] Cycle rebuild done — _updateLayers resumed');
   },
 
   // --- Layer activation: continuous arrangement engine (SPEC_020 §6) ---
@@ -863,6 +976,7 @@ var StateMapper = {
   // --- Shutdown: disconnect custom nodes ---
   shutdown: function() {
     this._deathFading = false;
+    this._cycleFrozen = false;
 
     // --- Narrative conductor cleanup (SPEC_020) ---
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.shutdown();

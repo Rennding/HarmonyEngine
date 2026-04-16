@@ -189,7 +189,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #11 plan complete ✅. Next: #27 — Tension curve randomization build (Opus).**
+**Status: #28 plan complete ✅. Next: #27 — Tension curve randomization build (Opus), then #29 — Per-palette Storm/Maelstrom personality build (Opus).**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -215,6 +215,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#26** Staggered phase transitions — PhaseStagger scheduler + per-palette profiles (Opus) — qa-pass
 ✅ **#11** Tension curve randomization — plan complete → SPEC_011_TENSION_CURVE_RANDOMIZATION.md
 - **#27** Tension curve randomization — TensionMap + palette profiles + DC integration (Opus)
+✅ **#28** Per-palette Storm/Maelstrom personality — plan complete → SPEC_028_PALETTE_STORM_PERSONALITY.md
+- **#29** Per-palette Storm/Maelstrom personality — tier caps + gain scalars + phase filters (Opus)
 - **#12** Post-Maelstrom decay arc — break down → new cycle (plan)
 - **#13** Faster start — skip empty Pulse or add intro phrase (plan)
 

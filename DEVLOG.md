@@ -9,6 +9,15 @@
 
 ---
 
+## 2026-04-17 — #28 Plan: Per-palette Storm/Maelstrom personality
+
+**What:** At Storm/Maelstrom, the WalkingBass engine plays the same jazz-like walking pattern across all 10 genres — worst in chiptune where a bright pulse wave walks like an upright bass at full volume. Designed a per-palette bass personality system with three knobs: tier cap (limits which WalkingBass complexity tiers a palette can reach — only noir_jazz gets full walking bass), gain scalar (tames bright timbres like chiptune at 0.7×, boosts subby ones like ambient_dread at 1.2×), and phase filter envelope (tighter lowpass at Storm/Maelstrom to prevent spectral buildup). Each palette now has genre-appropriate high-intensity bass behavior.
+
+**Spec:** `SPEC_028_PALETTE_STORM_PERSONALITY.md`
+**Build issue:** #29 (Opus, ~25 edits, single session)
+
+---
+
 ## 2026-04-16 — #11 Plan: Tension curve randomization
 
 **What:** Designed the TensionMap system. Currently DC follows a pure monotonic power curve — every listen at the same BPM/palette has the identical emotional arc. The spec adds a tension layer on top: plateaus (DC freezes for 16–32 beats), false climaxes (DC spikes into the next phase then retreats), and brief retreats (DC dips 10–20%, creating a "breath"). Events are generated per-song from the seeded PRNG, so same seed = same profile. Each palette gets a tension tuning profile — ambient_dread favors long plateaus, glitch is chaotic with frequent spikes, dark_techno has sharp spikes but fewer events. Suppressed during manual phase override and cycle transitions.

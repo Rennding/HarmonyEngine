@@ -6,7 +6,7 @@ const CFG = {
   BPM: 120,
   get BEAT_MS() { return 60000 / this.BPM; },
 
-  MAX_HP: 3,
+  MAX_ENERGY: 3,
 
   MOODS: [
     { name: 'Chill',    bpm: 90  },
@@ -41,8 +41,8 @@ const CFG = {
     maelstrom: { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  arp: true,  melody: true  },
   },
 
-  // Combo thresholds (above floor) for adding layers
-  COMBO_LAYER_THRESHOLDS: { hat: 5, snare: 10, bass: 10, pad: 20, perc: 15 },
+  // Intensity thresholds (above floor) for adding layers
+  INTENSITY_LAYER_THRESHOLDS: { hat: 5, snare: 10, bass: 10, pad: 20, perc: 15 },
 
   // Post-Maelstrom cosmetic phase names
   POST_MAELSTROM: [
@@ -120,7 +120,7 @@ const CFG = {
     streak_tone:   0.05,
     pulse_boom:    0.14,
     regen:         0.08,
-    bullet:      0.03,
+    voice:       0.03,
     perk:        0.12,
     stinger:     0.10,
     bass_fill:   0.12,

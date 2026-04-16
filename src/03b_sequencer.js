@@ -1009,7 +1009,7 @@ var PadTrack = {
   _palette:  null,      // palette.pad config
   _paletteName: null,   // for wavetable lookup (SPEC_016)
   _active:   false,
-  _muted:    true,      // starts muted; StateMapper enables at combo 20+
+  _muted:    true,      // starts muted; StateMapper enables at intensity 20+
   _lastChordRoot: -1,   // detect chord changes
   _detuneOverride: 0,   // set by StateMapper at Maelstrom (doubles detune)
   _lpf:      null,      // shared low-pass filter — tames overtones so pad sits behind mix
@@ -1380,7 +1380,7 @@ var GrazeStreakTrack = {
 // Trigger types:
 //   'phase'  — full-bar fill on phase transition (all 3 instruments)
 //   'beat16' — snare + hat mini-fill on every 16th beat (last 4 steps only)
-//   'combo'  — kick build fill at combo milestones 10, 20, 50
+//   'intensity'  — kick build fill at intensity milestones 10, 20, 50
 //
 // Fill selection: fills arrays in palette.drums[inst] ordered low→high intensity.
 // Phase bias selects from progressively higher-intensity fills as game progresses.
@@ -1456,8 +1456,8 @@ var FillSystem = {
     this._armFill('hat',   'fill_hat_mini');
   },
 
-  // Trigger a kick build fill at combo milestones (10, 20, 50).
-  triggerComboBuild: function(phase) {
+  // Trigger a kick build fill at intensity milestones (10, 20, 50).
+  triggerIntensityBuild: function(phase) {
     if (!this._active) return;
     // Only fire if kick fill not already running
     if (this._fills.kick && this._fills.kick.stepsLeft > 0) return;
@@ -1481,12 +1481,12 @@ var FillSystem = {
 
 // ---- Walking Bass Engine (SPEC_018 §3) ----
 //
-// Replaces the simple root-offset bass lookup with combo-driven behavior:
-//   Combo 0–9:  root note only (pattern controls rhythm)
-//   Combo 10–19: root + 5th alternation
-//   Combo 20–34: chord tones + octave bounce + passing tones
-//   Combo 35–49: walking bass — stepwise scale motion toward next chord root
-//   Combo 50+:  chromatic approach notes + syncopation
+// Replaces the simple root-offset bass lookup with intensity-driven behavior:
+//   Intensity 0–9:  root note only (pattern controls rhythm)
+//   Intensity 10–19: root + 5th alternation
+//   Intensity 20–34: chord tones + octave bounce + passing tones
+//   Intensity 35–49: walking bass — stepwise scale motion toward next chord root
+//   Intensity 50+:  chromatic approach notes + syncopation
 //
 // WalkingBass.getNote(stepIndex, beatTime) returns MIDI note.
 // On chord changes, it queues a 2-beat approach figure leading into the new root.
@@ -1515,12 +1515,12 @@ var WalkingBass = {
   },
 
   // --- Complexity tier ---
-  _tier: function(combo) {
-    if (combo >= 50) return 4;   // chromatic approach + syncopation
-    if (combo >= 35) return 3;   // walking bass (stepwise to target)
-    if (combo >= 20) return 2;   // chord tones + passing
-    if (combo >= 10) return 1;   // root + 5th
-    return 0;                    // root only
+  _tier: function(intensity) {
+    if (intensity >= 50) return 4;   // chromatic approach + syncopation
+    if (intensity >= 35) return 3;   // walking bass (stepwise to target)
+    if (intensity >= 20) return 2;   // chord tones + passing
+    if (intensity >= 10) return 1;   // root + 5th
+    return 0;                        // root only
   },
 
   // --- Get the target root MIDI for the current chord at a given octave ---
@@ -1584,13 +1584,13 @@ var WalkingBass = {
   // --- Main: called per 16th step from Sequencer.tick ---
   // Returns MIDI note or -1 (silence for this step).
   // bStep = pattern step object (for rhythm / active gate).
-  // combo = current G.combo.
+  // intensity = current G.intensity.
   // octave = palette bass octave.
-  getNote: function(bStep, combo, octave) {
+  getNote: function(bStep, intensity, octave) {
     if (!this._active || !bStep || !bStep.active) return -1;
     if (typeof HarmonyEngine === 'undefined' || !HarmonyEngine._currentChord) return -1;
 
-    var tier = this._tier(combo);
+    var tier = this._tier(intensity);
     var root = this._chordRoot(octave);
     if (root < 0) return root;
 
@@ -1987,12 +1987,12 @@ var Sequencer = {
     this._globalStep = 0;
     this._active   = true;
     // Start muted per Pulse floor: only kick audible at game start.
-    // StateMapper._updateLayers() will unmute tracks as phase/combo progress.
+    // StateMapper._updateLayers() will unmute tracks as phase/intensity progress.
     this._mute     = { kick: false, snare: true, hat: true, bass: true, pad: true, perc: true, arp: true, melody: true };
     this._hatDoubled = false;
     this._halfTime = false;
     this._halfTimeEnd = 0;
-    this._comboComplexity = 'simple'; // SPEC_020 §6: 'simple'|'base'|'complex' set by StateMapper
+    this._intensityComplexity = 'simple'; // SPEC_020 §6: 'simple'|'base'|'complex' set by StateMapper
     _noiseBuffer   = null; // reset: new AudioContext gets fresh buffer
 
     var d = palette.drums;
@@ -2296,7 +2296,7 @@ var Sequencer = {
       var snare = snareFillStep || this._drumPatterns.snare[s];
       if (snare && !this._mute.snare) {
         // Complexity tier: 'simple' = backbeat only (step 4,12), 'base'/'complex' = full
-        var snareTier = this._comboComplexity || 'base';
+        var snareTier = this._intensityComplexity || 'base';
         var skipSnareSimple = (snareTier === 'simple' && !snareFillStep && !isHalfTime && (s !== 4 && s !== 12));
         if (skipSnareSimple) {
           // Simple tier: only backbeat positions
@@ -2316,7 +2316,7 @@ var Sequencer = {
       var hat = hatFillStep || this._drumPatterns.hat[s];
       if (hat && !this._mute.hat) {
         // Complexity tier: 'simple' = quarter notes only (skip offbeats), 'base' = normal, 'complex' = full with ghosts
-        var cTier = this._comboComplexity || 'base';
+        var cTier = this._intensityComplexity || 'base';
         var skipSimple = (cTier === 'simple' && !hatFillStep && (s % 4 !== 0));
         if (skipSimple) {
           // Simple tier: only play on-beat hits (steps 0, 4, 8, 12)
@@ -2366,7 +2366,7 @@ var Sequencer = {
       if (bStep && bStep.active && !this._mute.bass && !this._halfTime) {
         var bassMidi = -1;
         if (typeof WalkingBass !== 'undefined' && WalkingBass._active) {
-          bassMidi = WalkingBass.getNote(bStep, G.combo, pal.bass.octave);
+          bassMidi = WalkingBass.getNote(bStep, G.intensity, pal.bass.octave);
         } else {
           // Fallback: simple root
           var fbTones = HarmonyEngine.getChordTones(pal.bass.octave);

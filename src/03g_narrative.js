@@ -57,7 +57,7 @@ var NarrativeConductor = {
     // Reset silence state (SPEC_020 §8)
     this._silenceState = null;
     this._firstHitSilenced = false;
-    this._combo50Silenced = false;
+    this._intensity50Silenced = false;
     this._prePhaseDropBeat = 0;
     this._generateThemeMotif(palette);
     console.log('[NarrativeConductor] initRun: motif degrees=' +
@@ -630,10 +630,10 @@ var NarrativeConductor = {
       if (!tg) continue;
       // Only ramp tracks that are about to be unmuted
       var floor = CFG.PHASE_FLOOR[G.phase] || CFG.PHASE_FLOOR.pulse;
-      var thresh = CFG.COMBO_LAYER_THRESHOLDS;
+      var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
       var inFloor = !!floor[tracks[i]];
-      var comboUnlocked = G.combo >= (thresh[tracks[i]] || Infinity);
-      if (inFloor || comboUnlocked) {
+      var intensityUnlocked = G.intensity >= (thresh[tracks[i]] || Infinity);
+      if (inFloor || intensityUnlocked) {
         tg.gain.cancelScheduledValues(t);
         tg.gain.setValueAtTime(0.0001, t);
         tg.gain.linearRampToValueAtTime(1.0, t + rampDur);
@@ -748,10 +748,10 @@ var NarrativeConductor = {
 
   resetStreakMilestones: function() {
     this._streakMilestonesHit = {};
-    // Restore bullet voice octave if shifted
+    // Restore voice pool octave if shifted
     if (this._streakOctaveShiftActive) {
       this._streakOctaveShiftActive = false;
-      this._restoreBulletOctave();
+      this._restoreVoiceOctave();
     }
     this._streakUnison = false;
   },
@@ -768,10 +768,10 @@ var NarrativeConductor = {
       this._playRisingFigure(t, beatDur);
     }
 
-    // Streak 5: bullet voices shift up an octave (brightening)
+    // Streak 5: voice pool shifts up an octave (brightening)
     if (streak >= 5 && !this._streakMilestonesHit[5]) {
       this._streakMilestonesHit[5] = true;
-      this._shiftBulletOctave(12); // +12 semitones = 1 octave
+      this._shiftVoiceOctave(12); // +12 semitones = 1 octave
       this._streakOctaveShiftActive = true;
     }
 
@@ -807,10 +807,10 @@ var NarrativeConductor = {
     }
   },
 
-  // Streak 5: shift active bullet voices up 12 semitones
-  _shiftBulletOctave: function(semitones) {
-    if (typeof BulletVoicePool === 'undefined') return;
-    var pool = BulletVoicePool._pool;
+  // Streak 5: shift active voice pool up 12 semitones
+  _shiftVoiceOctave: function(semitones) {
+    if (typeof VoicePool === 'undefined') return;
+    var pool = VoicePool._pool;
     for (var i = 0; i < pool.length; i++) {
       var v = pool[i];
       if (v.active && v.osc) {
@@ -820,12 +820,12 @@ var NarrativeConductor = {
       }
     }
     // Store shift so new spawns also get it
-    BulletVoicePool._streakDetune = semitones * 100;
+    VoicePool._streakDetune = semitones * 100;
   },
 
-  _restoreBulletOctave: function() {
-    if (typeof BulletVoicePool === 'undefined') return;
-    var pool = BulletVoicePool._pool;
+  _restoreVoiceOctave: function() {
+    if (typeof VoicePool === 'undefined') return;
+    var pool = VoicePool._pool;
     for (var i = 0; i < pool.length; i++) {
       var v = pool[i];
       if (v.active && v.osc) {
@@ -834,7 +834,7 @@ var NarrativeConductor = {
         } catch(e) {}
       }
     }
-    BulletVoicePool._streakDetune = 0;
+    VoicePool._streakDetune = 0;
   },
 
   // Streak 8: bass celebration fill — root→5th→octave→5th descending
@@ -932,7 +932,7 @@ var NarrativeConductor = {
 
   _silenceState: null,  // { type, endBeat } when a silence is active
   _firstHitSilenced: false,
-  _combo50Silenced: false,
+  _intensity50Silenced: false,
   _prePhaseDropBeat: 0,
 
   // Check & schedule silence on beat (called from onBeat)
@@ -944,10 +944,10 @@ var NarrativeConductor = {
       this._endSilence(beatTime);
     }
 
-    // Combo 50: 2-beat drum cut, pad sustains (SPEC_020 §8)
-    if (G.combo === 50 && !this._combo50Silenced) {
-      this._combo50Silenced = true;
-      this._beginSilence('combo_50', G.beatCount + 2, beatTime);
+    // Intensity 50: 2-beat drum cut, pad sustains (SPEC_020 §8)
+    if (G.intensity === 50 && !this._intensity50Silenced) {
+      this._intensity50Silenced = true;
+      this._beginSilence('intensity_50', G.beatCount + 2, beatTime);
     }
 
     // Streak 12 unison: fire on downbeat if armed
@@ -1068,7 +1068,7 @@ var NarrativeConductor = {
     this._streakUnison = false;
     this._silenceState = null;
     this._firstHitSilenced = false;
-    this._combo50Silenced = false;
+    this._intensity50Silenced = false;
     this._prePhaseDropBeat = 0;
     if (this._canonVoiceTimeout) {
       clearTimeout(this._canonVoiceTimeout);

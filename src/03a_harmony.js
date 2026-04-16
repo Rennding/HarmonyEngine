@@ -119,7 +119,7 @@ var PALETTES = [
       detune: 12,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'square',
       octave: 5,
       attack: 0.01,
@@ -220,7 +220,7 @@ var PALETTES = [
       detune: 10,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sawtooth',
       octave: 5,
       attack: 0.02,
@@ -319,7 +319,7 @@ var PALETTES = [
       detune: 12,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sawtooth',
       octave: 5,
       attack: 0.005,
@@ -419,7 +419,7 @@ var PALETTES = [
       detune: 8,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sine',
       octave: 5,
       attack: 0.05,
@@ -526,7 +526,7 @@ var PALETTES = [
       detune: 6,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sine',
       octave: 5,
       attack: 0.03,
@@ -630,7 +630,7 @@ var PALETTES = [
       detune: 0,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'square',
       octave: 6,
       attack: 0.005,
@@ -817,7 +817,7 @@ var PALETTES = [
       detune: 4,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sine',
       octave: 5,
       attack: 0.02,
@@ -1038,7 +1038,7 @@ var PALETTES = [
       detune: 8,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sawtooth',
       octave: 5,
       attack: 0.005,
@@ -1145,7 +1145,7 @@ var PALETTES = [
       detune: 20,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sine',
       octave: 5,
       attack: 0.03,
@@ -1249,7 +1249,7 @@ var PALETTES = [
       detune: 8,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sawtooth',
       octave: 5,
       attack: 0.005,
@@ -1333,7 +1333,7 @@ var HarmonyEngine = {
   _palette: null,
   _currentChord: null,    // cached resolved chord
   _prevVoicing: null,     // previous chord MIDI notes for voice leading
-  _lastBulletNote: null,  // for proximity-based bullet voice leading
+  _lastVoiceNote: null,  // for proximity-based voice leading
 
   // Modulation state (SPEC_017 §3)
   _modulationCount: 0,    // max 4 per run (reset at Maelstrom)
@@ -1376,7 +1376,7 @@ var HarmonyEngine = {
     this._palette = palette;
     this._currentChord = null;
     this._prevVoicing = null;
-    this._lastBulletNote = null;
+    this._lastVoiceNote = null;
     this._modulationCount = 0;
     this._pendingModulation = null;
     this._prevRoot = null;
@@ -1838,7 +1838,7 @@ var HarmonyEngine = {
     if (!this._currentChord) return [];
     var chordRoot = this._currentChord.rootSemitone;
     var baseMidi = (octave + 1) * 12 + chordRoot;
-    // Use triad intervals only for external callers (bullets, bass)
+    // Use triad intervals only for external callers (voices, bass)
     var triIntervals = _triadIntervals(this._currentChord.quality);
     return triIntervals.map(function(iv) { return baseMidi + iv; });
   },
@@ -1862,17 +1862,17 @@ var HarmonyEngine = {
     return this.getVoicedChordTones(octave);
   },
 
-  // Proximity-based bullet voice leading (SPEC_017 §6)
-  _bulletToneIdx: 0,
+  // Proximity-based voice leading (SPEC_017 §6)
+  _voiceToneIdx: 0,
   getNextChordTone: function(octave) {
     var tones = this.getChordTones(octave);
     if (!tones.length) return 60; // fallback C4
 
-    if (this._lastBulletNote === null) {
-      // First bullet: random chord tone
+    if (this._lastVoiceNote === null) {
+      // First voice: random chord tone
       var idx = Math.floor((_songRng || Math.random)() * tones.length);
-      this._lastBulletNote = tones[idx];
-      return this._lastBulletNote;
+      this._lastVoiceNote = tones[idx];
+      return this._lastVoiceNote;
     }
 
     // Build candidates: chord tones in octave ± 1
@@ -1883,7 +1883,7 @@ var HarmonyEngine = {
     }
 
     // Sort by proximity to last note
-    var last = this._lastBulletNote;
+    var last = this._lastVoiceNote;
     candidates.sort(function(a, b) {
       return Math.abs(a - last) - Math.abs(b - last);
     });
@@ -1895,7 +1895,7 @@ var HarmonyEngine = {
       pick = candidates[Math.floor(_rngBt() * 3)];
     }
 
-    this._lastBulletNote = pick;
+    this._lastVoiceNote = pick;
     return pick;
   },
 

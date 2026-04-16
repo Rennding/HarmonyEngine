@@ -89,7 +89,7 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| BulletVoicePool | 03c_bullet_voice.js | 7 | 8-voice polyphonic pool |
+| VoicePool | 03c_bullet_voice.js | 7 | 16-voice polyphonic pool |
 
 ---
 

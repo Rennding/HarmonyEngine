@@ -20,9 +20,9 @@ function _createSongRng(seed) {
 
 const G = {
   score: 0,
-  combo: 0,
-  bestCombo: 0,
-  hp: CFG.MAX_HP,
+  intensity: 0,
+  bestIntensity: 0,
+  energy: CFG.MAX_ENERGY,
   beatCount: 0,
   alive: true,
   lastBeatTime: 0,
@@ -101,9 +101,9 @@ function getPostMaelstromName() {
 
 function resetRun() {
   G.score = 0;
-  G.combo = 0;
-  G.bestCombo = 0;
-  G.hp = CFG.MAX_HP;
+  G.intensity = 0;
+  G.bestIntensity = 0;
+  G.energy = CFG.MAX_ENERGY;
   G.beatCount = 0;
   G.alive = true;
   G.lastBeatTime = 0;
@@ -133,7 +133,7 @@ function resetRun() {
       ? moodBpm
       : pal.bpmRange[0] + Math.floor(_songRng() * (pal.bpmRange[1] - pal.bpmRange[0] + 1));
     if (typeof Sequencer !== 'undefined') Sequencer.initRun(pal);
-    if (typeof BulletVoicePool !== 'undefined') BulletVoicePool.initRun(pal);
+    if (typeof VoicePool !== 'undefined') VoicePool.initRun(pal);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.initRun(pal);
     if (typeof StateMapper !== 'undefined') StateMapper.initRun();
   } else {
@@ -147,9 +147,9 @@ function resetRun() {
 
 // ── Song hash utility ─────────────────────────────────────────────────────
 
-function computeSongHash(paletteIdx, bpm, beats, combo, seed) {
+function computeSongHash(paletteIdx, bpm, beats, intensity, seed) {
   var n = seed
-    ? ((seed * 7919 + paletteIdx * 6271 + beats * 1021 + combo * 3) & 0xFFFF)
-    : ((paletteIdx * 7919 + bpm * 6271 + beats * 1021 + combo * 3) & 0xFFFF);
+    ? ((seed * 7919 + paletteIdx * 6271 + beats * 1021 + intensity * 3) & 0xFFFF)
+    : ((paletteIdx * 7919 + bpm * 6271 + beats * 1021 + intensity * 3) & 0xFFFF);
   return n.toString(16).toUpperCase().padStart(4, '0');
 }

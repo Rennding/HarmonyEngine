@@ -1,12 +1,12 @@
-// ========== BULLET VOICE POOL ==========
-// 16-voice polyphonic pool. Each bullet is an instrument.
+// ========== VOICE POOL ==========
+// 16-voice polyphonic pool. Each voice is an instrument.
 // On spawn: request voice → assign chord tone → play.
 // On death: trigger release envelope → return voice to pool after tail.
 // On shutdown: hard-stop all voices immediately (no hang on death).
 
-var BulletVoicePool = {
+var VoicePool = {
   _pool:        [],     // array of voice objects
-  _palette:     null,   // current palette.bulletVoice config
+  _palette:     null,   // current palette.voiceConfig
   _size:        16,
   _timeouts:    [],     // all pending setTimeout handles (cleared on shutdown)
 
@@ -37,14 +37,14 @@ var BulletVoicePool = {
   // --- Init per run ---
   initRun: function(palette) {
     this.shutdown();           // clean up any previous run nodes
-    this._palette = palette.bulletVoice;
+    this._palette = palette.voiceConfig;
     this._paletteName = palette.name || null;  // for wavetable lookup (SPEC_016)
     this._pool = [];
     this._streakDetune = 0;  // SPEC_020 §5: streak milestone octave shift (cents)
     for (var i = 0; i < this._size; i++) {
       this._pool.push(this._makeVoice());
     }
-    console.log('[BVP] initRun: ' + this._size + ' voices, wave=' +
+    console.log('[VP] initRun: ' + this._size + ' voices, wave=' +
                 this._palette.wave + ' oct=' + this._palette.octave);
   },
 
@@ -58,7 +58,7 @@ var BulletVoicePool = {
 
   // --- Build and start audio graph for a voice ---
   // Pure AD envelope: attack → decay to near-zero. No sustain plateau.
-  // Max lifetime ~350ms regardless of how long bullet lives.
+  // Max lifetime ~350ms regardless of how long the source lives.
   _startVoice: function(voice, midiNote, scheduledTime) {
     if (!audioCtx || !submixGain) return;
     var cfg  = this._palette;
@@ -70,9 +70,9 @@ var BulletVoicePool = {
     var filter = audioCtx.createBiquadFilter();
     var gain   = audioCtx.createGain();
 
-    // Wavetable for palette-specific bullet timbre (SPEC_016)
+    // Wavetable for palette-specific voice timbre (SPEC_016)
     var wt = (typeof Wavetables !== 'undefined' && this._paletteName)
-      ? Wavetables.get(this._paletteName, 'bullet') : null;
+      ? Wavetables.get(this._paletteName, 'voice') : null;
     if (wt) {
       osc.setPeriodicWave(wt);
     } else {
@@ -85,7 +85,7 @@ var BulletVoicePool = {
       osc.detune.value = (Math.random() * 100) - 50;
     }
 
-    // Streak milestone: octave shift on active bullet voices (SPEC_020 §5)
+    // Streak milestone: octave shift on active voices (SPEC_020 §5)
     if (this._streakDetune) {
       osc.detune.value = (osc.detune.value || 0) + this._streakDetune;
     }
@@ -102,14 +102,14 @@ var BulletVoicePool = {
     filter.Q.value = 3.0;
 
     // AD-only envelope: attack → decay all the way to silence.
-    // Voice is "musically dead" by t+attack+decay regardless of bullet lifetime.
+    // Voice is "musically dead" by t+attack+decay regardless of source lifetime.
     var attack    = cfg.attack || 0.01;
     var decay     = cfg.decay  || 0.15;
     // Maelstrom: longer decay → more lingering, chaotic (SPEC_011 §3.2)
     if (typeof G !== 'undefined' && G.phase === 'maelstrom') {
       decay = Math.min(decay * 1.8, 0.35);
     }
-    var peakGain  = CFG.GAIN.bullet;
+    var peakGain  = CFG.GAIN.voice;
     var totalTime = attack + decay;
 
     gain.gain.setValueAtTime(0.0001, t);
@@ -139,14 +139,14 @@ var BulletVoicePool = {
     }, delay);
   },
 
-  // --- Release: called on bullet death ---
+  // --- Release: called on source death ---
   // AD envelope already scheduled to silence itself — release just cuts osc early
-  // if the bullet dies before the envelope finishes (e.g. off-screen quickly).
+  // if the source dies before the envelope finishes (e.g. off-screen quickly).
   // harsh=true (player hit): also plays a distinct hit SFX via 03_audio.js.
-  release: function(bullet, harsh) {
-    if (!bullet || !bullet._voice) return;
-    var voice = bullet._voice;
-    bullet._voice = null;
+  release: function(source, harsh) {
+    if (!source || !source._voice) return;
+    var voice = source._voice;
+    source._voice = null;
 
     if (!voice.active || !voice.gain || !audioCtx) return;
 
@@ -167,38 +167,38 @@ var BulletVoicePool = {
     }, 80);
   },
 
-  // --- Public: spawn voice for a bullet ---
-  spawn: function(bullet, scheduledTime) {
+  // --- Public: spawn voice ---
+  spawn: function(source, scheduledTime) {
     if (!audioCtx || !this._palette) return null;
     var voice = this._allocate();
     if (!voice) {
-      console.warn('[BVP] pool exhausted');
+      console.warn('[VP] pool exhausted');
       return null;
     }
 
     var cfg        = this._palette;
-    // Bullet type → preferred octave register (SPEC_017 §6)
+    // Source type → preferred octave register (SPEC_017 §6)
     var typeRegisters = {
       dart: 5, wave: 4, bloom: 5, snap: 3, drift: 3
     };
-    var bulletType = (bullet && bullet.type) || 'dart';
-    var baseOctave = typeRegisters[bulletType] || cfg.octave || 5;
-    // ambient_dread: drop all bullet registers one octave — high partials scratch
+    var sourceType = (source && source.type) || 'dart';
+    var baseOctave = typeRegisters[sourceType] || cfg.octave || 5;
+    // ambient_dread: drop all registers one octave — high partials scratch
     if (this._paletteName === 'ambient_dread') baseOctave = Math.max(3, baseOctave - 1);
     var midiNote   = HarmonyEngine.getNextChordTone(baseOctave);
 
     // Bloom gets occasional octave-up shimmer (skip for ambient_dread — already lowered)
-    if (bulletType === 'bloom' && Math.random() < 0.3 && this._paletteName !== 'ambient_dread') {
+    if (sourceType === 'bloom' && Math.random() < 0.3 && this._paletteName !== 'ambient_dread') {
       midiNote += 12;
     }
-    // Octave doubling at high density (5+ bullets on screen)
-    if ((bullet._bulletCount || 0) >= 5 && Math.random() < 0.4) {
+    // Octave doubling at high density (5+ sources on screen)
+    if ((source._voiceCount || 0) >= 5 && Math.random() < 0.4) {
       midiNote += 12;
     }
 
     this._startVoice(voice, midiNote, scheduledTime);
-    bullet._voice    = voice;
-    bullet._midiNote = midiNote;
+    source._voice    = voice;
+    source._midiNote = midiNote;
     return voice;
   },
 

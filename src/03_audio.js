@@ -4,7 +4,7 @@ var audioCtx = null;
 var masterGain = null;
 var _limiter = null;
 var submixGain = null;   // music bus — Sequencer, PadTrack, ArpTrack, GrazeStreakTrack
-var sfxGain = null;      // SFX bus — bullet voices, perk effects, one-shots (muted during pause/perk)
+var sfxGain = null;      // SFX bus — voice pool, perk effects, one-shots (muted during pause/perk)
 var waveshaper = null;
 var _compressor = null;
 var _delay = null;
@@ -15,7 +15,7 @@ var _reverb = null;
 var _beatCallback = null;
 var _beatScheduler = null;
 var _nextBeatTime = 0;
-// audioLevel removed — legacy combo-tier system replaced by ArpTrack/Sequencer
+// audioLevel removed — legacy intensity-tier system replaced by ArpTrack/Sequencer
 
 var _LOOKAHEAD_S = 0.1;   // 100ms lookahead window
 var _SCHEDULER_MS = 25;   // scheduler tick interval
@@ -198,13 +198,13 @@ function initAudio() {
   _trackEQs.sfx = _makeTrackEQ([
     { type: 'highpass', freq: 100, Q: 0.7 },
     { type: 'peaking', freq: 500, gain: -2, Q: 1.0 },  // scoop mud range, clear of bass
-    { type: 'lowpass', freq: 8000, Q: 0.7 }             // tighter LP — bullets/graze don't need >8kHz
+    { type: 'lowpass', freq: 8000, Q: 0.7 }             // tighter LP — voices/graze don't need >8kHz
   ]);
-  // Melody: warm mid-range, below bullets (SPEC_017 §5/§9)
+  // Melody: warm mid-range, below voices (SPEC_017 §5/§9)
   _trackEQs.melody = _makeTrackEQ([
     { type: 'highpass', freq: 200, Q: 0.7 },
     { type: 'peaking', freq: 800, gain: 1, Q: 1.0 },   // +1dB warmth in melody range
-    { type: 'peaking', freq: 2000, gain: -3, Q: 1.0 },  // -3dB above 2kHz to sit below bullets
+    { type: 'peaking', freq: 2000, gain: -3, Q: 1.0 },  // -3dB above 2kHz to sit below voices
     { type: 'lowpass', freq: 4000, Q: 0.7 }
   ]);
 
@@ -302,7 +302,7 @@ function initAudio() {
   _delay.connect(_delayOut);
   _delayOut.connect(_mixBus);
 
-  // Per-track delay sends: arp (8th note), sfx/bullets (16th note, low feedback)
+  // Per-track delay sends: arp (8th note), sfx/voices (16th note, low feedback)
   _trackDelaySends.arp = audioCtx.createGain();
   _trackDelaySends.arp.gain.value = 0.2;
   _trackDelaySends.sfx = audioCtx.createGain();
@@ -521,26 +521,26 @@ function playHitSFX() {
   // --- Root pitch from HarmonyEngine (in key), fallback to A2 ---
   var rootMidi = 45; // A2 fallback
   if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine._currentChord) {
-    // Chord root in octave 3 — low register, clearly distinct from bullet voices
+    // Chord root in octave 3 — low register, clearly distinct from voice pool
     rootMidi = (3 + 1) * 12 + HarmonyEngine._currentChord.rootSemitone;
   }
   var rootFreq  = midiToFreq(rootMidi);
   var fifthFreq = midiToFreq(rootMidi - 7); // descending fifth (in key)
 
-  // --- HP varies character: 3HP=punch, 2HP=grind, 1HP=alarm ---
-  var hp = (typeof G !== 'undefined') ? G.hp : 3;
+  // --- Energy varies character: 3=punch, 2=grind, 1=alarm ---
+  var energy = (typeof G !== 'undefined') ? G.energy : 3;
 
-  if (hp >= 3) {
-    // Full HP: sharp sawtooth punch — root → fifth descent
+  if (energy >= 3) {
+    // Full energy: sharp sawtooth punch — root → fifth descent
     _playNote('sawtooth', rootFreq,  CFG.GAIN.hit_hp3,  0.08, t);
     _playNote('sawtooth', fifthFreq, CFG.GAIN.hit_hp3b, 0.12, t + 0.06);
-  } else if (hp === 2) {
+  } else if (energy === 2) {
     // Mid-damage: harsher, square wave, faster descent + noise burst
     _playNote('square', rootFreq,        CFG.GAIN.hit_hp2,  0.06, t);
     _playNote('square', fifthFreq,       CFG.GAIN.hit_hp2b, 0.10, t + 0.04);
     _playNote('square', fifthFreq * 0.5, CFG.GAIN.hit_hp2c, 0.14, t + 0.10); // sub octave kick
   } else {
-    // Last HP: stacked tritone — dissonant, urgent, unmissable
+    // Low energy: stacked tritone — dissonant, urgent, unmissable
     var tritone = midiToFreq(rootMidi - 6); // flat fifth = danger tone
     _playNote('sawtooth', rootFreq,  CFG.GAIN.hit_hp1,  0.05, t);
     _playNote('sawtooth', tritone,   CFG.GAIN.hit_hp1b, 0.08, t + 0.03);
@@ -549,10 +549,10 @@ function playHitSFX() {
   }
 }
 
-function playComboSFX(combo) {
+function playIntensitySFX(intensity) {
   if (!audioCtx) return;
   // Only fire on milestones
-  if (combo !== 5 && combo !== 10 && combo !== 20 && combo !== 50) return;
+  if (intensity !== 5 && intensity !== 10 && intensity !== 20 && intensity !== 50) return;
   var t = audioCtx.currentTime;
 
   // Ascending arpeggio of current chord tones (in key)
@@ -560,7 +560,7 @@ function playComboSFX(combo) {
   if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine._currentChord) {
     tones = HarmonyEngine.getChordTones(5); // octave 5
     // For x50: add octave above for extra sparkle
-    if (combo >= 50) {
+    if (intensity >= 50) {
       var highTones = HarmonyEngine.getChordTones(6);
       if (highTones.length > 0) tones.push(highTones[0]);
     }
@@ -570,11 +570,11 @@ function playComboSFX(combo) {
   }
 
   // Scale gain by milestone
-  var gainScale = combo >= 50 ? CFG.GAIN.combo_hi : combo >= 20 ? CFG.GAIN.combo_mid : CFG.GAIN.combo_lo;
-  var spacing   = combo >= 50 ? 0.06 : 0.08;
+  var gainScale = intensity >= 50 ? CFG.GAIN.combo_hi : intensity >= 20 ? CFG.GAIN.combo_mid : CFG.GAIN.combo_lo;
+  var spacing   = intensity >= 50 ? 0.06 : 0.08;
 
-  // Duck delay feedback briefly to prevent combo SFX from recirculating
-  if (_delayFeedback && combo >= 20) {
+  // Duck delay feedback briefly to prevent intensity SFX from recirculating
+  if (_delayFeedback && intensity >= 20) {
     var savedFb = _delayFeedback.gain.value;
     _delayFeedback.gain.setValueAtTime(savedFb * 0.3, t);
     _delayFeedback.gain.linearRampToValueAtTime(savedFb, t + 0.4);
@@ -736,7 +736,7 @@ function playPulseSFX() {
   }
 }
 
-// ── HP Regen SFX (SPEC_013 §3) ──────────────────────────────────────────────
+// ── Energy Regen SFX (SPEC_013 §3) ──────────────────────────────────────────
 // Ascending 3-note chime (root, +4st, +7st). Warm triangle wave, gentle attack.
 function playRegenSFX() {
   if (!audioCtx) return;

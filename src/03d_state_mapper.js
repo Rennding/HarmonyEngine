@@ -1,14 +1,14 @@
 // ========== STATE MAPPER — GAME DRIVES MUSIC ==========
-// Maps game state (combo, HP, near-misses, beatCount) to musical parameters.
+// Maps game state (intensity, energy, near-misses, beatCount) to musical parameters.
 // Section progression: intro → build → groove → peak → evolve.
-// Combo drives layer addition, HP drives tension, near-misses spike delay feedback.
+// Intensity drives layer addition, energy drives tension, near-misses spike delay feedback.
 
 var StateMapper = {
   _nearMisses:        [],      // beat numbers of recent near-misses
   _hitStrip:          false,   // kick-only mode after player hit
   _hitStripBeatsLeft: 0,
-  _hpFilter:          null,    // high-pass BiquadFilter on master chain
-  _tremoloGain:       null,    // gain node for HP=1 tremolo
+  _energyFilter:      null,    // high-pass BiquadFilter on master chain
+  _tremoloGain:       null,    // gain node for energy=1 tremolo
   _tremoloOsc:        null,    // LFO driving tremolo
   _deathFading:       false,
   _modulatedUp:       false,   // true if key was modulated up at Storm
@@ -26,9 +26,9 @@ var StateMapper = {
     this._modulatedUp       = false;
     this._postStormModRegistered = false;
     this._lastPostStormModBeat = 0;
-    this._darkenedKey       = false;   // HP=1 key darken active
+    this._darkenedKey       = false;   // energy=1 key darken active
     this._sidechainPhaseMult = 1.0;
-    this._initHPFilter();
+    this._initEnergyFilter();
     this._initTremolo();
     this._initStingerGain();
 
@@ -46,34 +46,34 @@ var StateMapper = {
     }
   },
 
-  // --- HP high-pass filter: inserted between submixGain and _compressor ---
-  // At init, spliced into the existing chain: submix → hpFilter → compressor
-  _initHPFilter: function() {
+  // --- Energy high-pass filter: inserted between submixGain and _compressor ---
+  // At init, spliced into the existing chain: submix → energyFilter → compressor
+  _initEnergyFilter: function() {
     if (!audioCtx || !submixGain || !_compressor) return;
 
     var upstream = (typeof _sidechainGain !== 'undefined' && _sidechainGain) ? _sidechainGain : submixGain;
 
     // Tear down previous filter if it exists (prevents parallel paths on retry)
-    if (this._hpFilter) {
-      try { upstream.disconnect(this._hpFilter); } catch(e) {}
-      try { this._hpFilter.disconnect(_compressor); } catch(e) {}
-      try { this._hpFilter.disconnect(); } catch(e) {}
+    if (this._energyFilter) {
+      try { upstream.disconnect(this._energyFilter); } catch(e) {}
+      try { this._energyFilter.disconnect(_compressor); } catch(e) {}
+      try { this._energyFilter.disconnect(); } catch(e) {}
     }
 
     // Also remove any direct upstream→compressor connection
     try { upstream.disconnect(_compressor); } catch(e) {}
 
-    this._hpFilter = audioCtx.createBiquadFilter();
-    this._hpFilter.type = 'highpass';
-    this._hpFilter.frequency.value = 10; // effectively off (sub-audible)
-    this._hpFilter.Q.value = 0.7;
+    this._energyFilter = audioCtx.createBiquadFilter();
+    this._energyFilter.type = 'highpass';
+    this._energyFilter.frequency.value = 10; // effectively off (sub-audible)
+    this._energyFilter.Q.value = 0.7;
 
-    // Rewire: upstream → hpFilter → compressor
-    upstream.connect(this._hpFilter);
-    this._hpFilter.connect(_compressor);
+    // Rewire: upstream → energyFilter → compressor
+    upstream.connect(this._energyFilter);
+    this._energyFilter.connect(_compressor);
   },
 
-  // --- Tremolo for HP=1 danger state ---
+  // --- Tremolo for energy=1 danger state ---
   _initTremolo: function() {
     if (!audioCtx || !masterGain) return;
 
@@ -103,7 +103,7 @@ var StateMapper = {
 
     // LFO → tremolo gain modulation (need a gain node to scale LFO depth)
     var lfoDepth = audioCtx.createGain();
-    lfoDepth.gain.value = 0; // 0 = no tremolo; set >0 when HP=1
+    lfoDepth.gain.value = 0; // 0 = no tremolo; set >0 when energy=1
     this._tremoloOsc.connect(lfoDepth);
     lfoDepth.connect(this._tremoloGain.gain);
     this._tremoloOsc.start();
@@ -120,8 +120,8 @@ var StateMapper = {
   update: function(beatTime) {
     if (this._deathFading) return;
 
-    var combo     = G.combo;
-    var hp        = G.hp;
+    var intensity = G.intensity;
+    var energy    = G.energy;
     var beatCount = G.beatCount;
 
     // --- Hit strip countdown ---
@@ -136,17 +136,17 @@ var StateMapper = {
       }
     }
 
-    // --- Set sequencer mutes: phase floor + combo ceiling ---
-    this._updateLayers(G.phase, combo);
+    // --- Set sequencer mutes: phase floor + intensity ceiling ---
+    this._updateLayers(G.phase, intensity);
 
-    // --- Melody combo interaction (SPEC_017 §5) ---
-    if (typeof MelodyEngine !== 'undefined') MelodyEngine.updateCombo(combo);
+    // --- Melody intensity interaction (SPEC_017 §5) ---
+    if (typeof MelodyEngine !== 'undefined') MelodyEngine.updateIntensity(intensity);
 
     // --- Narrative conductor beat tick (SPEC_020 §1) ---
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.onBeat(beatTime);
 
-    // --- HP tension effects ---
-    this._updateHPEffects(hp);
+    // --- Energy tension effects ---
+    this._updateEnergyEffects(energy);
 
     // --- Near-miss: expire old entries (keep last 8 beats) ---
     var cutoff = beatCount - 8;
@@ -191,14 +191,14 @@ var StateMapper = {
   },
 
   // --- Layer activation: continuous arrangement engine (SPEC_020 §6) ---
-  // Phase floor = minimum 0.3 gain. Combo ramps gain from floor→1.0.
+  // Phase floor = minimum 0.3 gain. Intensity ramps gain from floor→1.0.
   // Hit-strip: snap to floor gains for 4 beats.
   // Track gains ramp smoothly via AudioParam.setTargetAtTime.
-  _updateLayers: function(phase, combo) {
+  _updateLayers: function(phase, intensity) {
     if (typeof Sequencer === 'undefined') return;
     var m = Sequencer._mute;
     var floor = CFG.PHASE_FLOOR[phase] || CFG.PHASE_FLOOR.pulse;
-    var thresh = CFG.COMBO_LAYER_THRESHOLDS;
+    var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
     var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'arp', 'melody'];
     var hasGainNodes = (typeof _trackGains !== 'undefined');
     var t = (audioCtx) ? audioCtx.currentTime : 0;
@@ -225,30 +225,30 @@ var StateMapper = {
     var prevMute = {};
     for (var p = 0; p < tracks.length; p++) prevMute[tracks[p]] = m[tracks[p]];
 
-    // For each track: compute continuous gain based on floor + combo
+    // For each track: compute continuous gain based on floor + intensity
     for (var j = 0; j < tracks.length; j++) {
       var trk = tracks[j];
       var inFlr = !!floor[trk];
-      var comboThresh = thresh[trk] || Infinity;
-      var comboUnlocked = combo >= comboThresh;
+      var intensityThresh = thresh[trk] || Infinity;
+      var intensityUnlocked = intensity >= intensityThresh;
 
-      // Track is audible if in floor or combo-unlocked
-      m[trk] = !(inFlr || comboUnlocked);
+      // Track is audible if in floor or intensity-unlocked
+      m[trk] = !(inFlr || intensityUnlocked);
 
-      // Continuous gain: smooth ramp from floor (0.3) to full (1.0) over combo range
+      // Continuous gain: smooth ramp from floor (0.3) to full (1.0) over intensity range
       if (hasGainNodes && _trackGains[trk]) {
         var targetGain;
         if (m[trk]) {
           // Track is muted — gain to 0
           targetGain = 0.0;
         } else if (inFlr) {
-          // In phase floor: ramp from 0.3 (threshold) to 1.0 over combo 0→50
-          var comboNorm = Math.min(combo / 50, 1.0);
-          targetGain = 0.3 + 0.7 * comboNorm;
+          // In phase floor: ramp from 0.3 (threshold) to 1.0 over intensity 0→50
+          var intensityNorm = Math.min(intensity / 50, 1.0);
+          targetGain = 0.3 + 0.7 * intensityNorm;
         } else {
-          // Combo-unlocked (above threshold): ramp from 0.3 at threshold to 1.0 over next 30 combo
-          var comboAbove = combo - comboThresh;
-          var aboveNorm = Math.min(Math.max(comboAbove, 0) / 30, 1.0);
+          // Intensity-unlocked (above threshold): ramp from 0.3 at threshold to 1.0 over next 30
+          var intensityAbove = intensity - intensityThresh;
+          var aboveNorm = Math.min(Math.max(intensityAbove, 0) / 30, 1.0);
           targetGain = 0.3 + 0.7 * aboveNorm;
         }
         _trackGains[trk].gain.setTargetAtTime(targetGain, t, rampTau);
@@ -265,29 +265,29 @@ var StateMapper = {
       }
     }
 
-    // Pattern complexity tiers: select simple/base/complex based on combo (SPEC_020 §6)
+    // Pattern complexity tiers: select simple/base/complex based on intensity (SPEC_020 §6)
     if (typeof Sequencer !== 'undefined') {
-      Sequencer._comboComplexity = (combo >= 25) ? 'complex' : (combo >= 10) ? 'base' : 'simple';
+      Sequencer._intensityComplexity = (intensity >= 25) ? 'complex' : (intensity >= 10) ? 'base' : 'simple';
     }
 
   },
 
-  // --- HP effects: filter + tremolo ---
-  _updateHPEffects: function(hp) {
-    if (!this._hpFilter || !audioCtx) return;
+  // --- Energy effects: filter + tremolo ---
+  _updateEnergyEffects: function(energy) {
+    if (!this._energyFilter || !audioCtx) return;
     var t = audioCtx.currentTime;
 
-    if (hp >= 3) {
-      // Normal: HP filter off, no tremolo
-      this._hpFilter.frequency.setTargetAtTime(10, t, 0.1);
+    if (energy >= 3) {
+      // Normal: energy filter off, no tremolo
+      this._energyFilter.frequency.setTargetAtTime(10, t, 0.1);
       if (this._lfoDepth) this._lfoDepth.gain.setTargetAtTime(0, t, 0.1);
-    } else if (hp === 2) {
+    } else if (energy === 2) {
       // Tension: high-pass rises to 200Hz, no tremolo yet
-      this._hpFilter.frequency.setTargetAtTime(200, t, 0.15);
+      this._energyFilter.frequency.setTargetAtTime(200, t, 0.15);
       if (this._lfoDepth) this._lfoDepth.gain.setTargetAtTime(0, t, 0.1);
     } else {
-      // Danger (HP=1): high-pass at 400Hz + tremolo active
-      this._hpFilter.frequency.setTargetAtTime(400, t, 0.15);
+      // Danger (energy=1): high-pass at 400Hz + tremolo active
+      this._energyFilter.frequency.setTargetAtTime(400, t, 0.15);
       if (this._lfoDepth) this._lfoDepth.gain.setTargetAtTime(0.3, t, 0.2);
     }
   },
@@ -681,9 +681,9 @@ var StateMapper = {
     if (typeof playGrazeSFX === 'function') playGrazeSFX(tier);
 
 
-    // Detune active bullet voices ±25 cents for tension (tight/perfect only)
-    if (tier !== 'normal' && typeof BulletVoicePool !== 'undefined') {
-      var pool = BulletVoicePool._pool;
+    // Detune active voice pool voices ±25 cents for tension (tight/perfect only)
+    if (tier !== 'normal' && typeof VoicePool !== 'undefined') {
+      var pool = VoicePool._pool;
       var detAmt = tier === 'perfect' ? 40 : 25;
       for (var i = 0; i < pool.length; i++) {
         var v = pool[i];
@@ -696,7 +696,7 @@ var StateMapper = {
     }
   },
 
-  // --- Register a slash event (Bullet Slash perk, SPEC_012 §2.1, §6) ---
+  // --- Register a slash event (Voice Slash perk, SPEC_012 §2.1, §6) ---
   // tier: 'normal' | 'tight' | 'perfect'
   registerSlash: function(tier) {
     if (typeof playSlashSFX === 'function') playSlashSFX(tier);
@@ -714,19 +714,19 @@ var StateMapper = {
     if (typeof playPulseSFX === 'function') playPulseSFX();
   },
 
-  // --- Key darken on HP=1 (SPEC_017 §3) ---
+  // --- Key darken on energy=1 (SPEC_017 §3) ---
   _checkKeyDarken: function() {
     if (typeof HarmonyEngine === 'undefined') return;
-    if (G.hp === 1 && !this._darkenedKey) {
+    if (G.energy === 1 && !this._darkenedKey) {
       this._darkenedKey = true;
       HarmonyEngine.modulateTo(HarmonyEngine.root - 1, 'direct');
     }
   },
 
-  // --- Key restore on HP regen from 1 (SPEC_017 §3) ---
+  // --- Key restore on energy regen from 1 (SPEC_017 §3) ---
   _checkKeyRestore: function() {
     if (typeof HarmonyEngine === 'undefined') return;
-    if (this._darkenedKey && G.hp > 1) {
+    if (this._darkenedKey && G.energy > 1) {
       this._darkenedKey = false;
       // Restore previous key via pivot if possible
       if (HarmonyEngine._prevRoot !== null) {
@@ -735,7 +735,7 @@ var StateMapper = {
     }
   },
 
-  // --- Called on player hit (HP loss) ---
+  // --- Called on player hit (energy loss) ---
   onHit: function() {
     // Exit figures BEFORE muting (SPEC_020 §3) — instruments depart musically
     if (typeof NarrativeConductor !== 'undefined') {
@@ -745,7 +745,7 @@ var StateMapper = {
     this._hitStrip = true;
     this._hitStripBeatsLeft = 4; // floor-only for 4 beats
 
-    // HP=1 key darken (SPEC_017 §3)
+    // energy=1 key darken (SPEC_017 §3)
     this._checkKeyDarken();
 
     // Immediate layer strip: mute above floor + gain drop (SPEC_020 §6)
@@ -825,9 +825,9 @@ var StateMapper = {
       _delayFeedback.gain.setTargetAtTime(0.05, fadeStart, 0.2);
     }
 
-    // Remove HP effects (tremolo + filter)
+    // Remove energy effects (tremolo + filter)
     if (this._lfoDepth) this._lfoDepth.gain.setTargetAtTime(0, fadeStart, 0.05);
-    if (this._hpFilter) this._hpFilter.frequency.setTargetAtTime(10, fadeStart, 0.1);
+    if (this._energyFilter) this._energyFilter.frequency.setTargetAtTime(10, fadeStart, 0.1);
 
     // Reverse reverb swell: noise crescendo simulating reversed reverb tail
     if (typeof _getNoiseBuffer === 'function') {
@@ -889,12 +889,12 @@ var StateMapper = {
       try { waveshaper.connect(masterGain); } catch(e) {}
     }
 
-    // --- Tear down HP filter: disconnect from graph, restore direct path ---
+    // --- Tear down energy filter: disconnect from graph, restore direct path ---
     var _upstream = (typeof _sidechainGain !== 'undefined' && _sidechainGain) ? _sidechainGain : submixGain;
-    if (this._hpFilter) {
-      try { _upstream.disconnect(this._hpFilter); } catch(e) {}
-      try { this._hpFilter.disconnect(); } catch(e) {}
-      this._hpFilter = null;
+    if (this._energyFilter) {
+      try { _upstream.disconnect(this._energyFilter); } catch(e) {}
+      try { this._energyFilter.disconnect(); } catch(e) {}
+      this._energyFilter = null;
     }
     // Always restore upstream → compressor directly, preventing parallel paths.
     if (_upstream && _compressor) {

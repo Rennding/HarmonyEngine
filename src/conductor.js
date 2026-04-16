@@ -1,14 +1,14 @@
 // ========== VIRTUAL CONDUCTOR ==========
-// Replaces the game loop. Simulates phase progression, combo ramp,
+// Replaces the game loop. Simulates phase progression, intensity ramp,
 // and musical events so the audio engine plays a full song autonomously.
 
 var Conductor = (function() {
   var _running = false;
   var _paused = false;
-  var _autoCombo = true;     // simulate combo ramp
-  var _autoPhase = true;     // let DC drive phase transitions
-  var _manualPhase = null;   // override phase when autoPhase=false
-  var _comboRate = 1;        // combo increment per beat (simulate player skill)
+  var _autoIntensity = true;  // simulate intensity ramp
+  var _autoPhase = true;      // let DC drive phase transitions
+  var _manualPhase = null;    // override phase when autoPhase=false
+  var _intensityRate = 1;     // intensity increment per beat (simulate player skill)
 
   function _onBeat(beatTime) {
     if (!_running) return;
@@ -29,20 +29,20 @@ var Conductor = (function() {
       }
     }
 
-    // Virtual combo ramp
-    if (_autoCombo) {
-      G.combo += _comboRate;
-      G.bestCombo = Math.max(G.bestCombo, G.combo);
+    // Virtual intensity ramp
+    if (_autoIntensity) {
+      G.intensity += _intensityRate;
+      G.bestIntensity = Math.max(G.bestIntensity, G.intensity);
     }
 
     // Score
-    G.score += 10 + Math.floor(G.combo * 0.5);
+    G.score += 10 + Math.floor(G.intensity * 0.5);
 
     // Advance audio subsystems
     if (typeof HarmonyEngine !== 'undefined') HarmonyEngine.advanceBeat();
     if (typeof Sequencer !== 'undefined') Sequencer.tick(beatTime);
     if (typeof StateMapper !== 'undefined') StateMapper.update(beatTime);
-    if (typeof MelodyEngine !== 'undefined') MelodyEngine.updateCombo(G.combo);
+    if (typeof MelodyEngine !== 'undefined') MelodyEngine.updateIntensity(G.intensity);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.onBeat(beatTime);
     if (typeof PaletteBlender !== 'undefined') PaletteBlender.onBeat();
     if (typeof GrooveEngine !== 'undefined') GrooveEngine.onPhaseChange(G.phase);
@@ -50,7 +50,7 @@ var Conductor = (function() {
     // Dispatch beat event for UI
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('conductor:beat', {
-        detail: { beat: G.beatCount, phase: G.phase, dc: G.dc, combo: G.combo, bpm: G.bpm }
+        detail: { beat: G.beatCount, phase: G.phase, dc: G.dc, intensity: G.intensity, bpm: G.bpm }
       }));
     }
   }
@@ -88,7 +88,7 @@ var Conductor = (function() {
       if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'running') {
         audioCtx.suspend();
       }
-      if (typeof BulletVoicePool !== 'undefined') BulletVoicePool.shutdown();
+      if (typeof VoicePool !== 'undefined') VoicePool.shutdown();
       if (typeof StateMapper !== 'undefined') StateMapper.shutdown();
       if (typeof MelodyEngine !== 'undefined') MelodyEngine.shutdown();
       if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.shutdown();
@@ -110,8 +110,8 @@ var Conductor = (function() {
     isPaused: function() { return _paused; },
 
     // --- Controls ---
-    setAutoCombo: function(v) { _autoCombo = !!v; },
-    setComboRate: function(r) { _comboRate = Math.max(0, r); },
+    setAutoIntensity: function(v) { _autoIntensity = !!v; },
+    setIntensityRate: function(r) { _intensityRate = Math.max(0, r); },
     setAutoPhase: function(v) { _autoPhase = !!v; },
     forcePhase: function(name) {
       _autoPhase = false;
@@ -121,12 +121,12 @@ var Conductor = (function() {
       G.settings.volume = Math.max(0, Math.min(1, v));
       applyVolumeSetting();
     },
-    setCombo: function(c) { G.combo = Math.max(0, c); },
+    setIntensity: function(c) { G.intensity = Math.max(0, c); },
 
-    // Simulate a "hit" — drops combo, triggers audio effects
+    // Simulate a "hit" — drops intensity, triggers audio effects
     simulateHit: function() {
-      G.combo = 0;
-      G.hp = Math.max(1, G.hp - 1);
+      G.intensity = 0;
+      G.energy = Math.max(1, G.energy - 1);
       G.beatsSinceHit = 0;
       if (typeof StateMapper !== 'undefined') StateMapper.onHit();
       if (typeof playHitSFX === 'function') playHitSFX();

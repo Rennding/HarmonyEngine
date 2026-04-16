@@ -14,9 +14,9 @@ var MelodyEngine = {
   _paletteName: null,
   _active: false,
   _graceQueue: [],     // grace notes queued by graze events
-  _octaveDrop: 0,      // beats remaining for HP-loss octave drop
+  _octaveDrop: 0,      // beats remaining for energy-loss octave drop
   _lastNoteMidi: null,  // last played MIDI note (for voice leading)
-  _phraseLenBonus: 0,  // extra phrase length from high combo
+  _phraseLenBonus: 0,  // extra phrase length from high intensity
   _subQueue: [],       // scheduled sub-beat events for current beat (SPEC_023 §B2)
   _melodyStep: 0,      // melody's own 16th-note step counter for groove (SPEC_023 §B3)
   _barBeat: 0,         // beat position within current bar (0–3) for rest alignment (SPEC_023 §B4)
@@ -672,7 +672,7 @@ var MelodyEngine = {
     }
   },
 
-  // ── HP loss: drop octave + halve volume for 4 beats (SPEC_017 §5) ────────
+  // ── Energy loss: drop octave + halve volume for 4 beats (SPEC_017 §5) ─────
   onHit: function() {
     this._octaveDrop = 4;
   },
@@ -696,11 +696,11 @@ var MelodyEngine = {
     }
   },
 
-  // ── Combo interaction: longer phrases at high combo ───────────────────────
-  updateCombo: function(combo) {
-    // At combo 20+, phrases can be longer (up to +2 notes)
-    if (combo >= 20) {
-      this._phraseLenBonus = Math.min(2, Math.floor((combo - 20) / 15));
+  // ── Intensity interaction: longer phrases at high intensity ─────────────
+  updateIntensity: function(intensity) {
+    // At intensity 20+, phrases can be longer (up to +2 notes)
+    if (intensity >= 20) {
+      this._phraseLenBonus = Math.min(2, Math.floor((intensity - 20) / 15));
     } else {
       this._phraseLenBonus = 0;
     }

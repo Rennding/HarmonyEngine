@@ -185,15 +185,15 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #3 built, awaiting QA.**
-**Next build:** #4 (Sonnet) — Rename game vocabulary (combo→intensity, hp→energy, bullet→voice)
+**Status: #4 built, awaiting QA.**
+**Next build:** #5 (Sonnet) — Rename source files (drop numeric prefixes)
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
 ✅ #2 Fix validate/gate script — qa-pass
 
 ### Tier 2 · Clean Extraction (P1–P3)
-- **#3** Kill dead code — stubs, vestigial G fields, CFG.PERKS (P1, Sonnet)
+✅ **#3** Kill dead code — stubs, vestigial G fields, CFG.PERKS (P1, Sonnet) — qa-pass
 - **#4** Rename game vocabulary — combo→intensity, hp→energy, bullet→voice (P2)
 - **#5** Rename source files — drop numeric prefixes (P3)
 

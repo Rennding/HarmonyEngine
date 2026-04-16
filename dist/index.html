@@ -230,7 +230,7 @@ const CFG = {
   BPM: 120,
   get BEAT_MS() { return 60000 / this.BPM; },
 
-  MAX_HP: 3,
+  MAX_ENERGY: 3,
 
   MOODS: [
     { name: 'Chill',    bpm: 90  },
@@ -265,8 +265,8 @@ const CFG = {
     maelstrom: { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  arp: true,  melody: true  },
   },
 
-  // Combo thresholds (above floor) for adding layers
-  COMBO_LAYER_THRESHOLDS: { hat: 5, snare: 10, bass: 10, pad: 20, perc: 15 },
+  // Intensity thresholds (above floor) for adding layers
+  INTENSITY_LAYER_THRESHOLDS: { hat: 5, snare: 10, bass: 10, pad: 20, perc: 15 },
 
   // Post-Maelstrom cosmetic phase names
   POST_MAELSTROM: [
@@ -344,7 +344,7 @@ const CFG = {
     streak_tone:   0.05,
     pulse_boom:    0.14,
     regen:         0.08,
-    bullet:      0.03,
+    voice:       0.03,
     perk:        0.12,
     stinger:     0.10,
     bass_fill:   0.12,
@@ -400,9 +400,9 @@ function _createSongRng(seed) {
 
 const G = {
   score: 0,
-  combo: 0,
-  bestCombo: 0,
-  hp: CFG.MAX_HP,
+  intensity: 0,
+  bestIntensity: 0,
+  energy: CFG.MAX_ENERGY,
   beatCount: 0,
   alive: true,
   lastBeatTime: 0,
@@ -481,9 +481,9 @@ function getPostMaelstromName() {
 
 function resetRun() {
   G.score = 0;
-  G.combo = 0;
-  G.bestCombo = 0;
-  G.hp = CFG.MAX_HP;
+  G.intensity = 0;
+  G.bestIntensity = 0;
+  G.energy = CFG.MAX_ENERGY;
   G.beatCount = 0;
   G.alive = true;
   G.lastBeatTime = 0;
@@ -513,7 +513,7 @@ function resetRun() {
       ? moodBpm
       : pal.bpmRange[0] + Math.floor(_songRng() * (pal.bpmRange[1] - pal.bpmRange[0] + 1));
     if (typeof Sequencer !== 'undefined') Sequencer.initRun(pal);
-    if (typeof BulletVoicePool !== 'undefined') BulletVoicePool.initRun(pal);
+    if (typeof VoicePool !== 'undefined') VoicePool.initRun(pal);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.initRun(pal);
     if (typeof StateMapper !== 'undefined') StateMapper.initRun();
   } else {
@@ -527,10 +527,10 @@ function resetRun() {
 
 // ── Song hash utility ─────────────────────────────────────────────────────
 
-function computeSongHash(paletteIdx, bpm, beats, combo, seed) {
+function computeSongHash(paletteIdx, bpm, beats, intensity, seed) {
   var n = seed
-    ? ((seed * 7919 + paletteIdx * 6271 + beats * 1021 + combo * 3) & 0xFFFF)
-    : ((paletteIdx * 7919 + bpm * 6271 + beats * 1021 + combo * 3) & 0xFFFF);
+    ? ((seed * 7919 + paletteIdx * 6271 + beats * 1021 + intensity * 3) & 0xFFFF)
+    : ((paletteIdx * 7919 + bpm * 6271 + beats * 1021 + intensity * 3) & 0xFFFF);
   return n.toString(16).toUpperCase().padStart(4, '0');
 }
 
@@ -542,7 +542,7 @@ var audioCtx = null;
 var masterGain = null;
 var _limiter = null;
 var submixGain = null;   // music bus — Sequencer, PadTrack, ArpTrack, GrazeStreakTrack
-var sfxGain = null;      // SFX bus — bullet voices, perk effects, one-shots (muted during pause/perk)
+var sfxGain = null;      // SFX bus — voice pool, perk effects, one-shots (muted during pause/perk)
 var waveshaper = null;
 var _compressor = null;
 var _delay = null;
@@ -553,7 +553,7 @@ var _reverb = null;
 var _beatCallback = null;
 var _beatScheduler = null;
 var _nextBeatTime = 0;
-// audioLevel removed — legacy combo-tier system replaced by ArpTrack/Sequencer
+// audioLevel removed — legacy intensity-tier system replaced by ArpTrack/Sequencer
 
 var _LOOKAHEAD_S = 0.1;   // 100ms lookahead window
 var _SCHEDULER_MS = 25;   // scheduler tick interval
@@ -736,13 +736,13 @@ function initAudio() {
   _trackEQs.sfx = _makeTrackEQ([
     { type: 'highpass', freq: 100, Q: 0.7 },
     { type: 'peaking', freq: 500, gain: -2, Q: 1.0 },  // scoop mud range, clear of bass
-    { type: 'lowpass', freq: 8000, Q: 0.7 }             // tighter LP — bullets/graze don't need >8kHz
+    { type: 'lowpass', freq: 8000, Q: 0.7 }             // tighter LP — voices/graze don't need >8kHz
   ]);
-  // Melody: warm mid-range, below bullets (SPEC_017 §5/§9)
+  // Melody: warm mid-range, below voices (SPEC_017 §5/§9)
   _trackEQs.melody = _makeTrackEQ([
     { type: 'highpass', freq: 200, Q: 0.7 },
     { type: 'peaking', freq: 800, gain: 1, Q: 1.0 },   // +1dB warmth in melody range
-    { type: 'peaking', freq: 2000, gain: -3, Q: 1.0 },  // -3dB above 2kHz to sit below bullets
+    { type: 'peaking', freq: 2000, gain: -3, Q: 1.0 },  // -3dB above 2kHz to sit below voices
     { type: 'lowpass', freq: 4000, Q: 0.7 }
   ]);
 
@@ -840,7 +840,7 @@ function initAudio() {
   _delay.connect(_delayOut);
   _delayOut.connect(_mixBus);
 
-  // Per-track delay sends: arp (8th note), sfx/bullets (16th note, low feedback)
+  // Per-track delay sends: arp (8th note), sfx/voices (16th note, low feedback)
   _trackDelaySends.arp = audioCtx.createGain();
   _trackDelaySends.arp.gain.value = 0.2;
   _trackDelaySends.sfx = audioCtx.createGain();
@@ -1059,26 +1059,26 @@ function playHitSFX() {
   // --- Root pitch from HarmonyEngine (in key), fallback to A2 ---
   var rootMidi = 45; // A2 fallback
   if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine._currentChord) {
-    // Chord root in octave 3 — low register, clearly distinct from bullet voices
+    // Chord root in octave 3 — low register, clearly distinct from voice pool
     rootMidi = (3 + 1) * 12 + HarmonyEngine._currentChord.rootSemitone;
   }
   var rootFreq  = midiToFreq(rootMidi);
   var fifthFreq = midiToFreq(rootMidi - 7); // descending fifth (in key)
 
-  // --- HP varies character: 3HP=punch, 2HP=grind, 1HP=alarm ---
-  var hp = (typeof G !== 'undefined') ? G.hp : 3;
+  // --- Energy varies character: 3=punch, 2=grind, 1=alarm ---
+  var energy = (typeof G !== 'undefined') ? G.energy : 3;
 
-  if (hp >= 3) {
-    // Full HP: sharp sawtooth punch — root → fifth descent
+  if (energy >= 3) {
+    // Full energy: sharp sawtooth punch — root → fifth descent
     _playNote('sawtooth', rootFreq,  CFG.GAIN.hit_hp3,  0.08, t);
     _playNote('sawtooth', fifthFreq, CFG.GAIN.hit_hp3b, 0.12, t + 0.06);
-  } else if (hp === 2) {
+  } else if (energy === 2) {
     // Mid-damage: harsher, square wave, faster descent + noise burst
     _playNote('square', rootFreq,        CFG.GAIN.hit_hp2,  0.06, t);
     _playNote('square', fifthFreq,       CFG.GAIN.hit_hp2b, 0.10, t + 0.04);
     _playNote('square', fifthFreq * 0.5, CFG.GAIN.hit_hp2c, 0.14, t + 0.10); // sub octave kick
   } else {
-    // Last HP: stacked tritone — dissonant, urgent, unmissable
+    // Low energy: stacked tritone — dissonant, urgent, unmissable
     var tritone = midiToFreq(rootMidi - 6); // flat fifth = danger tone
     _playNote('sawtooth', rootFreq,  CFG.GAIN.hit_hp1,  0.05, t);
     _playNote('sawtooth', tritone,   CFG.GAIN.hit_hp1b, 0.08, t + 0.03);
@@ -1087,10 +1087,10 @@ function playHitSFX() {
   }
 }
 
-function playComboSFX(combo) {
+function playIntensitySFX(intensity) {
   if (!audioCtx) return;
   // Only fire on milestones
-  if (combo !== 5 && combo !== 10 && combo !== 20 && combo !== 50) return;
+  if (intensity !== 5 && intensity !== 10 && intensity !== 20 && intensity !== 50) return;
   var t = audioCtx.currentTime;
 
   // Ascending arpeggio of current chord tones (in key)
@@ -1098,7 +1098,7 @@ function playComboSFX(combo) {
   if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine._currentChord) {
     tones = HarmonyEngine.getChordTones(5); // octave 5
     // For x50: add octave above for extra sparkle
-    if (combo >= 50) {
+    if (intensity >= 50) {
       var highTones = HarmonyEngine.getChordTones(6);
       if (highTones.length > 0) tones.push(highTones[0]);
     }
@@ -1108,11 +1108,11 @@ function playComboSFX(combo) {
   }
 
   // Scale gain by milestone
-  var gainScale = combo >= 50 ? CFG.GAIN.combo_hi : combo >= 20 ? CFG.GAIN.combo_mid : CFG.GAIN.combo_lo;
-  var spacing   = combo >= 50 ? 0.06 : 0.08;
+  var gainScale = intensity >= 50 ? CFG.GAIN.combo_hi : intensity >= 20 ? CFG.GAIN.combo_mid : CFG.GAIN.combo_lo;
+  var spacing   = intensity >= 50 ? 0.06 : 0.08;
 
-  // Duck delay feedback briefly to prevent combo SFX from recirculating
-  if (_delayFeedback && combo >= 20) {
+  // Duck delay feedback briefly to prevent intensity SFX from recirculating
+  if (_delayFeedback && intensity >= 20) {
     var savedFb = _delayFeedback.gain.value;
     _delayFeedback.gain.setValueAtTime(savedFb * 0.3, t);
     _delayFeedback.gain.linearRampToValueAtTime(savedFb, t + 0.4);
@@ -1274,7 +1274,7 @@ function playPulseSFX() {
   }
 }
 
-// ── HP Regen SFX (SPEC_013 §3) ──────────────────────────────────────────────
+// ── Energy Regen SFX (SPEC_013 §3) ──────────────────────────────────────────
 // Ascending 3-note chime (root, +4st, +7st). Warm triangle wave, gentle attack.
 function playRegenSFX() {
   if (!audioCtx) return;
@@ -1426,7 +1426,7 @@ var PALETTES = [
       detune: 12,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'square',
       octave: 5,
       attack: 0.01,
@@ -1527,7 +1527,7 @@ var PALETTES = [
       detune: 10,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sawtooth',
       octave: 5,
       attack: 0.02,
@@ -1626,7 +1626,7 @@ var PALETTES = [
       detune: 12,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sawtooth',
       octave: 5,
       attack: 0.005,
@@ -1726,7 +1726,7 @@ var PALETTES = [
       detune: 8,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sine',
       octave: 5,
       attack: 0.05,
@@ -1833,7 +1833,7 @@ var PALETTES = [
       detune: 6,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sine',
       octave: 5,
       attack: 0.03,
@@ -1937,7 +1937,7 @@ var PALETTES = [
       detune: 0,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'square',
       octave: 6,
       attack: 0.005,
@@ -2124,7 +2124,7 @@ var PALETTES = [
       detune: 4,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sine',
       octave: 5,
       attack: 0.02,
@@ -2345,7 +2345,7 @@ var PALETTES = [
       detune: 8,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sawtooth',
       octave: 5,
       attack: 0.005,
@@ -2452,7 +2452,7 @@ var PALETTES = [
       detune: 20,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sine',
       octave: 5,
       attack: 0.03,
@@ -2556,7 +2556,7 @@ var PALETTES = [
       detune: 8,
     },
 
-    bulletVoice: {
+    voiceConfig: {
       wave: 'sawtooth',
       octave: 5,
       attack: 0.005,
@@ -2640,7 +2640,7 @@ var HarmonyEngine = {
   _palette: null,
   _currentChord: null,    // cached resolved chord
   _prevVoicing: null,     // previous chord MIDI notes for voice leading
-  _lastBulletNote: null,  // for proximity-based bullet voice leading
+  _lastVoiceNote: null,  // for proximity-based voice leading
 
   // Modulation state (SPEC_017 §3)
   _modulationCount: 0,    // max 4 per run (reset at Maelstrom)
@@ -2683,7 +2683,7 @@ var HarmonyEngine = {
     this._palette = palette;
     this._currentChord = null;
     this._prevVoicing = null;
-    this._lastBulletNote = null;
+    this._lastVoiceNote = null;
     this._modulationCount = 0;
     this._pendingModulation = null;
     this._prevRoot = null;
@@ -3145,7 +3145,7 @@ var HarmonyEngine = {
     if (!this._currentChord) return [];
     var chordRoot = this._currentChord.rootSemitone;
     var baseMidi = (octave + 1) * 12 + chordRoot;
-    // Use triad intervals only for external callers (bullets, bass)
+    // Use triad intervals only for external callers (voices, bass)
     var triIntervals = _triadIntervals(this._currentChord.quality);
     return triIntervals.map(function(iv) { return baseMidi + iv; });
   },
@@ -3169,17 +3169,17 @@ var HarmonyEngine = {
     return this.getVoicedChordTones(octave);
   },
 
-  // Proximity-based bullet voice leading (SPEC_017 §6)
-  _bulletToneIdx: 0,
+  // Proximity-based voice leading (SPEC_017 §6)
+  _voiceToneIdx: 0,
   getNextChordTone: function(octave) {
     var tones = this.getChordTones(octave);
     if (!tones.length) return 60; // fallback C4
 
-    if (this._lastBulletNote === null) {
-      // First bullet: random chord tone
+    if (this._lastVoiceNote === null) {
+      // First voice: random chord tone
       var idx = Math.floor((_songRng || Math.random)() * tones.length);
-      this._lastBulletNote = tones[idx];
-      return this._lastBulletNote;
+      this._lastVoiceNote = tones[idx];
+      return this._lastVoiceNote;
     }
 
     // Build candidates: chord tones in octave ± 1
@@ -3190,7 +3190,7 @@ var HarmonyEngine = {
     }
 
     // Sort by proximity to last note
-    var last = this._lastBulletNote;
+    var last = this._lastVoiceNote;
     candidates.sort(function(a, b) {
       return Math.abs(a - last) - Math.abs(b - last);
     });
@@ -3202,7 +3202,7 @@ var HarmonyEngine = {
       pick = candidates[Math.floor(_rngBt() * 3)];
     }
 
-    this._lastBulletNote = pick;
+    this._lastVoiceNote = pick;
     return pick;
   },
 
@@ -3390,7 +3390,7 @@ var PaletteBlender = {
 // combination gets a unique timbre.  Waves are lazily built on first request
 // and cached for the run.
 //
-// Roles: kick, bass, snare, perc, pad, bullet, melody
+// Roles: kick, bass, snare, perc, pad, voice, melody
 // Palettes: dark_techno, synthwave, glitch, ambient_dread, lo_fi_chill, chiptune
 
 var Wavetables = (function() {
@@ -3474,7 +3474,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.3], [3, 0.5], [5, 0.7], [7, 0.9], [9, 0.6], [11, 0.4]]),  // metallic odd partials
       perc:   _harmonics([[1, 0.8], [4, 0.6], [7, 0.4], [11, 0.3]]), // bell-like inharmonic
       pad:    _hollow(16, 1.2),                                        // dark hollow pad
-      bullet: _thickSaw(12, 0.9),                                     // buzzy but not piercing
+      voice:_thickSaw(12, 0.9),                                     // buzzy but not piercing
       melody: _harmonics([[1, 1.0], [3, 0.7], [5, 0.4]]),             // acid lead — resonant nasal, strong odd partials
       perk:   _hollow(12, 0.8),                                        // detuned square — industrial, cold (SPEC_025 §3.2)
     },
@@ -3486,7 +3486,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.2], [2, 0.4], [4, 0.6], [6, 0.5], [8, 0.3]]),  // snappy even partials
       perc:   _organ({1: 0.9, 3: 0.5, 5: 0.3}),                     // mellow triangle-ish
       pad:    _thickSaw(12, 1.4),                                     // warm saw pad (rolled off)
-      bullet: _hollow(10, 0.8),                                       // square-ish chiptune feel
+      voice:_hollow(10, 0.8),                                       // square-ish chiptune feel
       melody: _thickSaw(8, 1.0),                                      // analog mono lead — warm, fewer harmonics than pad
       perk:   _pulse(0.25, 16),                                        // warm pulse — analog character (SPEC_025 §3.2)
     },
@@ -3498,7 +3498,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.2], [3, 0.3], [5, 0.5], [7, 0.7], [9, 0.8], [13, 0.6], [17, 0.4]]),  // harsh metallic
       perc:   _harmonics([[1, 0.5], [5, 0.8], [9, 0.6], [13, 0.7]]), // inharmonic, noisy character
       pad:    _harmonics([[1, 0.6], [2, 0.3], [5, 0.5], [7, 0.4], [11, 0.3]]),  // dissonant partials
-      bullet: _thickSaw(16, 0.7),                                     // very bright, aggressive
+      voice:_thickSaw(16, 0.7),                                     // very bright, aggressive
       melody: _harmonics([[1, 1.0], [2, 0.15], [6, 0.2]]),             // bitcrushed sine — digital, clean core + faint upper partial
       perk:   _harmonics([[1, 0.6], [3, 0.4], [5, 0.8], [7, 0.3]]),  // formant-ish — digital, vocal (SPEC_025 §3.2)
     },
@@ -3510,7 +3510,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.1], [2, 0.2], [5, 0.4], [7, 0.3], [11, 0.2]]),  // ghostly, breathy
       perc:   _organ({1: 0.7, 2: 0.3, 4: 0.2}),                     // soft, glass-like
       pad:    _harmonics([[1, 1.0], [2, 0.4], [3, 0.15], [5, 0.08]]), // warm sine-ish
-      bullet: _harmonics([[1, 1.0], [3, 0.2], [5, 0.05]]),           // pure, eerie
+      voice:_harmonics([[1, 1.0], [3, 0.2], [5, 0.05]]),           // pure, eerie
       melody: _harmonics([[1, 1.0], [3, 0.08]]),                      // bowed glass — near-sine, very faint 3rd partial
       perk:   _harmonics([[1, 1.0], [2, 0.08]]),                      // pure sine + sub — ethereal (SPEC_025 §3.2)
     },
@@ -3522,7 +3522,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.15], [2, 0.25], [4, 0.35], [6, 0.25], [8, 0.15]]),  // brushy, mellow even harmonics
       perc:   _organ({1: 0.6, 3: 0.3, 5: 0.15}),                    // soft triangle-ish, vinyl crackle sim
       pad:    _harmonics([[1, 1.0], [2, 0.4], [3, 0.15], [4.54, 0.08]]),  // rhodes-like: sine + bell partial at ~4.54×
-      bullet: _harmonics([[1, 1.0], [2, 0.1]]),                       // mellow sine, gentle
+      voice:_harmonics([[1, 1.0], [2, 0.1]]),                       // mellow sine, gentle
       melody: _harmonics([[1, 1.0], [2, 0.4], [3, 0.15], [5, 0.08]]),  // rhodes bell — same partials as pad, emphasize bell character
       perk:   _harmonics([[1, 1.0], [2, 0.3], [3, 0.08]]),            // rounded triangle — mellow, vinyl (SPEC_025 §3.2)
     },
@@ -3534,7 +3534,7 @@ var Wavetables = (function() {
       snare:  _pulse(0.5, 16),                                        // 50% square — noise burst approximation
       perc:   _pulse(0.125, 20),                                       // 12.5% pulse — thin, piercing
       pad:    _pulse(0.5, 12),                                         // 50% square — hollow chiptune pad
-      bullet: _pulse(0.125, 16),                                       // 12.5% pulse — classic SFX territory
+      voice:_pulse(0.125, 16),                                       // 12.5% pulse — classic SFX territory
       melody: _pulse(0.125, 20),                                       // 12.5% pulse — thin, cutting NES lead channel
       perk:   _pulse(0.25, 16),                                        // 25% pulse — NES lead (SPEC_025 §3.2)
     },
@@ -3546,7 +3546,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.1], [2, 0.2], [3, 0.3], [5, 0.4], [7, 0.2]]),  // breathy brush sweep
       perc:   _harmonics([[1, 0.5], [5.4, 0.3], [8.2, 0.15]]),       // brush on snare head — inharmonic
       pad:    _harmonics([[1, 1.0], [5.4, 0.2], [11, 0.05]]),         // vibraphone-like: sine + inharmonic partial
-      bullet: _harmonics([[1, 1.0], [2, 0.15], [3, 0.05]]),           // warm, muted trumpet-like
+      voice:_harmonics([[1, 1.0], [2, 0.15], [3, 0.05]]),           // warm, muted trumpet-like
       melody: _harmonics([[1, 1.0], [2, 0.5], [3, 0.2]]),             // muted trumpet / flute — odd-partial rolloff, breathy
       perk:   _hollow(10, 1.0),                                        // hollow odd harmonics — muted trumpet (SPEC_025 §3.2)
     },
@@ -3558,7 +3558,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.3], [2, 0.5], [4, 0.7], [6, 0.8], [8, 0.6], [12, 0.4]]),  // metallic clang
       perc:   _harmonics([[1, 0.4], [3, 0.6], [7, 0.8], [11, 0.5], [15, 0.3]]),  // anvil hits — dense odd partials
       pad:    _thickSaw(16, 0.8),                                      // harsh saw pad
-      bullet: _thickSaw(20, 0.7),                                     // aggressive, cutting
+      voice:_thickSaw(20, 0.7),                                     // aggressive, cutting
       melody: _hollow(12, 0.7),                                        // detuned square — aggressive, tighter than pad
       perk:   _thickSaw(16, 0.6),                                     // harsh saw — distorted, aggressive (SPEC_025 §3.2)
     },
@@ -3570,7 +3570,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.15], [2, 0.3], [4, 0.4], [6, 0.3], [8, 0.15]]),  // soft, muted snare
       perc:   _organ({1: 0.5, 3: 0.25, 5: 0.12}),                    // mellow, glassy
       pad:    _thickSaw(20, 1.6),                                      // lush supersaw — many partials, rolled off for shimmer
-      bullet: _harmonics([[1, 1.0], [2, 0.15], [3, 0.05]]),           // warm, dreamy sine
+      voice:_harmonics([[1, 1.0], [2, 0.15], [3, 0.05]]),           // warm, dreamy sine
       melody: _harmonics([[1, 1.0], [3, 0.3], [5, 0.15]]),            // detuned FM bell — dreamy, FM piano character
       perk:   _thickSaw(20, 1.4),                                     // thick detuned saw — dreamy (SPEC_025 §3.2)
     },
@@ -3582,7 +3582,7 @@ var Wavetables = (function() {
       snare:  _harmonics([[1, 0.25], [3, 0.45], [5, 0.6], [7, 0.5], [9, 0.35], [13, 0.2]]),  // crispy, snappy — amen-like
       perc:   _harmonics([[1, 0.5], [4, 0.7], [7, 0.5], [11, 0.3]]), // metallic percussion
       pad:    _thickSaw(14, 0.9),                                      // dark, edgy pad
-      bullet: _thickSaw(16, 0.8),                                     // aggressive, biting
+      voice:_thickSaw(16, 0.8),                                     // aggressive, biting
       melody: _thickSaw(10, 0.8),                                     // hoover / reese lead — mid-weight saw, darker than pad
       perk:   _hollow(14, 0.7),                                        // bright square — jungle stab (SPEC_025 §3.2)
     },
@@ -3594,7 +3594,7 @@ var Wavetables = (function() {
     /**
      * Get (or build+cache) a PeriodicWave for the given palette + role.
      * @param {string} paletteName - e.g. 'dark_techno'
-     * @param {string} role        - 'kick'|'bass'|'snare'|'perc'|'pad'|'bullet'|'melody'|'perk'
+     * @param {string} role        - 'kick'|'bass'|'snare'|'perc'|'pad'|'voice'|'melody'|'perk'
      * @returns {PeriodicWave|null}
      */
     get: function(paletteName, role) {
@@ -4731,7 +4731,7 @@ var PadTrack = {
   _palette:  null,      // palette.pad config
   _paletteName: null,   // for wavetable lookup (SPEC_016)
   _active:   false,
-  _muted:    true,      // starts muted; StateMapper enables at combo 20+
+  _muted:    true,      // starts muted; StateMapper enables at intensity 20+
   _lastChordRoot: -1,   // detect chord changes
   _detuneOverride: 0,   // set by StateMapper at Maelstrom (doubles detune)
   _lpf:      null,      // shared low-pass filter — tames overtones so pad sits behind mix
@@ -5102,7 +5102,7 @@ var GrazeStreakTrack = {
 // Trigger types:
 //   'phase'  — full-bar fill on phase transition (all 3 instruments)
 //   'beat16' — snare + hat mini-fill on every 16th beat (last 4 steps only)
-//   'combo'  — kick build fill at combo milestones 10, 20, 50
+//   'intensity'  — kick build fill at intensity milestones 10, 20, 50
 //
 // Fill selection: fills arrays in palette.drums[inst] ordered low→high intensity.
 // Phase bias selects from progressively higher-intensity fills as game progresses.
@@ -5178,8 +5178,8 @@ var FillSystem = {
     this._armFill('hat',   'fill_hat_mini');
   },
 
-  // Trigger a kick build fill at combo milestones (10, 20, 50).
-  triggerComboBuild: function(phase) {
+  // Trigger a kick build fill at intensity milestones (10, 20, 50).
+  triggerIntensityBuild: function(phase) {
     if (!this._active) return;
     // Only fire if kick fill not already running
     if (this._fills.kick && this._fills.kick.stepsLeft > 0) return;
@@ -5203,12 +5203,12 @@ var FillSystem = {
 
 // ---- Walking Bass Engine (SPEC_018 §3) ----
 //
-// Replaces the simple root-offset bass lookup with combo-driven behavior:
-//   Combo 0–9:  root note only (pattern controls rhythm)
-//   Combo 10–19: root + 5th alternation
-//   Combo 20–34: chord tones + octave bounce + passing tones
-//   Combo 35–49: walking bass — stepwise scale motion toward next chord root
-//   Combo 50+:  chromatic approach notes + syncopation
+// Replaces the simple root-offset bass lookup with intensity-driven behavior:
+//   Intensity 0–9:  root note only (pattern controls rhythm)
+//   Intensity 10–19: root + 5th alternation
+//   Intensity 20–34: chord tones + octave bounce + passing tones
+//   Intensity 35–49: walking bass — stepwise scale motion toward next chord root
+//   Intensity 50+:  chromatic approach notes + syncopation
 //
 // WalkingBass.getNote(stepIndex, beatTime) returns MIDI note.
 // On chord changes, it queues a 2-beat approach figure leading into the new root.
@@ -5237,12 +5237,12 @@ var WalkingBass = {
   },
 
   // --- Complexity tier ---
-  _tier: function(combo) {
-    if (combo >= 50) return 4;   // chromatic approach + syncopation
-    if (combo >= 35) return 3;   // walking bass (stepwise to target)
-    if (combo >= 20) return 2;   // chord tones + passing
-    if (combo >= 10) return 1;   // root + 5th
-    return 0;                    // root only
+  _tier: function(intensity) {
+    if (intensity >= 50) return 4;   // chromatic approach + syncopation
+    if (intensity >= 35) return 3;   // walking bass (stepwise to target)
+    if (intensity >= 20) return 2;   // chord tones + passing
+    if (intensity >= 10) return 1;   // root + 5th
+    return 0;                        // root only
   },
 
   // --- Get the target root MIDI for the current chord at a given octave ---
@@ -5306,13 +5306,13 @@ var WalkingBass = {
   // --- Main: called per 16th step from Sequencer.tick ---
   // Returns MIDI note or -1 (silence for this step).
   // bStep = pattern step object (for rhythm / active gate).
-  // combo = current G.combo.
+  // intensity = current G.intensity.
   // octave = palette bass octave.
-  getNote: function(bStep, combo, octave) {
+  getNote: function(bStep, intensity, octave) {
     if (!this._active || !bStep || !bStep.active) return -1;
     if (typeof HarmonyEngine === 'undefined' || !HarmonyEngine._currentChord) return -1;
 
-    var tier = this._tier(combo);
+    var tier = this._tier(intensity);
     var root = this._chordRoot(octave);
     if (root < 0) return root;
 
@@ -5709,12 +5709,12 @@ var Sequencer = {
     this._globalStep = 0;
     this._active   = true;
     // Start muted per Pulse floor: only kick audible at game start.
-    // StateMapper._updateLayers() will unmute tracks as phase/combo progress.
+    // StateMapper._updateLayers() will unmute tracks as phase/intensity progress.
     this._mute     = { kick: false, snare: true, hat: true, bass: true, pad: true, perc: true, arp: true, melody: true };
     this._hatDoubled = false;
     this._halfTime = false;
     this._halfTimeEnd = 0;
-    this._comboComplexity = 'simple'; // SPEC_020 §6: 'simple'|'base'|'complex' set by StateMapper
+    this._intensityComplexity = 'simple'; // SPEC_020 §6: 'simple'|'base'|'complex' set by StateMapper
     _noiseBuffer   = null; // reset: new AudioContext gets fresh buffer
 
     var d = palette.drums;
@@ -6018,7 +6018,7 @@ var Sequencer = {
       var snare = snareFillStep || this._drumPatterns.snare[s];
       if (snare && !this._mute.snare) {
         // Complexity tier: 'simple' = backbeat only (step 4,12), 'base'/'complex' = full
-        var snareTier = this._comboComplexity || 'base';
+        var snareTier = this._intensityComplexity || 'base';
         var skipSnareSimple = (snareTier === 'simple' && !snareFillStep && !isHalfTime && (s !== 4 && s !== 12));
         if (skipSnareSimple) {
           // Simple tier: only backbeat positions
@@ -6038,7 +6038,7 @@ var Sequencer = {
       var hat = hatFillStep || this._drumPatterns.hat[s];
       if (hat && !this._mute.hat) {
         // Complexity tier: 'simple' = quarter notes only (skip offbeats), 'base' = normal, 'complex' = full with ghosts
-        var cTier = this._comboComplexity || 'base';
+        var cTier = this._intensityComplexity || 'base';
         var skipSimple = (cTier === 'simple' && !hatFillStep && (s % 4 !== 0));
         if (skipSimple) {
           // Simple tier: only play on-beat hits (steps 0, 4, 8, 12)
@@ -6088,7 +6088,7 @@ var Sequencer = {
       if (bStep && bStep.active && !this._mute.bass && !this._halfTime) {
         var bassMidi = -1;
         if (typeof WalkingBass !== 'undefined' && WalkingBass._active) {
-          bassMidi = WalkingBass.getNote(bStep, G.combo, pal.bass.octave);
+          bassMidi = WalkingBass.getNote(bStep, G.intensity, pal.bass.octave);
         } else {
           // Fallback: simple root
           var fbTones = HarmonyEngine.getChordTones(pal.bass.octave);
@@ -6242,15 +6242,15 @@ var BreakRewind = {
 
 
 // ── 03c_bullet_voice.js ──────────────────────────────────────────
-// ========== BULLET VOICE POOL ==========
-// 16-voice polyphonic pool. Each bullet is an instrument.
+// ========== VOICE POOL ==========
+// 16-voice polyphonic pool. Each voice is an instrument.
 // On spawn: request voice → assign chord tone → play.
 // On death: trigger release envelope → return voice to pool after tail.
 // On shutdown: hard-stop all voices immediately (no hang on death).
 
-var BulletVoicePool = {
+var VoicePool = {
   _pool:        [],     // array of voice objects
-  _palette:     null,   // current palette.bulletVoice config
+  _palette:     null,   // current palette.voiceConfig
   _size:        16,
   _timeouts:    [],     // all pending setTimeout handles (cleared on shutdown)
 
@@ -6281,14 +6281,14 @@ var BulletVoicePool = {
   // --- Init per run ---
   initRun: function(palette) {
     this.shutdown();           // clean up any previous run nodes
-    this._palette = palette.bulletVoice;
+    this._palette = palette.voiceConfig;
     this._paletteName = palette.name || null;  // for wavetable lookup (SPEC_016)
     this._pool = [];
     this._streakDetune = 0;  // SPEC_020 §5: streak milestone octave shift (cents)
     for (var i = 0; i < this._size; i++) {
       this._pool.push(this._makeVoice());
     }
-    console.log('[BVP] initRun: ' + this._size + ' voices, wave=' +
+    console.log('[VP] initRun: ' + this._size + ' voices, wave=' +
                 this._palette.wave + ' oct=' + this._palette.octave);
   },
 
@@ -6302,7 +6302,7 @@ var BulletVoicePool = {
 
   // --- Build and start audio graph for a voice ---
   // Pure AD envelope: attack → decay to near-zero. No sustain plateau.
-  // Max lifetime ~350ms regardless of how long bullet lives.
+  // Max lifetime ~350ms regardless of how long the source lives.
   _startVoice: function(voice, midiNote, scheduledTime) {
     if (!audioCtx || !submixGain) return;
     var cfg  = this._palette;
@@ -6314,9 +6314,9 @@ var BulletVoicePool = {
     var filter = audioCtx.createBiquadFilter();
     var gain   = audioCtx.createGain();
 
-    // Wavetable for palette-specific bullet timbre (SPEC_016)
+    // Wavetable for palette-specific voice timbre (SPEC_016)
     var wt = (typeof Wavetables !== 'undefined' && this._paletteName)
-      ? Wavetables.get(this._paletteName, 'bullet') : null;
+      ? Wavetables.get(this._paletteName, 'voice') : null;
     if (wt) {
       osc.setPeriodicWave(wt);
     } else {
@@ -6329,7 +6329,7 @@ var BulletVoicePool = {
       osc.detune.value = (Math.random() * 100) - 50;
     }
 
-    // Streak milestone: octave shift on active bullet voices (SPEC_020 §5)
+    // Streak milestone: octave shift on active voices (SPEC_020 §5)
     if (this._streakDetune) {
       osc.detune.value = (osc.detune.value || 0) + this._streakDetune;
     }
@@ -6346,14 +6346,14 @@ var BulletVoicePool = {
     filter.Q.value = 3.0;
 
     // AD-only envelope: attack → decay all the way to silence.
-    // Voice is "musically dead" by t+attack+decay regardless of bullet lifetime.
+    // Voice is "musically dead" by t+attack+decay regardless of source lifetime.
     var attack    = cfg.attack || 0.01;
     var decay     = cfg.decay  || 0.15;
     // Maelstrom: longer decay → more lingering, chaotic (SPEC_011 §3.2)
     if (typeof G !== 'undefined' && G.phase === 'maelstrom') {
       decay = Math.min(decay * 1.8, 0.35);
     }
-    var peakGain  = CFG.GAIN.bullet;
+    var peakGain  = CFG.GAIN.voice;
     var totalTime = attack + decay;
 
     gain.gain.setValueAtTime(0.0001, t);
@@ -6383,14 +6383,14 @@ var BulletVoicePool = {
     }, delay);
   },
 
-  // --- Release: called on bullet death ---
+  // --- Release: called on source death ---
   // AD envelope already scheduled to silence itself — release just cuts osc early
-  // if the bullet dies before the envelope finishes (e.g. off-screen quickly).
+  // if the source dies before the envelope finishes (e.g. off-screen quickly).
   // harsh=true (player hit): also plays a distinct hit SFX via 03_audio.js.
-  release: function(bullet, harsh) {
-    if (!bullet || !bullet._voice) return;
-    var voice = bullet._voice;
-    bullet._voice = null;
+  release: function(source, harsh) {
+    if (!source || !source._voice) return;
+    var voice = source._voice;
+    source._voice = null;
 
     if (!voice.active || !voice.gain || !audioCtx) return;
 
@@ -6411,38 +6411,38 @@ var BulletVoicePool = {
     }, 80);
   },
 
-  // --- Public: spawn voice for a bullet ---
-  spawn: function(bullet, scheduledTime) {
+  // --- Public: spawn voice ---
+  spawn: function(source, scheduledTime) {
     if (!audioCtx || !this._palette) return null;
     var voice = this._allocate();
     if (!voice) {
-      console.warn('[BVP] pool exhausted');
+      console.warn('[VP] pool exhausted');
       return null;
     }
 
     var cfg        = this._palette;
-    // Bullet type → preferred octave register (SPEC_017 §6)
+    // Source type → preferred octave register (SPEC_017 §6)
     var typeRegisters = {
       dart: 5, wave: 4, bloom: 5, snap: 3, drift: 3
     };
-    var bulletType = (bullet && bullet.type) || 'dart';
-    var baseOctave = typeRegisters[bulletType] || cfg.octave || 5;
-    // ambient_dread: drop all bullet registers one octave — high partials scratch
+    var sourceType = (source && source.type) || 'dart';
+    var baseOctave = typeRegisters[sourceType] || cfg.octave || 5;
+    // ambient_dread: drop all registers one octave — high partials scratch
     if (this._paletteName === 'ambient_dread') baseOctave = Math.max(3, baseOctave - 1);
     var midiNote   = HarmonyEngine.getNextChordTone(baseOctave);
 
     // Bloom gets occasional octave-up shimmer (skip for ambient_dread — already lowered)
-    if (bulletType === 'bloom' && Math.random() < 0.3 && this._paletteName !== 'ambient_dread') {
+    if (sourceType === 'bloom' && Math.random() < 0.3 && this._paletteName !== 'ambient_dread') {
       midiNote += 12;
     }
-    // Octave doubling at high density (5+ bullets on screen)
-    if ((bullet._bulletCount || 0) >= 5 && Math.random() < 0.4) {
+    // Octave doubling at high density (5+ sources on screen)
+    if ((source._voiceCount || 0) >= 5 && Math.random() < 0.4) {
       midiNote += 12;
     }
 
     this._startVoice(voice, midiNote, scheduledTime);
-    bullet._voice    = voice;
-    bullet._midiNote = midiNote;
+    source._voice    = voice;
+    source._midiNote = midiNote;
     return voice;
   },
 
@@ -6483,16 +6483,16 @@ var BulletVoicePool = {
 
 // ── 03d_state_mapper.js ──────────────────────────────────────────
 // ========== STATE MAPPER — GAME DRIVES MUSIC ==========
-// Maps game state (combo, HP, near-misses, beatCount) to musical parameters.
+// Maps game state (intensity, energy, near-misses, beatCount) to musical parameters.
 // Section progression: intro → build → groove → peak → evolve.
-// Combo drives layer addition, HP drives tension, near-misses spike delay feedback.
+// Intensity drives layer addition, energy drives tension, near-misses spike delay feedback.
 
 var StateMapper = {
   _nearMisses:        [],      // beat numbers of recent near-misses
   _hitStrip:          false,   // kick-only mode after player hit
   _hitStripBeatsLeft: 0,
-  _hpFilter:          null,    // high-pass BiquadFilter on master chain
-  _tremoloGain:       null,    // gain node for HP=1 tremolo
+  _energyFilter:      null,    // high-pass BiquadFilter on master chain
+  _tremoloGain:       null,    // gain node for energy=1 tremolo
   _tremoloOsc:        null,    // LFO driving tremolo
   _deathFading:       false,
   _modulatedUp:       false,   // true if key was modulated up at Storm
@@ -6510,9 +6510,9 @@ var StateMapper = {
     this._modulatedUp       = false;
     this._postStormModRegistered = false;
     this._lastPostStormModBeat = 0;
-    this._darkenedKey       = false;   // HP=1 key darken active
+    this._darkenedKey       = false;   // energy=1 key darken active
     this._sidechainPhaseMult = 1.0;
-    this._initHPFilter();
+    this._initEnergyFilter();
     this._initTremolo();
     this._initStingerGain();
 
@@ -6530,34 +6530,34 @@ var StateMapper = {
     }
   },
 
-  // --- HP high-pass filter: inserted between submixGain and _compressor ---
-  // At init, spliced into the existing chain: submix → hpFilter → compressor
-  _initHPFilter: function() {
+  // --- Energy high-pass filter: inserted between submixGain and _compressor ---
+  // At init, spliced into the existing chain: submix → energyFilter → compressor
+  _initEnergyFilter: function() {
     if (!audioCtx || !submixGain || !_compressor) return;
 
     var upstream = (typeof _sidechainGain !== 'undefined' && _sidechainGain) ? _sidechainGain : submixGain;
 
     // Tear down previous filter if it exists (prevents parallel paths on retry)
-    if (this._hpFilter) {
-      try { upstream.disconnect(this._hpFilter); } catch(e) {}
-      try { this._hpFilter.disconnect(_compressor); } catch(e) {}
-      try { this._hpFilter.disconnect(); } catch(e) {}
+    if (this._energyFilter) {
+      try { upstream.disconnect(this._energyFilter); } catch(e) {}
+      try { this._energyFilter.disconnect(_compressor); } catch(e) {}
+      try { this._energyFilter.disconnect(); } catch(e) {}
     }
 
     // Also remove any direct upstream→compressor connection
     try { upstream.disconnect(_compressor); } catch(e) {}
 
-    this._hpFilter = audioCtx.createBiquadFilter();
-    this._hpFilter.type = 'highpass';
-    this._hpFilter.frequency.value = 10; // effectively off (sub-audible)
-    this._hpFilter.Q.value = 0.7;
+    this._energyFilter = audioCtx.createBiquadFilter();
+    this._energyFilter.type = 'highpass';
+    this._energyFilter.frequency.value = 10; // effectively off (sub-audible)
+    this._energyFilter.Q.value = 0.7;
 
-    // Rewire: upstream → hpFilter → compressor
-    upstream.connect(this._hpFilter);
-    this._hpFilter.connect(_compressor);
+    // Rewire: upstream → energyFilter → compressor
+    upstream.connect(this._energyFilter);
+    this._energyFilter.connect(_compressor);
   },
 
-  // --- Tremolo for HP=1 danger state ---
+  // --- Tremolo for energy=1 danger state ---
   _initTremolo: function() {
     if (!audioCtx || !masterGain) return;
 
@@ -6587,7 +6587,7 @@ var StateMapper = {
 
     // LFO → tremolo gain modulation (need a gain node to scale LFO depth)
     var lfoDepth = audioCtx.createGain();
-    lfoDepth.gain.value = 0; // 0 = no tremolo; set >0 when HP=1
+    lfoDepth.gain.value = 0; // 0 = no tremolo; set >0 when energy=1
     this._tremoloOsc.connect(lfoDepth);
     lfoDepth.connect(this._tremoloGain.gain);
     this._tremoloOsc.start();
@@ -6604,8 +6604,8 @@ var StateMapper = {
   update: function(beatTime) {
     if (this._deathFading) return;
 
-    var combo     = G.combo;
-    var hp        = G.hp;
+    var intensity = G.intensity;
+    var energy    = G.energy;
     var beatCount = G.beatCount;
 
     // --- Hit strip countdown ---
@@ -6620,17 +6620,17 @@ var StateMapper = {
       }
     }
 
-    // --- Set sequencer mutes: phase floor + combo ceiling ---
-    this._updateLayers(G.phase, combo);
+    // --- Set sequencer mutes: phase floor + intensity ceiling ---
+    this._updateLayers(G.phase, intensity);
 
-    // --- Melody combo interaction (SPEC_017 §5) ---
-    if (typeof MelodyEngine !== 'undefined') MelodyEngine.updateCombo(combo);
+    // --- Melody intensity interaction (SPEC_017 §5) ---
+    if (typeof MelodyEngine !== 'undefined') MelodyEngine.updateIntensity(intensity);
 
     // --- Narrative conductor beat tick (SPEC_020 §1) ---
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.onBeat(beatTime);
 
-    // --- HP tension effects ---
-    this._updateHPEffects(hp);
+    // --- Energy tension effects ---
+    this._updateEnergyEffects(energy);
 
     // --- Near-miss: expire old entries (keep last 8 beats) ---
     var cutoff = beatCount - 8;
@@ -6675,14 +6675,14 @@ var StateMapper = {
   },
 
   // --- Layer activation: continuous arrangement engine (SPEC_020 §6) ---
-  // Phase floor = minimum 0.3 gain. Combo ramps gain from floor→1.0.
+  // Phase floor = minimum 0.3 gain. Intensity ramps gain from floor→1.0.
   // Hit-strip: snap to floor gains for 4 beats.
   // Track gains ramp smoothly via AudioParam.setTargetAtTime.
-  _updateLayers: function(phase, combo) {
+  _updateLayers: function(phase, intensity) {
     if (typeof Sequencer === 'undefined') return;
     var m = Sequencer._mute;
     var floor = CFG.PHASE_FLOOR[phase] || CFG.PHASE_FLOOR.pulse;
-    var thresh = CFG.COMBO_LAYER_THRESHOLDS;
+    var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
     var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'arp', 'melody'];
     var hasGainNodes = (typeof _trackGains !== 'undefined');
     var t = (audioCtx) ? audioCtx.currentTime : 0;
@@ -6709,30 +6709,30 @@ var StateMapper = {
     var prevMute = {};
     for (var p = 0; p < tracks.length; p++) prevMute[tracks[p]] = m[tracks[p]];
 
-    // For each track: compute continuous gain based on floor + combo
+    // For each track: compute continuous gain based on floor + intensity
     for (var j = 0; j < tracks.length; j++) {
       var trk = tracks[j];
       var inFlr = !!floor[trk];
-      var comboThresh = thresh[trk] || Infinity;
-      var comboUnlocked = combo >= comboThresh;
+      var intensityThresh = thresh[trk] || Infinity;
+      var intensityUnlocked = intensity >= intensityThresh;
 
-      // Track is audible if in floor or combo-unlocked
-      m[trk] = !(inFlr || comboUnlocked);
+      // Track is audible if in floor or intensity-unlocked
+      m[trk] = !(inFlr || intensityUnlocked);
 
-      // Continuous gain: smooth ramp from floor (0.3) to full (1.0) over combo range
+      // Continuous gain: smooth ramp from floor (0.3) to full (1.0) over intensity range
       if (hasGainNodes && _trackGains[trk]) {
         var targetGain;
         if (m[trk]) {
           // Track is muted — gain to 0
           targetGain = 0.0;
         } else if (inFlr) {
-          // In phase floor: ramp from 0.3 (threshold) to 1.0 over combo 0→50
-          var comboNorm = Math.min(combo / 50, 1.0);
-          targetGain = 0.3 + 0.7 * comboNorm;
+          // In phase floor: ramp from 0.3 (threshold) to 1.0 over intensity 0→50
+          var intensityNorm = Math.min(intensity / 50, 1.0);
+          targetGain = 0.3 + 0.7 * intensityNorm;
         } else {
-          // Combo-unlocked (above threshold): ramp from 0.3 at threshold to 1.0 over next 30 combo
-          var comboAbove = combo - comboThresh;
-          var aboveNorm = Math.min(Math.max(comboAbove, 0) / 30, 1.0);
+          // Intensity-unlocked (above threshold): ramp from 0.3 at threshold to 1.0 over next 30
+          var intensityAbove = intensity - intensityThresh;
+          var aboveNorm = Math.min(Math.max(intensityAbove, 0) / 30, 1.0);
           targetGain = 0.3 + 0.7 * aboveNorm;
         }
         _trackGains[trk].gain.setTargetAtTime(targetGain, t, rampTau);
@@ -6749,29 +6749,29 @@ var StateMapper = {
       }
     }
 
-    // Pattern complexity tiers: select simple/base/complex based on combo (SPEC_020 §6)
+    // Pattern complexity tiers: select simple/base/complex based on intensity (SPEC_020 §6)
     if (typeof Sequencer !== 'undefined') {
-      Sequencer._comboComplexity = (combo >= 25) ? 'complex' : (combo >= 10) ? 'base' : 'simple';
+      Sequencer._intensityComplexity = (intensity >= 25) ? 'complex' : (intensity >= 10) ? 'base' : 'simple';
     }
 
   },
 
-  // --- HP effects: filter + tremolo ---
-  _updateHPEffects: function(hp) {
-    if (!this._hpFilter || !audioCtx) return;
+  // --- Energy effects: filter + tremolo ---
+  _updateEnergyEffects: function(energy) {
+    if (!this._energyFilter || !audioCtx) return;
     var t = audioCtx.currentTime;
 
-    if (hp >= 3) {
-      // Normal: HP filter off, no tremolo
-      this._hpFilter.frequency.setTargetAtTime(10, t, 0.1);
+    if (energy >= 3) {
+      // Normal: energy filter off, no tremolo
+      this._energyFilter.frequency.setTargetAtTime(10, t, 0.1);
       if (this._lfoDepth) this._lfoDepth.gain.setTargetAtTime(0, t, 0.1);
-    } else if (hp === 2) {
+    } else if (energy === 2) {
       // Tension: high-pass rises to 200Hz, no tremolo yet
-      this._hpFilter.frequency.setTargetAtTime(200, t, 0.15);
+      this._energyFilter.frequency.setTargetAtTime(200, t, 0.15);
       if (this._lfoDepth) this._lfoDepth.gain.setTargetAtTime(0, t, 0.1);
     } else {
-      // Danger (HP=1): high-pass at 400Hz + tremolo active
-      this._hpFilter.frequency.setTargetAtTime(400, t, 0.15);
+      // Danger (energy=1): high-pass at 400Hz + tremolo active
+      this._energyFilter.frequency.setTargetAtTime(400, t, 0.15);
       if (this._lfoDepth) this._lfoDepth.gain.setTargetAtTime(0.3, t, 0.2);
     }
   },
@@ -7165,9 +7165,9 @@ var StateMapper = {
     if (typeof playGrazeSFX === 'function') playGrazeSFX(tier);
 
 
-    // Detune active bullet voices ±25 cents for tension (tight/perfect only)
-    if (tier !== 'normal' && typeof BulletVoicePool !== 'undefined') {
-      var pool = BulletVoicePool._pool;
+    // Detune active voice pool voices ±25 cents for tension (tight/perfect only)
+    if (tier !== 'normal' && typeof VoicePool !== 'undefined') {
+      var pool = VoicePool._pool;
       var detAmt = tier === 'perfect' ? 40 : 25;
       for (var i = 0; i < pool.length; i++) {
         var v = pool[i];
@@ -7180,7 +7180,7 @@ var StateMapper = {
     }
   },
 
-  // --- Register a slash event (Bullet Slash perk, SPEC_012 §2.1, §6) ---
+  // --- Register a slash event (Voice Slash perk, SPEC_012 §2.1, §6) ---
   // tier: 'normal' | 'tight' | 'perfect'
   registerSlash: function(tier) {
     if (typeof playSlashSFX === 'function') playSlashSFX(tier);
@@ -7198,19 +7198,19 @@ var StateMapper = {
     if (typeof playPulseSFX === 'function') playPulseSFX();
   },
 
-  // --- Key darken on HP=1 (SPEC_017 §3) ---
+  // --- Key darken on energy=1 (SPEC_017 §3) ---
   _checkKeyDarken: function() {
     if (typeof HarmonyEngine === 'undefined') return;
-    if (G.hp === 1 && !this._darkenedKey) {
+    if (G.energy === 1 && !this._darkenedKey) {
       this._darkenedKey = true;
       HarmonyEngine.modulateTo(HarmonyEngine.root - 1, 'direct');
     }
   },
 
-  // --- Key restore on HP regen from 1 (SPEC_017 §3) ---
+  // --- Key restore on energy regen from 1 (SPEC_017 §3) ---
   _checkKeyRestore: function() {
     if (typeof HarmonyEngine === 'undefined') return;
-    if (this._darkenedKey && G.hp > 1) {
+    if (this._darkenedKey && G.energy > 1) {
       this._darkenedKey = false;
       // Restore previous key via pivot if possible
       if (HarmonyEngine._prevRoot !== null) {
@@ -7219,7 +7219,7 @@ var StateMapper = {
     }
   },
 
-  // --- Called on player hit (HP loss) ---
+  // --- Called on player hit (energy loss) ---
   onHit: function() {
     // Exit figures BEFORE muting (SPEC_020 §3) — instruments depart musically
     if (typeof NarrativeConductor !== 'undefined') {
@@ -7229,7 +7229,7 @@ var StateMapper = {
     this._hitStrip = true;
     this._hitStripBeatsLeft = 4; // floor-only for 4 beats
 
-    // HP=1 key darken (SPEC_017 §3)
+    // energy=1 key darken (SPEC_017 §3)
     this._checkKeyDarken();
 
     // Immediate layer strip: mute above floor + gain drop (SPEC_020 §6)
@@ -7309,9 +7309,9 @@ var StateMapper = {
       _delayFeedback.gain.setTargetAtTime(0.05, fadeStart, 0.2);
     }
 
-    // Remove HP effects (tremolo + filter)
+    // Remove energy effects (tremolo + filter)
     if (this._lfoDepth) this._lfoDepth.gain.setTargetAtTime(0, fadeStart, 0.05);
-    if (this._hpFilter) this._hpFilter.frequency.setTargetAtTime(10, fadeStart, 0.1);
+    if (this._energyFilter) this._energyFilter.frequency.setTargetAtTime(10, fadeStart, 0.1);
 
     // Reverse reverb swell: noise crescendo simulating reversed reverb tail
     if (typeof _getNoiseBuffer === 'function') {
@@ -7373,12 +7373,12 @@ var StateMapper = {
       try { waveshaper.connect(masterGain); } catch(e) {}
     }
 
-    // --- Tear down HP filter: disconnect from graph, restore direct path ---
+    // --- Tear down energy filter: disconnect from graph, restore direct path ---
     var _upstream = (typeof _sidechainGain !== 'undefined' && _sidechainGain) ? _sidechainGain : submixGain;
-    if (this._hpFilter) {
-      try { _upstream.disconnect(this._hpFilter); } catch(e) {}
-      try { this._hpFilter.disconnect(); } catch(e) {}
-      this._hpFilter = null;
+    if (this._energyFilter) {
+      try { _upstream.disconnect(this._energyFilter); } catch(e) {}
+      try { this._energyFilter.disconnect(); } catch(e) {}
+      this._energyFilter = null;
     }
     // Always restore upstream → compressor directly, preventing parallel paths.
     if (_upstream && _compressor) {
@@ -7441,9 +7441,9 @@ var MelodyEngine = {
   _paletteName: null,
   _active: false,
   _graceQueue: [],     // grace notes queued by graze events
-  _octaveDrop: 0,      // beats remaining for HP-loss octave drop
+  _octaveDrop: 0,      // beats remaining for energy-loss octave drop
   _lastNoteMidi: null,  // last played MIDI note (for voice leading)
-  _phraseLenBonus: 0,  // extra phrase length from high combo
+  _phraseLenBonus: 0,  // extra phrase length from high intensity
   _subQueue: [],       // scheduled sub-beat events for current beat (SPEC_023 §B2)
   _melodyStep: 0,      // melody's own 16th-note step counter for groove (SPEC_023 §B3)
   _barBeat: 0,         // beat position within current bar (0–3) for rest alignment (SPEC_023 §B4)
@@ -8099,7 +8099,7 @@ var MelodyEngine = {
     }
   },
 
-  // ── HP loss: drop octave + halve volume for 4 beats (SPEC_017 §5) ────────
+  // ── Energy loss: drop octave + halve volume for 4 beats (SPEC_017 §5) ─────
   onHit: function() {
     this._octaveDrop = 4;
   },
@@ -8123,11 +8123,11 @@ var MelodyEngine = {
     }
   },
 
-  // ── Combo interaction: longer phrases at high combo ───────────────────────
-  updateCombo: function(combo) {
-    // At combo 20+, phrases can be longer (up to +2 notes)
-    if (combo >= 20) {
-      this._phraseLenBonus = Math.min(2, Math.floor((combo - 20) / 15));
+  // ── Intensity interaction: longer phrases at high intensity ─────────────
+  updateIntensity: function(intensity) {
+    // At intensity 20+, phrases can be longer (up to +2 notes)
+    if (intensity >= 20) {
+      this._phraseLenBonus = Math.min(2, Math.floor((intensity - 20) / 15));
     } else {
       this._phraseLenBonus = 0;
     }
@@ -8579,7 +8579,7 @@ var NarrativeConductor = {
     // Reset silence state (SPEC_020 §8)
     this._silenceState = null;
     this._firstHitSilenced = false;
-    this._combo50Silenced = false;
+    this._intensity50Silenced = false;
     this._prePhaseDropBeat = 0;
     this._generateThemeMotif(palette);
     console.log('[NarrativeConductor] initRun: motif degrees=' +
@@ -9152,10 +9152,10 @@ var NarrativeConductor = {
       if (!tg) continue;
       // Only ramp tracks that are about to be unmuted
       var floor = CFG.PHASE_FLOOR[G.phase] || CFG.PHASE_FLOOR.pulse;
-      var thresh = CFG.COMBO_LAYER_THRESHOLDS;
+      var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
       var inFloor = !!floor[tracks[i]];
-      var comboUnlocked = G.combo >= (thresh[tracks[i]] || Infinity);
-      if (inFloor || comboUnlocked) {
+      var intensityUnlocked = G.intensity >= (thresh[tracks[i]] || Infinity);
+      if (inFloor || intensityUnlocked) {
         tg.gain.cancelScheduledValues(t);
         tg.gain.setValueAtTime(0.0001, t);
         tg.gain.linearRampToValueAtTime(1.0, t + rampDur);
@@ -9270,10 +9270,10 @@ var NarrativeConductor = {
 
   resetStreakMilestones: function() {
     this._streakMilestonesHit = {};
-    // Restore bullet voice octave if shifted
+    // Restore voice pool octave if shifted
     if (this._streakOctaveShiftActive) {
       this._streakOctaveShiftActive = false;
-      this._restoreBulletOctave();
+      this._restoreVoiceOctave();
     }
     this._streakUnison = false;
   },
@@ -9290,10 +9290,10 @@ var NarrativeConductor = {
       this._playRisingFigure(t, beatDur);
     }
 
-    // Streak 5: bullet voices shift up an octave (brightening)
+    // Streak 5: voice pool shifts up an octave (brightening)
     if (streak >= 5 && !this._streakMilestonesHit[5]) {
       this._streakMilestonesHit[5] = true;
-      this._shiftBulletOctave(12); // +12 semitones = 1 octave
+      this._shiftVoiceOctave(12); // +12 semitones = 1 octave
       this._streakOctaveShiftActive = true;
     }
 
@@ -9329,10 +9329,10 @@ var NarrativeConductor = {
     }
   },
 
-  // Streak 5: shift active bullet voices up 12 semitones
-  _shiftBulletOctave: function(semitones) {
-    if (typeof BulletVoicePool === 'undefined') return;
-    var pool = BulletVoicePool._pool;
+  // Streak 5: shift active voice pool up 12 semitones
+  _shiftVoiceOctave: function(semitones) {
+    if (typeof VoicePool === 'undefined') return;
+    var pool = VoicePool._pool;
     for (var i = 0; i < pool.length; i++) {
       var v = pool[i];
       if (v.active && v.osc) {
@@ -9342,12 +9342,12 @@ var NarrativeConductor = {
       }
     }
     // Store shift so new spawns also get it
-    BulletVoicePool._streakDetune = semitones * 100;
+    VoicePool._streakDetune = semitones * 100;
   },
 
-  _restoreBulletOctave: function() {
-    if (typeof BulletVoicePool === 'undefined') return;
-    var pool = BulletVoicePool._pool;
+  _restoreVoiceOctave: function() {
+    if (typeof VoicePool === 'undefined') return;
+    var pool = VoicePool._pool;
     for (var i = 0; i < pool.length; i++) {
       var v = pool[i];
       if (v.active && v.osc) {
@@ -9356,7 +9356,7 @@ var NarrativeConductor = {
         } catch(e) {}
       }
     }
-    BulletVoicePool._streakDetune = 0;
+    VoicePool._streakDetune = 0;
   },
 
   // Streak 8: bass celebration fill — root→5th→octave→5th descending
@@ -9454,7 +9454,7 @@ var NarrativeConductor = {
 
   _silenceState: null,  // { type, endBeat } when a silence is active
   _firstHitSilenced: false,
-  _combo50Silenced: false,
+  _intensity50Silenced: false,
   _prePhaseDropBeat: 0,
 
   // Check & schedule silence on beat (called from onBeat)
@@ -9466,10 +9466,10 @@ var NarrativeConductor = {
       this._endSilence(beatTime);
     }
 
-    // Combo 50: 2-beat drum cut, pad sustains (SPEC_020 §8)
-    if (G.combo === 50 && !this._combo50Silenced) {
-      this._combo50Silenced = true;
-      this._beginSilence('combo_50', G.beatCount + 2, beatTime);
+    // Intensity 50: 2-beat drum cut, pad sustains (SPEC_020 §8)
+    if (G.intensity === 50 && !this._intensity50Silenced) {
+      this._intensity50Silenced = true;
+      this._beginSilence('intensity_50', G.beatCount + 2, beatTime);
     }
 
     // Streak 12 unison: fire on downbeat if armed
@@ -9590,7 +9590,7 @@ var NarrativeConductor = {
     this._streakUnison = false;
     this._silenceState = null;
     this._firstHitSilenced = false;
-    this._combo50Silenced = false;
+    this._intensity50Silenced = false;
     this._prePhaseDropBeat = 0;
     if (this._canonVoiceTimeout) {
       clearTimeout(this._canonVoiceTimeout);
@@ -9603,16 +9603,16 @@ var NarrativeConductor = {
 
 // ── conductor.js ──────────────────────────────────────────
 // ========== VIRTUAL CONDUCTOR ==========
-// Replaces the game loop. Simulates phase progression, combo ramp,
+// Replaces the game loop. Simulates phase progression, intensity ramp,
 // and musical events so the audio engine plays a full song autonomously.
 
 var Conductor = (function() {
   var _running = false;
   var _paused = false;
-  var _autoCombo = true;     // simulate combo ramp
-  var _autoPhase = true;     // let DC drive phase transitions
-  var _manualPhase = null;   // override phase when autoPhase=false
-  var _comboRate = 1;        // combo increment per beat (simulate player skill)
+  var _autoIntensity = true;  // simulate intensity ramp
+  var _autoPhase = true;      // let DC drive phase transitions
+  var _manualPhase = null;    // override phase when autoPhase=false
+  var _intensityRate = 1;     // intensity increment per beat (simulate player skill)
 
   function _onBeat(beatTime) {
     if (!_running) return;
@@ -9633,20 +9633,20 @@ var Conductor = (function() {
       }
     }
 
-    // Virtual combo ramp
-    if (_autoCombo) {
-      G.combo += _comboRate;
-      G.bestCombo = Math.max(G.bestCombo, G.combo);
+    // Virtual intensity ramp
+    if (_autoIntensity) {
+      G.intensity += _intensityRate;
+      G.bestIntensity = Math.max(G.bestIntensity, G.intensity);
     }
 
     // Score
-    G.score += 10 + Math.floor(G.combo * 0.5);
+    G.score += 10 + Math.floor(G.intensity * 0.5);
 
     // Advance audio subsystems
     if (typeof HarmonyEngine !== 'undefined') HarmonyEngine.advanceBeat();
     if (typeof Sequencer !== 'undefined') Sequencer.tick(beatTime);
     if (typeof StateMapper !== 'undefined') StateMapper.update(beatTime);
-    if (typeof MelodyEngine !== 'undefined') MelodyEngine.updateCombo(G.combo);
+    if (typeof MelodyEngine !== 'undefined') MelodyEngine.updateIntensity(G.intensity);
     if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.onBeat(beatTime);
     if (typeof PaletteBlender !== 'undefined') PaletteBlender.onBeat();
     if (typeof GrooveEngine !== 'undefined') GrooveEngine.onPhaseChange(G.phase);
@@ -9654,7 +9654,7 @@ var Conductor = (function() {
     // Dispatch beat event for UI
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('conductor:beat', {
-        detail: { beat: G.beatCount, phase: G.phase, dc: G.dc, combo: G.combo, bpm: G.bpm }
+        detail: { beat: G.beatCount, phase: G.phase, dc: G.dc, intensity: G.intensity, bpm: G.bpm }
       }));
     }
   }
@@ -9692,7 +9692,7 @@ var Conductor = (function() {
       if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'running') {
         audioCtx.suspend();
       }
-      if (typeof BulletVoicePool !== 'undefined') BulletVoicePool.shutdown();
+      if (typeof VoicePool !== 'undefined') VoicePool.shutdown();
       if (typeof StateMapper !== 'undefined') StateMapper.shutdown();
       if (typeof MelodyEngine !== 'undefined') MelodyEngine.shutdown();
       if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.shutdown();
@@ -9714,8 +9714,8 @@ var Conductor = (function() {
     isPaused: function() { return _paused; },
 
     // --- Controls ---
-    setAutoCombo: function(v) { _autoCombo = !!v; },
-    setComboRate: function(r) { _comboRate = Math.max(0, r); },
+    setAutoIntensity: function(v) { _autoIntensity = !!v; },
+    setIntensityRate: function(r) { _intensityRate = Math.max(0, r); },
     setAutoPhase: function(v) { _autoPhase = !!v; },
     forcePhase: function(name) {
       _autoPhase = false;
@@ -9725,12 +9725,12 @@ var Conductor = (function() {
       G.settings.volume = Math.max(0, Math.min(1, v));
       applyVolumeSetting();
     },
-    setCombo: function(c) { G.combo = Math.max(0, c); },
+    setIntensity: function(c) { G.intensity = Math.max(0, c); },
 
-    // Simulate a "hit" — drops combo, triggers audio effects
+    // Simulate a "hit" — drops intensity, triggers audio effects
     simulateHit: function() {
-      G.combo = 0;
-      G.hp = Math.max(1, G.hp - 1);
+      G.intensity = 0;
+      G.energy = Math.max(1, G.energy - 1);
       G.beatsSinceHit = 0;
       if (typeof StateMapper !== 'undefined') StateMapper.onHit();
       if (typeof playHitSFX === 'function') playHitSFX();

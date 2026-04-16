@@ -10216,16 +10216,16 @@ var Conductor = (function() {
     _maelstromSustainBeats = 0;
     // Hand gain control back to StateMapper._updateLayers (SPEC_008 §5)
     if (typeof StateMapper !== 'undefined') StateMapper.endCycleRebuild();
-    // Set phase to surge, resume DC progression from surge threshold (SPEC_008 §5)
+    // Set phase to pulse, restart DC progression from the beginning (full song arc per cycle)
     var oldPhase = G.phase;
-    G.phase = 'surge';
+    G.phase = 'pulse';
     G.phaseEntryBeat = G.beatCount;
-    // Reset DC to surge threshold so DC progression resumes naturally
-    G.dc = 0.60;
+    // Reset DC to 0 so the full Pulse→Maelstrom arc replays
+    G.dc = 0;
     for (var j = 0; j < G._phaseChangeListeners.length; j++) {
-      G._phaseChangeListeners[j]('surge', oldPhase, 0);
+      G._phaseChangeListeners[j]('pulse', oldPhase, 0);
     }
-    console.log('[Conductor] Cycle: rebuild complete, resuming at surge');
+    console.log('[Conductor] Cycle: rebuild complete, restarting at pulse');
   }
 
   // ── Palette swap during bridge (SPEC_008 §4) ─────────────────────────────

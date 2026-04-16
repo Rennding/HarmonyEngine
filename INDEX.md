@@ -82,13 +82,18 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 ---
 
-## Q · sequencer.js — Sequencer + drums + bass + arp
+## Q · sequencer.js — Sequencer + drums + bass + chords + arp
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| Sequencer | sequencer.js | 1938 | Main sequencer object |
+| Sequencer | sequencer.js | 2161 | Main sequencer object |
 | PadTrack | sequencer.js | 1018 | Pad/chord track |
 | WalkingBass | sequencer.js | 1453 | Dynamic bass pitch engine (tierCap from palette — SPEC_028) |
+| _CHORD_PATTERNS | sequencer.js | 1942 | 8 chord rhythm patterns (SPEC_032 §4) |
+| ChordTrack | sequencer.js | 2001 | Rhythmic chord stabs/comps/arps per palette (SPEC_032 §4) |
+| ChordTrack.tickStep | sequencer.js | ~2040 | Per-16th-note chord dispatch |
+| ChordTrack._playStab | sequencer.js | ~2070 | Multi-voice chord stab synthesis |
+| ChordTrack._playArpNote | sequencer.js | ~2100 | Single-voice arp note synthesis |
 
 ---
 

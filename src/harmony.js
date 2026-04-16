@@ -196,6 +196,14 @@ var PALETTES = [
       preferOpen: false,
     },
 
+    // Per-palette chord articulation (SPEC_032 §4.4)
+    chord: {
+      style: 'stab', pattern: 'four_stab', voices: 2,
+      attack: 0.005, decay: 0.10, sustainLevel: 0, release: 0.04,
+      octave: 4, lpfCutoff: 1600, lpfResonance: 2.0,
+      gainScalar: 0.9, entryPhase: 'swell',
+    },
+
     // Stagger: tight mechanical (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
     // Tension: relentless build with sharp spikes (SPEC_011 §3.4)
@@ -313,6 +321,14 @@ var PALETTES = [
       allowSus: true,
       allow9th: true,
       preferOpen: true,
+    },
+
+    // Per-palette chord articulation (SPEC_032 §4.4)
+    chord: {
+      style: 'stab', pattern: 'offbeat_stab', voices: 3,
+      attack: 0.01, decay: 0.18, sustainLevel: 0, release: 0.06,
+      octave: 4, lpfCutoff: 2800, lpfResonance: 1.0,
+      gainScalar: 1.1, entryPhase: 'swell',
     },
 
     // Stagger: cinematic build, melody enters last (SPEC_010 §3)
@@ -433,6 +449,14 @@ var PALETTES = [
       preferOpen: false,
     },
 
+    // Per-palette chord articulation (SPEC_032 §4.4)
+    chord: {
+      style: 'arp', pattern: 'arp_up', voices: 3,
+      attack: 0.003, decay: 0.06, sustainLevel: 0, release: 0.03,
+      octave: 4, lpfCutoff: 4000, lpfResonance: 1.5,
+      gainScalar: 0.8, entryPhase: 'swell',
+    },
+
     // Stagger: chaotic, near-instant (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 1, texture: 1, melody: 2, window: 2 },
     // Tension: chaotic, frequent events (SPEC_011 §3.4)
@@ -550,6 +574,11 @@ var PALETTES = [
       allowSus: true,
       allow9th: true,
       preferOpen: true,
+    },
+
+    // Per-palette chord articulation (SPEC_032 §4.4) — none: pad wash carries harmony alone
+    chord: {
+      style: 'none',
     },
 
     // Stagger: glacial drift, maximum spread (SPEC_010 §3)
@@ -675,6 +704,14 @@ var PALETTES = [
     // Special: vinyl crackle texture (continuous quiet noise)
     special: 'vinyl_crackle',
 
+    // Per-palette chord articulation (SPEC_032 §4.4)
+    chord: {
+      style: 'comp', pattern: 'ghost_comp', voices: 3,
+      attack: 0.02, decay: 0.20, sustainLevel: 0.15, release: 0.10,
+      octave: 4, lpfCutoff: 1800, lpfResonance: 0.7,
+      gainScalar: 0.7, entryPhase: 'swell',
+    },
+
     // Stagger: lazy, unhurried drift (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 6, melody: 8, window: 8 },
     // Tension: relaxed, gentle variation (SPEC_011 §3.4)
@@ -793,6 +830,14 @@ var PALETTES = [
       allowSus: false,
       allow9th: false,
       preferOpen: false,
+    },
+
+    // Per-palette chord articulation (SPEC_032 §4.4) — classic NES arp cycling
+    chord: {
+      style: 'arp', pattern: 'arp_updown', voices: 3,
+      attack: 0.003, decay: 0.04, sustainLevel: 0, release: 0.02,
+      octave: 4, lpfCutoff: 6000, lpfResonance: 0.5,
+      gainScalar: 0.85, entryPhase: 'swell',
     },
 
     // Stagger: snappy 8-bit, fast transitions (SPEC_010 §3)
@@ -992,6 +1037,14 @@ var PALETTES = [
       allowSus: true,
       allow9th: true,
       preferOpen: true,
+    },
+
+    // Per-palette chord articulation (SPEC_032 §4.4) — ghosted swung jazz comps
+    chord: {
+      style: 'comp', pattern: 'synco_comp', voices: 4,
+      attack: 0.015, decay: 0.25, sustainLevel: 0.10, release: 0.12,
+      octave: 4, lpfCutoff: 2200, lpfResonance: 0.7,
+      gainScalar: 0.75, entryPhase: 'swell',
     },
 
     // Stagger: smoky patience, bass walks in then sax (SPEC_010 §3)
@@ -1227,6 +1280,14 @@ var PALETTES = [
       preferOpen: false,
     },
 
+    // Per-palette chord articulation (SPEC_032 §4.4) — aggressive 8th stabs
+    chord: {
+      style: 'stab', pattern: 'stutter_8th', voices: 2,
+      attack: 0.003, decay: 0.08, sustainLevel: 0, release: 0.03,
+      octave: 4, lpfCutoff: 3000, lpfResonance: 3.0,
+      gainScalar: 1.0, entryPhase: 'swell',
+    },
+
     // Stagger: harsh but controlled (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 2, melody: 4, window: 4 },
     // Tension: aggressive, spike-heavy (SPEC_011 §3.4)
@@ -1350,6 +1411,11 @@ var PALETTES = [
     // Special: pitch wobble — slow LFO ±10 cents on master detune
     special: 'pitch_wobble',
 
+    // Per-palette chord articulation (SPEC_032 §4.4) — none: dreamy pad does the work
+    chord: {
+      style: 'none',
+    },
+
     // Stagger: dreamy, slowed, everything takes its time (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 4, texture: 8, melody: 10, window: 10 },
     // Tension: dreamy, long plateaus, minimal spikes (SPEC_011 §3.4)
@@ -1472,6 +1538,14 @@ var PALETTES = [
 
     // Special: break rewind — reversed pattern every 8 bars for 1 bar
     special: 'break_rewind',
+
+    // Per-palette chord articulation (SPEC_032 §4.4) — euclidean stabs, jungle
+    chord: {
+      style: 'stab', pattern: 'euclidean_3_8', voices: 3,
+      attack: 0.008, decay: 0.12, sustainLevel: 0, release: 0.05,
+      octave: 4, lpfCutoff: 2400, lpfResonance: 1.5,
+      gainScalar: 0.95, entryPhase: 'swell',
+    },
 
     // Stagger: breaks hit first, rest follows quick (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },

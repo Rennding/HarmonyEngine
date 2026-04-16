@@ -325,7 +325,7 @@ var StateMapper = {
     // During stagger, use _effectiveFloor (per-track overrides) instead of phase floor
     var floor = this._effectiveFloor || CFG.PHASE_FLOOR[phase] || CFG.PHASE_FLOOR.pulse;
     var thresh = CFG.INTENSITY_LAYER_THRESHOLDS;
-    var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'melody'];
+    var tracks = ['hat', 'snare', 'bass', 'pad', 'perc', 'melody', 'chord'];
     var hasGainNodes = (typeof _trackGains !== 'undefined');
     var t = (audioCtx) ? audioCtx.currentTime : 0;
     var rampTau = 0.15; // ~150ms smooth ramp time constant
@@ -603,7 +603,7 @@ var StateMapper = {
     var newFloor = CFG.PHASE_FLOOR[phase] || CFG.PHASE_FLOOR.pulse;
     var trackMap = {
       rhythm:  ['kick', 'hat', 'snare', 'perc'],
-      harmony: ['bass'],
+      harmony: ['bass', 'chord'],
       texture: ['pad'],
       melody:  ['melody']
     };
@@ -756,7 +756,7 @@ var StateMapper = {
     // Initialize _effectiveFloor from old phase (tracks stay at old floor until their group fires)
     var oldFloor = CFG.PHASE_FLOOR[oldPhase || 'pulse'] || CFG.PHASE_FLOOR.pulse;
     this._effectiveFloor = {};
-    var allTracks = ['kick', 'hat', 'snare', 'bass', 'pad', 'perc', 'melody'];
+    var allTracks = ['kick', 'hat', 'snare', 'bass', 'pad', 'perc', 'melody', 'chord'];
     for (var ti = 0; ti < allTracks.length; ti++) {
       this._effectiveFloor[allTracks[ti]] = !!oldFloor[allTracks[ti]];
     }

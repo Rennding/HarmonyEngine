@@ -1933,6 +1933,229 @@ function _dispatchDrumSynth(type, t, vel, cfg) {
   }
 }
 
+// ---- ChordTrack — rhythmic chord articulation (SPEC_032 §4) ----
+// Plays rhythmic chord voicings (stabs, comps, arps) per palette.
+// 16-step resolution, called from Sequencer tick's sub-step loop.
+
+// 8 chord rhythm patterns — each is 16-step array of { active, vel }
+// vel=0 → ghost note (comp style plays at ~20% velocity)
+var _CHORD_PATTERNS = {
+  // Offbeat power stabs: beats 2+4 (steps 4, 12)
+  offbeat_stab: [
+    {a:0,v:0}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+    {a:1,v:0.9}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+    {a:0,v:0}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+    {a:1,v:0.9}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+  ],
+  // Four-on-floor stabs: every beat (steps 0,4,8,12)
+  four_stab: [
+    {a:1,v:0.85}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+    {a:1,v:0.75}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+    {a:1,v:0.80}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+    {a:1,v:0.75}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+  ],
+  // Syncopated comp: jazz voicing — 1-and, 2, and-of-3, 4
+  synco_comp: [
+    {a:1,v:0.6}, {a:0,v:0}, {a:1,v:0.4}, {a:0,v:0},
+    {a:1,v:0.7}, {a:0,v:0}, {a:0,v:0}, {a:1,v:0.3},
+    {a:0,v:0}, {a:0,v:0}, {a:1,v:0.5}, {a:0,v:0},
+    {a:1,v:0.65}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+  ],
+  // Ascending arp — every 16th note, cycling through chord tones
+  arp_up: [
+    {a:1,v:0.7}, {a:1,v:0.5}, {a:1,v:0.6}, {a:1,v:0.5},
+    {a:1,v:0.7}, {a:1,v:0.5}, {a:1,v:0.6}, {a:1,v:0.5},
+    {a:1,v:0.7}, {a:1,v:0.5}, {a:1,v:0.6}, {a:1,v:0.5},
+    {a:1,v:0.7}, {a:1,v:0.5}, {a:1,v:0.6}, {a:1,v:0.5},
+  ],
+  // Up-down arp — ascending then descending through chord tones
+  arp_updown: [
+    {a:1,v:0.8}, {a:1,v:0.6}, {a:1,v:0.7}, {a:1,v:0.6},
+    {a:1,v:0.7}, {a:1,v:0.5}, {a:1,v:0.6}, {a:1,v:0.5},
+    {a:1,v:0.7}, {a:1,v:0.6}, {a:1,v:0.7}, {a:1,v:0.6},
+    {a:1,v:0.8}, {a:1,v:0.5}, {a:1,v:0.6}, {a:1,v:0.5},
+  ],
+  // Euclidean 3-in-8 (distributed evenly, doubled to 16 steps)
+  euclidean_3_8: [
+    {a:1,v:0.85}, {a:0,v:0}, {a:0,v:0}, {a:1,v:0.7},
+    {a:0,v:0}, {a:0,v:0}, {a:1,v:0.75}, {a:0,v:0},
+    {a:1,v:0.85}, {a:0,v:0}, {a:0,v:0}, {a:1,v:0.7},
+    {a:0,v:0}, {a:0,v:0}, {a:1,v:0.75}, {a:0,v:0},
+  ],
+  // Ghost comp — mostly ghosted, random accent (lo-fi)
+  ghost_comp: [
+    {a:1,v:0.25}, {a:0,v:0}, {a:1,v:0.2}, {a:0,v:0},
+    {a:1,v:0.6}, {a:0,v:0}, {a:0,v:0}, {a:1,v:0.2},
+    {a:0,v:0}, {a:0,v:0}, {a:1,v:0.25}, {a:0,v:0},
+    {a:1,v:0.55}, {a:0,v:0}, {a:1,v:0.2}, {a:0,v:0},
+  ],
+  // Stutter 8th — rapid 8th-note stabs (industrial)
+  stutter_8th: [
+    {a:1,v:0.85}, {a:0,v:0}, {a:1,v:0.7}, {a:0,v:0},
+    {a:1,v:0.80}, {a:0,v:0}, {a:1,v:0.65}, {a:0,v:0},
+    {a:1,v:0.85}, {a:0,v:0}, {a:1,v:0.7}, {a:0,v:0},
+    {a:1,v:0.80}, {a:0,v:0}, {a:1,v:0.65}, {a:0,v:0},
+  ],
+};
+
+var ChordTrack = {
+  _active:      false,
+  _muted:       true,      // starts muted; StateMapper enables via Sequencer._mute.chord
+  _palette:     null,      // palette.chord config
+  _paletteName: null,
+  _pattern:     null,      // 16-step pattern ref from _CHORD_PATTERNS
+  _step:        0,         // current step (0–15, advances per 16th note in tick)
+  _lpf:         null,      // shared lowpass filter
+  _arpIndex:    0,         // current arp position (cycles through chord tones)
+
+  initRun: function(palette) {
+    this.shutdown();
+    this._paletteName = palette.name || null;
+    var chordCfg = palette.chord;
+    if (!chordCfg || chordCfg.style === 'none') {
+      this._active = false;
+      this._palette = null;
+      this._pattern = null;
+      return;
+    }
+    this._palette = chordCfg;
+    this._active  = true;
+    this._muted   = true;   // StateMapper will unmute at entryPhase
+    this._step    = 0;
+    this._arpIndex = 0;
+
+    // Resolve pattern
+    this._pattern = _CHORD_PATTERNS[chordCfg.pattern] || _CHORD_PATTERNS.offbeat_stab;
+
+    // Create shared LPF → chord track gain
+    var dest = (typeof _trackGains !== 'undefined' && _trackGains.chord) ? _trackGains.chord : submixGain;
+    if (audioCtx && dest) {
+      this._lpf = audioCtx.createBiquadFilter();
+      this._lpf.type = 'lowpass';
+      this._lpf.frequency.value = chordCfg.lpfCutoff || 2000;
+      this._lpf.Q.value = chordCfg.lpfResonance || 1.0;
+      this._lpf.connect(dest);
+    }
+  },
+
+  // Called per 16th-note sub-step from Sequencer tick loop
+  tickStep: function(time, stepIdx) {
+    if (!this._active || !audioCtx || this._muted || !this._palette) return;
+    if (!this._pattern) return;
+
+    var pat = this._pattern[stepIdx % 16];
+    if (!pat || !pat.a) return;
+
+    var cfg = this._palette;
+    var vel = pat.v;
+
+    // Ghost note handling for comp style: low vel = ghost (play quieter)
+    if (cfg.style === 'comp' && vel < 0.3) {
+      // Probabilistic ghost — 60% chance to fire
+      if ((_songRng || Math.random)() > 0.6) return;
+    }
+
+    // Get chord tones at the configured octave
+    if (typeof HarmonyEngine === 'undefined') return;
+    var tones = HarmonyEngine.getChordTones(cfg.octave || 4);
+    if (!tones || tones.length === 0) return;
+
+    // Limit to requested voice count
+    var voiceCount = Math.min(cfg.voices || 3, tones.length);
+
+    if (cfg.style === 'arp') {
+      // Arp: play one note at a time, cycling through chord tones
+      var toneIdx = this._arpIndex % voiceCount;
+      this._playArpNote(time, tones[toneIdx], vel, cfg);
+      // Advance arp index (up-down reverses direction)
+      if (cfg.pattern === 'arp_updown') {
+        // 0,1,2,1,0,1,2,1,... for 3 voices
+        var cycle = (voiceCount - 1) * 2;
+        if (cycle < 1) cycle = 1;
+        this._arpIndex = (this._arpIndex + 1) % cycle;
+      } else {
+        this._arpIndex = (this._arpIndex + 1) % voiceCount;
+      }
+    } else {
+      // Stab / comp: play all voices simultaneously
+      this._playStab(time, tones, voiceCount, vel, cfg);
+    }
+  },
+
+  _playStab: function(time, tones, voiceCount, vel, cfg) {
+    if (!audioCtx || !this._lpf) return;
+    var baseGain = (CFG.GAIN.chord || 0.10) * (cfg.gainScalar || 1.0) * vel;
+
+    for (var i = 0; i < voiceCount; i++) {
+      var freq = midiToFreq(tones[i]);
+      var osc = audioCtx.createOscillator();
+      // Use square for stabs (punchy), triangle for comps (softer)
+      osc.type = (cfg.style === 'comp') ? 'triangle' : 'square';
+      osc.frequency.setValueAtTime(freq, time);
+
+      var gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0, time);
+
+      // ADSR envelope
+      var attack = cfg.attack || 0.01;
+      var decay = cfg.decay || 0.15;
+      var susLvl = cfg.sustainLevel || 0;
+      var release = cfg.release || 0.05;
+
+      gain.gain.linearRampToValueAtTime(baseGain, time + attack);
+      gain.gain.linearRampToValueAtTime(baseGain * susLvl, time + attack + decay);
+      // Release
+      var noteEnd = time + attack + decay + 0.05;
+      gain.gain.linearRampToValueAtTime(0, noteEnd + release);
+
+      osc.connect(gain);
+      gain.connect(this._lpf);
+      osc.start(time);
+      osc.stop(noteEnd + release + 0.01);
+    }
+  },
+
+  _playArpNote: function(time, toneMidi, vel, cfg) {
+    if (!audioCtx || !this._lpf) return;
+    var baseGain = (CFG.GAIN.chord || 0.10) * (cfg.gainScalar || 1.0) * vel;
+    var freq = midiToFreq(toneMidi);
+
+    var osc = audioCtx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, time);
+
+    var gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, time);
+
+    var attack = cfg.attack || 0.003;
+    var decay = cfg.decay || 0.06;
+    var release = cfg.release || 0.03;
+
+    gain.gain.linearRampToValueAtTime(baseGain, time + attack);
+    gain.gain.linearRampToValueAtTime(0, time + attack + decay);
+    var noteEnd = time + attack + decay;
+    gain.gain.linearRampToValueAtTime(0, noteEnd + release);
+
+    osc.connect(gain);
+    gain.connect(this._lpf);
+    osc.start(time);
+    osc.stop(noteEnd + release + 0.01);
+  },
+
+  shutdown: function() {
+    this._active = false;
+    this._muted  = true;
+    this._palette = null;
+    this._pattern = null;
+    this._step    = 0;
+    this._arpIndex = 0;
+    if (this._lpf) {
+      try { this._lpf.disconnect(); } catch(e) {}
+      this._lpf = null;
+    }
+  },
+};
+
 // ---- Sequencer ----
 
 var Sequencer = {
@@ -1957,7 +2180,7 @@ var Sequencer = {
     this._active   = true;
     // Start muted per Pulse floor: only kick audible at game start.
     // StateMapper._updateLayers() will unmute tracks as phase/intensity progress.
-    this._mute     = { kick: false, snare: true, hat: true, bass: true, pad: true, perc: true, melody: true };
+    this._mute     = { kick: false, snare: true, hat: true, bass: true, pad: true, perc: true, melody: true, chord: true };
     this._hatDoubled = false;
     this._halfTime = false;
     this._halfTimeEnd = 0;
@@ -1986,6 +2209,7 @@ var Sequencer = {
     if (typeof PadTrack !== 'undefined') PadTrack.initRun(palette);
     if (typeof GrazeStreakTrack !== 'undefined') GrazeStreakTrack.initRun(palette);
     if (typeof MelodyEngine !== 'undefined') MelodyEngine.initRun(palette);
+    if (typeof ChordTrack !== 'undefined') ChordTrack.initRun(palette);     // SPEC_032 §4
     if (typeof GrooveEngine !== 'undefined') GrooveEngine.initRun(palette);  // SPEC_018 §1
     if (typeof FillSystem !== 'undefined') FillSystem.initRun(palette);      // SPEC_018 §2
     if (typeof WalkingBass !== 'undefined') WalkingBass.initRun(palette);   // SPEC_018 §3
@@ -2081,6 +2305,7 @@ var Sequencer = {
     if (typeof PadTrack !== 'undefined') PadTrack.shutdown();
     if (typeof GrazeStreakTrack !== 'undefined') GrazeStreakTrack.shutdown();
     if (typeof MelodyEngine !== 'undefined') MelodyEngine.shutdown();
+    if (typeof ChordTrack !== 'undefined') ChordTrack.shutdown();         // SPEC_032 §4
     if (typeof FillSystem !== 'undefined') FillSystem.stop();              // SPEC_018 §2
     if (typeof WalkingBass !== 'undefined') WalkingBass.stop();           // SPEC_018 §3
     if (typeof PolyTrack !== 'undefined') PolyTrack.stop();               // SPEC_018 §5
@@ -2304,6 +2529,14 @@ var Sequencer = {
             _dispatchDrumSynth('perc', t, perc.vel, d.perc);
           }
         }
+      }
+
+      // --- ChordTrack (SPEC_032 §4 — rhythmic chord stabs/comps/arps) ---
+      if (typeof ChordTrack !== 'undefined' && !this._mute.chord) {
+        ChordTrack._muted = false;
+        ChordTrack.tickStep(t, s);
+      } else if (typeof ChordTrack !== 'undefined') {
+        ChordTrack._muted = true;
       }
 
       // --- Polyrhythm tracks (SPEC_018 §5, Storm+/Maelstrom+) ---

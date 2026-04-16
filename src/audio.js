@@ -158,7 +158,7 @@ function initAudio() {
   _mixBus.gain.value = 1.0;
 
   // --- Per-track gain nodes ---
-  var trackNames = ['kick', 'bass', 'snare', 'hat', 'pad', 'perc', 'sfx', 'melody', 'perk'];
+  var trackNames = ['kick', 'bass', 'snare', 'hat', 'pad', 'perc', 'sfx', 'melody', 'perk', 'chord'];
   for (var i = 0; i < trackNames.length; i++) {
     _trackGains[trackNames[i]] = audioCtx.createGain();
     _trackGains[trackNames[i]].gain.value = 1.0;
@@ -203,6 +203,13 @@ function initAudio() {
     { type: 'lowpass', freq: 4000, Q: 0.7 }
   ]);
 
+  // Chord stabs: mid-range octave 4, clear of bass and melody (SPEC_032 §4.6)
+  _trackEQs.chord = _makeTrackEQ([
+    { type: 'highpass', freq: 250, Q: 0.7 },
+    { type: 'peaking', freq: 600, gain: 1, Q: 1.0 },   // +1dB presence in chord range
+    { type: 'lowpass', freq: 3500, Q: 0.7 }
+  ]);
+
   // Perk: mid-range (SPEC_025 §3.1)
   _trackEQs.perk = _makeTrackEQ([
     { type: 'highpass', freq: 150, Q: 0.7 },
@@ -211,7 +218,7 @@ function initAudio() {
   ]);
 
   // --- Per-track sidechain gains (SPEC_016 §5) ---
-  var scTracks = ['bass', 'pad', 'perc', 'sfx', 'melody', 'perk'];
+  var scTracks = ['bass', 'pad', 'perc', 'sfx', 'melody', 'perk', 'chord'];
   for (var si = 0; si < scTracks.length; si++) {
     _trackSidechains[scTracks[si]] = audioCtx.createGain();
     _trackSidechains[scTracks[si]].gain.value = 1.0;
@@ -262,6 +269,9 @@ function initAudio() {
   // Melody delay send
   _trackDelaySends.melody = audioCtx.createGain();
   _trackDelaySends.melody.gain.value = 0.15;
+  // Chord reverb send (SPEC_032 §4.6 — light reverb on stabs)
+  _trackReverbSends.chord = audioCtx.createGain();
+  _trackReverbSends.chord.gain.value = 0.12;
   // Perk reverb + delay sends (SPEC_025 §3.1 — subtle: close/present feel)
   _trackReverbSends.perk = audioCtx.createGain();
   _trackReverbSends.perk.gain.value = 0.15;
@@ -277,6 +287,8 @@ function initAudio() {
   _trackReverbSends.melody.connect(_reverbSend);
   _trackEQs.perk[_trackEQs.perk.length - 1].connect(_trackReverbSends.perk);
   _trackReverbSends.perk.connect(_reverbSend);
+  _trackEQs.chord[_trackEQs.chord.length - 1].connect(_trackReverbSends.chord);
+  _trackReverbSends.chord.connect(_reverbSend);
 
   // Delay send bus → shared delay
   _delay = audioCtx.createDelay(1.0);
@@ -463,13 +475,14 @@ var _SIDECHAIN_PROFILES = {
   sfx:    { duck: 0.20, attack: 0.010, release: 0.080 },
   melody: { duck: 0.35, attack: 0.010, release: 0.150 },
   perk:   { duck: 0.30, attack: 0.010, release: 0.180 },  // light duck, same as pad profile (SPEC_025 §3.1)
+  chord:  { duck: 0.45, attack: 0.005, release: 0.120 },  // medium duck — stabs punch through kick (SPEC_032 §4.6)
 };
 
 function _pumpTrackSidechains(t) {
   // Apply per-phase sidechain multiplier from StateMapper (SPEC_016 §5/§7)
   var phaseMult = (typeof StateMapper !== 'undefined' && StateMapper._sidechainPhaseMult)
     ? StateMapper._sidechainPhaseMult : 1.0;
-  var tracks = ['bass', 'pad', 'perc', 'sfx', 'melody', 'perk'];
+  var tracks = ['bass', 'pad', 'perc', 'sfx', 'melody', 'perk', 'chord'];
   for (var i = 0; i < tracks.length; i++) {
     var sc = _trackSidechains[tracks[i]];
     if (!sc) continue;

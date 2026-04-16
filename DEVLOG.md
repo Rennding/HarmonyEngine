@@ -9,6 +9,14 @@
 
 ---
 
+## 2026-04-17 — #34 Build: ChordTrack — rhythmic chord articulation engine
+
+**What:** New rhythmic chord layer between bass and melody. 8 genre-specific chord patterns: synthwave offbeat power stabs, chiptune NES arp cycling, dark_techno four-on-floor stabs, noir_jazz ghosted swung comps, industrial 8th-note stutter stabs, lo_fi ghosted Rhodes comps, glitch ascending arps, breakbeat euclidean stabs. Ambient_dread and vaporwave get nothing (pad wash only). Full audio infrastructure: dedicated gain bus, EQ chain, sidechain, reverb send. Phase floor integration — chords enter at Swell, gain ramps with intensity. Stagger dispatch integration (#35) still pending.
+
+**Files:** `src/sequencer.js` (ChordTrack object + 8 patterns), `src/harmony.js` (10 palette.chord profiles), `src/audio.js` (gain bus + EQ + sidechain + reverb send), `src/config.js` (CFG.GAIN.chord + PHASE_FLOOR + INTENSITY_LAYER_THRESHOLDS), `src/state_mapper.js` (chord in tracks array + stagger floor map)
+
+---
+
 ## 2026-04-17 — #32 Plan: Per-palette voice overhaul (melody synth + chord articulation)
 
 **What:** Planned the melody synth rebuild and a new ChordTrack system. Melody was muted (#31) because all 10 palettes share the same single-oscillator synth chain — wavetable swaps alone don't create genre identity. The fix: full per-palette synthesis profiles with AHDSR envelopes, filter envelope sweeps (acid techno), legato/staccato articulation modes, PWM (chiptune), per-note detune (glitch/vaporwave), and delayed vibrato. Also identified a missing layer: no rhythmic chord component exists (pad is just a sustained wash). New ChordTrack adds per-palette stabs, comps, and arpeggiated triads — synthwave power stabs on 2+4, NES arp cycling for chiptune, ghosted jazz comps for noir_jazz, nothing for ambient/vaporwave.

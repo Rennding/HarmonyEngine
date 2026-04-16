@@ -34,15 +34,15 @@ const CFG = {
 
   // Phase floor: tracks always audible per phase (SPEC_011 §3.1)
   PHASE_FLOOR: {
-    pulse:     { kick: true, hat: false, snare: false, bass: false, pad: false, perc: false, melody: false },
-    swell:     { kick: true, hat: true,  snare: false, bass: false, pad: false, perc: false, melody: true  },
-    surge:     { kick: true, hat: true,  snare: true,  bass: true,  pad: false, perc: true,  melody: true  },
-    storm:     { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  melody: true  },
-    maelstrom: { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  melody: true  },
+    pulse:     { kick: true, hat: false, snare: false, bass: false, pad: false, perc: false, melody: false, chord: false },
+    swell:     { kick: true, hat: true,  snare: false, bass: false, pad: false, perc: false, melody: true,  chord: true  },
+    surge:     { kick: true, hat: true,  snare: true,  bass: true,  pad: false, perc: true,  melody: true,  chord: true  },
+    storm:     { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  melody: true,  chord: true  },
+    maelstrom: { kick: true, hat: true,  snare: true,  bass: true,  pad: true,  perc: true,  melody: true,  chord: true  },
   },
 
   // Intensity thresholds (above floor) for adding layers
-  INTENSITY_LAYER_THRESHOLDS: { hat: 5, snare: 10, bass: 10, pad: 20, perc: 15 },
+  INTENSITY_LAYER_THRESHOLDS: { hat: 5, snare: 10, bass: 10, pad: 20, perc: 15, chord: 12 },
 
   // Post-Maelstrom cosmetic phase names
   POST_MAELSTROM: [
@@ -90,6 +90,8 @@ const CFG = {
     bass:        0.20,
     // Melody
     melody:      0.06,
+    // Chord stabs (SPEC_032 §6.1)
+    chord:       0.10,
     // Pad
     pad:         0.013,
     // Beat tick layers

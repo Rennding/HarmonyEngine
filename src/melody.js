@@ -42,6 +42,7 @@ var MelodyEngine = {
   _livePwmGain: null,      // PWM depth gain node
   _liveNoteEnd: 0,         // scheduled end time of current legato note
   _phraseEntry: false,     // true on first note of each phrase — suppresses LPF burst (#44)
+  _currentPhraseTimbre: null, // wavetable role name for active phrase (#56 noir_jazz)
 
   // ── Phase density config ──────────────────────────────────────────────────
   // restRange: [min, max] beats of rest between phrases
@@ -661,6 +662,24 @@ var MelodyEngine = {
       if (this._phrasePos >= this._currentPhrase.length) {
         this._generatePhrase();
         this._phrasePos = 0;
+        // Per-phrase timbre dice (#56 — noir_jazz violin/harmonica)
+        var mTimb = (this._palette && this._palette.melody) || {};
+        if (mTimb.timbreWeights) {
+          var ph = (typeof G !== 'undefined' && G.phase) || 'pulse';
+          var wts = mTimb.timbreWeights[ph];
+          if (wts) {
+            var rng = (_songRng || Math.random);
+            var total = 0, k;
+            for (k in wts) if (wts.hasOwnProperty(k)) total += wts[k];
+            var r = rng() * total, acc = 0, pick = null;
+            for (k in wts) {
+              if (!wts.hasOwnProperty(k)) continue;
+              acc += wts[k];
+              if (r <= acc) { pick = k; break; }
+            }
+            this._currentPhraseTimbre = pick;
+          }
+        }
         if (this._currentPhrase.length === 0) {
           this._restBeats = subsPerBeat * 2; // 2 beats worth of sub-rest
           continue;
@@ -686,7 +705,8 @@ var MelodyEngine = {
 
       // --- End of phrase: schedule rest ---
       if (this._phrasePos >= this._currentPhrase.length) {
-        var rr = density.restRange;
+        var mRest = (this._palette && this._palette.melody && this._palette.melody.restRange);
+        var rr = (mRest && mRest[G.phase]) || density.restRange;
         var restSubs;
         if (this._restStyle === 'rhythmic') {
           // Bar-aligned: snap rest to next downbeat or half-bar (SPEC_023 §B4)
@@ -1092,7 +1112,9 @@ var MelodyEngine = {
     var density = this._PHASE_DENSITY[phase] || this._PHASE_DENSITY.pulse;
     // Scale phrase length by subdivision (SPEC_023 §B2)
     var subMult = (this._subdivide === '16th') ? 4 : (this._subdivide === '8th') ? 2 : 1;
-    var maxLen = (density.maxPhraseLen + this._phraseLenBonus) * subMult;
+    var mMax = (this._palette && this._palette.melody && this._palette.melody.maxPhraseLen);
+    var basePhraseLen = (mMax && mMax[G.phase] != null) ? mMax[G.phase] : density.maxPhraseLen;
+    var maxLen = (basePhraseLen + this._phraseLenBonus) * subMult;
     if (maxLen <= 0) { this._currentPhrase = []; return; }
 
     // Pick phrase length (weighted: 2=20%, 3=50%, 4=30%, clamped to maxLen)
@@ -1448,7 +1470,9 @@ var MelodyEngine = {
     // Oscillator
     var osc = audioCtx.createOscillator();
     if (typeof Wavetables !== 'undefined' && this._paletteName) {
-      var wave = Wavetables.get(this._paletteName, 'melody')
+      var roleName = this._currentPhraseTimbre || 'melody';
+      var wave = Wavetables.get(this._paletteName, roleName)
+             || Wavetables.get(this._paletteName, 'melody')
              || Wavetables.get(this._paletteName, 'pad');
       if (wave) {
         osc.setPeriodicWave(wave);

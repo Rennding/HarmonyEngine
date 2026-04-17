@@ -152,16 +152,20 @@ var Wavetables = (function() {
       perk:   _pulse(0.25, 16),                                        // 25% pulse — NES lead (SPEC_025 §3.2)
     },
 
-    // ── noir_jazz (SPEC_019 §1.4) ─────────────────────────────────────────
+    // ── noir_jazz (SPEC_019 §1.4 + #56 60s detective overhaul) ───────────
     noir_jazz: {
-      kick:   _harmonics([[1, 1.0], [2, 0.12]]),                      // very soft sine — brush-kick feel
-      bass:   _harmonics([[1, 1.0], [3, 0.25], [5, 0.06]]),           // upright bass: sine + 3rd harmonic body
-      snare:  _harmonics([[1, 0.1], [2, 0.2], [3, 0.3], [5, 0.4], [7, 0.2]]),  // breathy brush sweep
-      perc:   _harmonics([[1, 0.5], [5.4, 0.3], [8.2, 0.15]]),       // brush on snare head — inharmonic
-      pad:    _harmonics([[1, 1.0], [5.4, 0.2], [11, 0.05]]),         // vibraphone-like: sine + inharmonic partial
-      voice:_harmonics([[1, 1.0], [2, 0.15], [3, 0.05]]),           // warm, muted trumpet-like
-      melody: _harmonics([[1, 1.0], [2, 0.5], [3, 0.2]]),             // muted trumpet / flute — odd-partial rolloff, breathy
-      perk:   _hollow(10, 1.0),                                        // hollow odd harmonics — muted trumpet (SPEC_025 §3.2)
+      kick:   _harmonics([[1, 1.0], [2, 0.12]]),
+      // Thick upright: fundamental + mid partials + light 7th for crawl growl
+      bass:   _harmonics([[1, 1.0], [2, 0.18], [3, 0.40], [5, 0.18], [7, 0.08]]),
+      snare:  _harmonics([[1, 0.1], [2, 0.2], [3, 0.3], [5, 0.4], [7, 0.2]]),
+      perc:   _harmonics([[1, 0.5], [5.4, 0.3], [8.2, 0.15]]),
+      pad:    _harmonics([[1, 1.0], [5.4, 0.2], [11, 0.05]]),
+      voice:  _harmonics([[1, 1.0], [2, 0.15], [3, 0.05]]),
+      // Default melody alias → violin (so any non-timbre-aware path still gets the lead)
+      melody:           _harmonics([[1, 1.0], [2, 0.55], [3, 0.35], [4, 0.22], [5, 0.12], [6, 0.06], [7, 0.03]]),
+      melody_violin:    _harmonics([[1, 1.0], [2, 0.55], [3, 0.35], [4, 0.22], [5, 0.12], [6, 0.06], [7, 0.03]]),
+      melody_harmonica: _harmonics([[1, 0.85], [2, 0.95], [3, 0.55], [5, 0.30], [7, 0.15], [9, 0.07]]),
+      perk:   _hollow(10, 1.0),
     },
 
     // ── industrial (SPEC_019 §1.2) ─────────────────────────────────────────

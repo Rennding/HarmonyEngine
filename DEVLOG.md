@@ -9,6 +9,12 @@
 
 ---
 
+## 2026-04-17 — #56 noir_jazz 60s detective overhaul built
+
+Retuned noir_jazz to a 60s film-noir feel: thick crawling upright bass as the always-on foundation; violin and harmonica as occasional sparse lead phrases instead of a sustained single lead. Bass wavetable gets 3rd/5th/7th partials + gainScalar 1.15 + filter opens to 950Hz at Maelstrom. Melody engine gets three opt-in palette hooks — `timbreWeights` (per-phrase dice picks violin or harmonica wavetable), `restRange` (long gaps between phrases), `maxPhraseLen` (short 2–5 note fragments). Chord gainScalar 0.75→0.40 + entryPhase moved to Storm so leads own Swell/Surge. Drum synth internal gains -3 dB. No other palettes affected — hooks are opt-in. #56 awaiting QA.
+
+---
+
 ## 2026-04-17 — UI overhaul rescope → SPEC_014, #45, #46, #47
 
 Re-planned all of Tier 5 against the current engine. #14 (the original UI overhaul) was written before ChordTrack, cycle mode, staggered phase transitions, tension curve randomization, melody motifs, and the D-key diagnostic panel (#42) all landed. Its instrument list, chord surface, and phase representation were stale.

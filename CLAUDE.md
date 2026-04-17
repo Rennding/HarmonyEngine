@@ -218,7 +218,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #30 + #42 + #44 awaiting QA. Next: #40/#41, then #43.**
+**Status: #30 + #42 + #44 + #56 awaiting QA. Next: #40/#41, then #43.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -260,6 +260,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ⚠️ **#44** Bug: Legato voice expiration causes brittle pops in noir_jazz, vaporwave, synthwave (Opus, P1) — built, awaiting QA
 ✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
 ⚠️ **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus) — built, awaiting QA
+⚠️ **#56** noir_jazz 60s detective overhaul — thick crawling bass + sparse violin/harmonica per-phrase timbre dice (Opus) — built, awaiting QA
 ✅ Chord evolution — plan complete → SPEC_040_CHORD_EVOLUTION.md
 - **#40** VoicingEngine — per-palette voicing intelligence + extension ramp + collision avoidance (Opus)
 - **#41** Phase-driven harmonic rhythm — per-palette × per-phase chord change rate (Sonnet, depends on #40)

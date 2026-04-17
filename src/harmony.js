@@ -975,7 +975,7 @@ var PALETTES = [
                  if (!audioCtx) return;
                  var tg = (typeof _trackGains !== 'undefined' && _trackGains.kick) || submixGain;
                  var g = audioCtx.createGain();
-                 g.gain.setValueAtTime(vel * 0.35, t);
+                 g.gain.setValueAtTime(vel * 0.22, t);
                  g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
                  var osc = audioCtx.createOscillator();
                  osc.type = 'sine';
@@ -998,7 +998,7 @@ var PALETTES = [
                  if (!audioCtx) return;
                  var tg = (typeof _trackGains !== 'undefined' && _trackGains.snare) || submixGain;
                  var g = audioCtx.createGain();
-                 g.gain.setValueAtTime(vel * 0.30, t);
+                 g.gain.setValueAtTime(vel * 0.20, t);
                  g.gain.exponentialRampToValueAtTime(0.001, t + cfg.decay + 0.1);
                  // Noise source
                  var buf = (typeof _getNoiseBuffer === 'function') ? _getNoiseBuffer() : null;
@@ -1026,7 +1026,7 @@ var PALETTES = [
                  var tg = (typeof _trackGains !== 'undefined' && _trackGains.hat) || submixGain;
                  // Bell tone (sine at ~3kHz)
                  var bellG = audioCtx.createGain();
-                 bellG.gain.setValueAtTime(vel * 0.15, t);
+                 bellG.gain.setValueAtTime(vel * 0.10, t);
                  bellG.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
                  var bell = audioCtx.createOscillator();
                  bell.type = 'sine';
@@ -1039,7 +1039,7 @@ var PALETTES = [
                  var buf = (typeof _getNoiseBuffer === 'function') ? _getNoiseBuffer() : null;
                  if (!buf) return;
                  var nG = audioCtx.createGain();
-                 nG.gain.setValueAtTime(vel * 0.12, t);
+                 nG.gain.setValueAtTime(vel * 0.08, t);
                  nG.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
                  var src = audioCtx.createBufferSource();
                  src.buffer = buf;
@@ -1056,15 +1056,16 @@ var PALETTES = [
       perc:  { wave: 'noise', freq: 500, decay: 0.08, pattern: 'euclidean_3_8' },
     },
 
+    // #56 — thick crawling kontrabas foundation
     bass: {
       wave: 'sine',
       octave: 2,
       patterns: ['jazz_walk', 'fifth_walk'],
-      filterCutoff: 500,
-      filterResonance: 4,
-      tierCap: 4,
-      gainScalar: 1.0,
-      phaseFilter: { pulse: null, swell: null, surge: null, storm: 600, maelstrom: 700 },
+      filterCutoff: 620,         // more body, still warm
+      filterResonance: 3.2,      // less nasal, more woody
+      tierCap: 5,                // fuller walking pitch set
+      gainScalar: 1.15,          // bass is the foundation
+      phaseFilter: { pulse: null, swell: null, surge: null, storm: 800, maelstrom: 950 },
     },
 
     pad: {
@@ -1121,16 +1122,37 @@ var PALETTES = [
       },
     ],
 
-    // Per-palette melody synth profile (SPEC_032 §3.3)
+    // Per-palette melody synth profile (SPEC_032 §3.3 + #56 sparse violin/harmonica sequences)
     melody: {
       octave: 4,
-      attack: 0.12, hold: 0, decay: 0.2, sustainLevel: 1.0, release: 0.25,
-      lpfCutoff: 2000, lpfEnvAmount: 300, lpfEnvDecay: 0.25, lpfResonance: 1.0,
-      vibratoDepth: 6, vibratoRate: 4.5, vibratoDelay: 0.15,
+      attack: 0.12, hold: 0, decay: 0.22, sustainLevel: 1.0, release: 0.30,
+      lpfCutoff: 1900, lpfEnvAmount: 450, lpfEnvDecay: 0.28, lpfResonance: 1.0,
+      vibratoDepth: 7, vibratoRate: 5.0, vibratoDelay: 0.18,
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
-      legato: true, legatoTime: 0.18, staccato: false,
-      gainScalar: 1.0,
-      narrativeMotif: false, // legato bloom drowns mix on narrative stabs
+      legato: true, legatoTime: 0.20, staccato: false,
+      gainScalar: 1.10,
+      narrativeMotif: false,
+      // Leads appear occasionally — long rests between phrases (detective-noir pacing)
+      restRange: {
+        pulse:     [99, 99],
+        swell:     [10, 16],
+        surge:     [7, 12],
+        storm:     [5, 9],
+        maelstrom: [3, 6],
+      },
+      // Short fragments — 2–4 notes, not long runs
+      maxPhraseLen: { swell: 3, surge: 3, storm: 4, maelstrom: 5 },
+      // Hotter than baseline when it *does* play
+      phaseGain: {
+        pulse: 0, swell: 0.55, surge: 0.70, storm: 0.90, maelstrom: 1.0,
+      },
+      // Per-phrase timbre dice — violin first, harmonica joins as tension rises
+      timbreWeights: {
+        swell:     { melody_violin: 1.0, melody_harmonica: 0.0 },
+        surge:     { melody_violin: 0.70, melody_harmonica: 0.30 },
+        storm:     { melody_violin: 0.50, melody_harmonica: 0.50 },
+        maelstrom: { melody_violin: 0.40, melody_harmonica: 0.60 },
+      },
     },
 
     melodyRhythm: {
@@ -1152,18 +1174,18 @@ var PALETTES = [
       preferOpen: true,
     },
 
-    // Per-palette chord articulation (SPEC_032 §4.4) — ghosted swung jazz comps
+    // Per-palette chord articulation (SPEC_032 §4.4 + #56 deeply ghosted, Storm entry)
     chord: {
       style: 'comp', pattern: 'synco_comp', voices: 4,
-      attack: 0.015, decay: 0.25, sustainLevel: 0.10, release: 0.12,
-      octave: 4, lpfCutoff: 2200, lpfResonance: 0.7,
-      gainScalar: 0.75, entryPhase: 'swell',
+      attack: 0.015, decay: 0.25, sustainLevel: 0.08, release: 0.14,
+      octave: 4, lpfCutoff: 1700, lpfResonance: 0.7,
+      gainScalar: 0.40, entryPhase: 'storm',
     },
 
     // Stagger: smoky patience, bass walks in then sax (SPEC_010 §3)
     stagger: { rhythm: 0, harmony: 4, texture: 6, melody: 8, window: 8 },
     // Tension: dramatic retreats, moody plateaus (SPEC_011 §3.4)
-    tension: { eventDensity: 0.7, retreatDepth: 0.20, spikeHeight: 0.15, plateauBias: 0.15 },
+    tension: { eventDensity: 0.6, retreatDepth: 0.25, spikeHeight: 0.18, plateauBias: 0.30 },
 
     motif: {
       length: 6,

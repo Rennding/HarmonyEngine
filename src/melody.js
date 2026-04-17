@@ -43,6 +43,12 @@ var MelodyEngine = {
   _liveNoteEnd: 0,         // scheduled end time of current legato note
   _phraseEntry: false,     // true on first note of each phrase — suppresses LPF burst (#44)
 
+  // ── Wind-down state (SPEC_012 §3.2) ───────────────────────────────────────
+  _windingDown: false,      // true during cycle decay — plays musical exit then stops
+  _windDownType: null,      // 'descend' | 'sustain' | 'stutter'
+  _windDownBeatsLeft: 0,    // beats remaining in wind-down window
+  _windDownStep: 0,         // beats elapsed since wind-down entry (for cadence)
+
   // ── Phase density config ──────────────────────────────────────────────────
   // restRange: [min, max] beats of rest between phrases
   // maxPhraseLen: maximum notes per phrase
@@ -547,6 +553,12 @@ var MelodyEngine = {
     this._melodyStep = 0;
     this._barBeat = 0;
 
+    // ── Wind-down reset (SPEC_012 §3.2) ──
+    this._windingDown = false;
+    this._windDownType = null;
+    this._windDownBeatsLeft = 0;
+    this._windDownStep = 0;
+
     // ── Motif system init (SPEC_036 §3.4) ──
     this._motif = null;
     this._motifVariation = null;
@@ -580,6 +592,9 @@ var MelodyEngine = {
   // Called every beat from Sequencer.tick (SPEC_023 §B2: sub-beat scheduling)
   tick: function(beatTime) {
     if (!this._active || !audioCtx || this._muted || !this._palette) return;
+
+    // Wind-down mode: musical exit before cycle bridge (SPEC_012 §3.2)
+    if (this._windingDown) { this._processWindDown(beatTime); return; }
 
     var phase = G.phase || 'pulse';
     var density = this._PHASE_DENSITY[phase] || this._PHASE_DENSITY.pulse;
@@ -774,6 +789,92 @@ var MelodyEngine = {
     }
   },
 
+
+  // ── Wind-down: trigger theatrical melody exit (SPEC_012 §3.2) ─────────────
+  // Kills legato voice first (#44), clears motif state to prevent bleed into
+  // next cycle (§6.9), activates per-beat wind-down processed in tick().
+  windDown: function(beatTime, durationBeats, exitType) {
+    this._killLiveVoice(beatTime);
+    this._motif = null;
+    this._phrIdx = 0;
+    this._antecedentOpening = null;
+    this._variationUseCounts = { repeat: 0, transpose: 0, invert: 0, diminish: 0, fragment: 0 };
+    this._currentPhrase = [];
+    this._phrasePos = 0;
+    this._restBeats = 0;
+    this._windingDown = true;
+    this._windDownType = exitType || 'descend';
+    this._windDownBeatsLeft = Math.max(1, durationBeats || 4);
+    this._windDownStep = 0;
+  },
+
+  // ── Per-beat wind-down processor (SPEC_012 §3.2) ─────────────────────────
+  _processWindDown: function(beatTime) {
+    if (this._windDownBeatsLeft <= 0) { this._windingDown = false; return; }
+    var type = this._windDownType;
+    var step = this._windDownStep;
+    var totalBeats = step + this._windDownBeatsLeft;
+
+    if (type === 'descend') {
+      var halfWindow = Math.max(1, Math.floor(totalBeats / 2));
+      if (step < halfWindow && this._lastNoteMidi != null) {
+        var below = this._stepDown(this._lastNoteMidi);
+        if (below != null) {
+          this._playMelodyNote(below, beatTime, 0.8);
+          this._lastNoteMidi = below;
+        }
+      } else if (step === halfWindow) {
+        var rootMidi = this._chordRootForExit();
+        if (rootMidi != null) {
+          this._playMelodyNote(rootMidi, beatTime, 0.7);
+          this._lastNoteMidi = rootMidi;
+        }
+      }
+    } else if (type === 'sustain') {
+      if (step === 0) {
+        var m = (this._lastNoteMidi != null) ? this._lastNoteMidi : this._chordRootForExit();
+        if (m != null) {
+          this._playMelodyNote(m, beatTime, 0.8);
+          this._lastNoteMidi = m;
+        }
+      }
+    } else if (type === 'stutter') {
+      var maxReps = 4;
+      if (step < maxReps && this._lastNoteMidi != null) {
+        var vel = 1.0 - step * 0.25;
+        this._playMelodyNote(this._lastNoteMidi, beatTime, Math.max(vel, 0.1));
+      }
+    }
+
+    this._windDownStep++;
+    this._windDownBeatsLeft--;
+    if (this._windDownBeatsLeft <= 0) this._windingDown = false;
+  },
+
+  // ── Find nearest chord tone below given midi (wind-down helper) ──────────
+  _stepDown: function(midiNote) {
+    if (typeof HarmonyEngine === 'undefined') return midiNote - 2;
+    var chordTones = HarmonyEngine.getChordTones(Math.floor(midiNote / 12) - 1);
+    if (!chordTones || chordTones.length === 0) return midiNote - 2;
+    var best = null;
+    var bestDist = 999;
+    for (var oct = -1; oct <= 1; oct++) {
+      for (var c = 0; c < chordTones.length; c++) {
+        var candidate = chordTones[c] + oct * 12;
+        var dist = midiNote - candidate;
+        if (dist > 0 && dist < bestDist) { bestDist = dist; best = candidate; }
+      }
+    }
+    return (best != null) ? best : (midiNote - 2);
+  },
+
+  // ── Root MIDI of current chord at melody octave (wind-down helper) ───────
+  _chordRootForExit: function() {
+    if (typeof HarmonyEngine === 'undefined' || !HarmonyEngine._currentChord) return null;
+    var mCfg = (this._palette && this._palette.melody) || {};
+    var octave = (mCfg.octave !== undefined) ? mCfg.octave : 5;
+    return (octave + 1) * 12 + HarmonyEngine._currentChord.rootSemitone;
+  },
   shutdown: function() {
     this._active = false;
     this._currentPhrase = [];

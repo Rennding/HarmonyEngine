@@ -227,8 +227,10 @@ var StateMapper = {
     return 0.3 + 0.7 * above;
   },
 
-  // --- Cycle decay: stagger-ramp all non-kick tracks to 0 (SPEC_008 §3) ---
-  // Called on first beat of decay. Schedules all ramps upfront using beatTime.
+
+  // --- Cycle decay: stagger-ramp non-kick tracks to 0 (SPEC_008 §3 + SPEC_012) ---
+  // Called on first beat of decay. Schedules gain ramps upfront using beatTime.
+  // Per-beat dispatch of musical wind-down calls happens in Conductor._processCycleBeat.
   startCycleDecay: function(beatTime) {
     if (!audioCtx || typeof _trackGains === 'undefined') return;
     this._cycleFrozen = true;
@@ -236,26 +238,35 @@ var StateMapper = {
     var beatSec = (CFG.BEAT_MS || (60000 / (G.bpm || 120))) / 1000;
     var barSec = beatSec * 4;
 
-    // Groups with ramp start offsets (bars): melody=0, pad+perc=4, snare+bass=8, hat=12
-    // Ramp duration: 4 bars each
+    // Reset per-beat dispatch flags (SPEC_012 §5.3)
+    this._decayDispatched = { melody: false, texture: false, harmony: false, rhythm: false };
+
+    // New timeline (SPEC_012 §3.1): simplify windows precede gain fades so each
+    // group musically simplifies before its gain ramps down.
+    //   melody    simplify 0 → fade 2 → silence 4
+    //   pad+perc  simplify 2 → fade 6 → silence 8
+    //   bass      simplify 4 → fade 10 → silence 12
+    //   snare+hat simplify 6 → fade 12 → silence 14
+    //   kick stays full (SPEC_008 §3)
     var groups = [
-      { tracks: ['melody'],        startBar: 0 },
-      { tracks: ['pad', 'perc'],   startBar: 4 },
-      { tracks: ['snare', 'bass'], startBar: 8 },
-      { tracks: ['hat'],           startBar: 12 },
+      { tracks: ['melody'],       fadeStartBar: 2,  fadeBars: 2 },
+      { tracks: ['pad', 'perc'],  fadeStartBar: 6,  fadeBars: 2 },
+      { tracks: ['bass'],         fadeStartBar: 10, fadeBars: 2 },
+      { tracks: ['snare', 'hat'], fadeStartBar: 12, fadeBars: 2 },
     ];
 
     for (var gi = 0; gi < groups.length; gi++) {
       var g = groups[gi];
-      var rampStart = t + g.startBar * barSec;
-      var rampEnd   = rampStart + 4 * barSec;
+      var rampStart = t + g.fadeStartBar * barSec;
+      var rampEnd   = rampStart + g.fadeBars * barSec;
       for (var ti = 0; ti < g.tracks.length; ti++) {
         var trk = g.tracks[ti];
         var node = _trackGains[trk];
         if (!node) continue;
         node.gain.cancelScheduledValues(rampStart);
         node.gain.setValueAtTime(node.gain.value, rampStart);
-        node.gain.linearRampToValueAtTime(0.0, rampEnd);
+        node.gain.linearRampToValueAtTime(0.0001, rampEnd);
+        this._lastTargetGains[trk] = 0.0001; // SPEC_042 diagnostic hook
       }
     }
     // Kick stays full — explicitly protect it
@@ -263,7 +274,7 @@ var StateMapper = {
       _trackGains.kick.gain.cancelScheduledValues(t);
       _trackGains.kick.gain.setValueAtTime(_trackGains.kick.gain.value, t);
     }
-    console.log('[StateMapper] Cycle decay ramps scheduled at t=' + t.toFixed(3));
+    console.log('[StateMapper] Cycle decay ramps scheduled at t=' + t.toFixed(3) + ' (SPEC_012 timeline)');
   },
 
   // --- Cycle rebuild: stagger-ramp tracks from 0 to surge targets (SPEC_008 §5) ---

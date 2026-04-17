@@ -66,7 +66,7 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| PALETTES | harmony.js | 84 | 10 genre palette objects (each .bass has tierCap, gainScalar, phaseFilter — SPEC_028) |
+| PALETTES | harmony.js | 84 | 10 genre palette objects (each .bass has tierCap, gainScalar, phaseFilter — SPEC_028; each .decay per-palette exit profile — SPEC_012) |
 | HarmonyEngine | harmony.js | 1400 | Chord/scale/voice-leading methods |
 | PaletteBlender | harmony.js | 2049 | Maelstrom cross-palette interpolation |
 | _selectPalette() | harmony.js | 2000 | Weighted recency palette picker |
@@ -88,13 +88,16 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 |---|---|---|---|
 | Sequencer | sequencer.js | 2161 | Main sequencer object |
 | PadTrack | sequencer.js | 1018 | Pad/chord track |
-| WalkingBass | sequencer.js | 1453 | Dynamic bass pitch engine (tierCap from palette — SPEC_028) |
+| PadTrack.windDown | sequencer.js | 1198 | Freeze chord + extended release + reverb boost on cycle decay (SPEC_012 §3.3) |
+| WalkingBass | sequencer.js | 1495 | Dynamic bass pitch engine (tierCap from palette — SPEC_028) |
+| WalkingBass.setDecayMode | sequencer.js | 1519 | Force tier 0 + stride-gate notes during cycle decay (SPEC_012 §3.4) |
 | _CHORD_PATTERNS | sequencer.js | 1942 | 8 chord rhythm patterns (SPEC_032 §4) |
 | ChordTrack | sequencer.js | 2001 | Rhythmic chord stabs/comps/arps per palette (SPEC_032 §4) |
 | ChordTrack.onPhaseChange | sequencer.js | ~2145 | Harmony-group phase-entry gate: unmute at entryPhase (#35) |
 | ChordTrack.tickStep | sequencer.js | ~2055 | Per-16th-note chord dispatch |
 | ChordTrack._playStab | sequencer.js | ~2083 | Multi-voice chord stab synthesis |
 | ChordTrack._playArpNote | sequencer.js | ~2115 | Single-voice arp note synthesis |
+| ChordTrack.windDown | sequencer.js | 2231 | Cycle-decay exit — mute / hold (ring-out chord) / decay per palette (SPEC_012) |
 
 ---
 
@@ -121,6 +124,8 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | StateMapper._dispatchMelody | state_mapper.js | 853 | Melody group dispatch (melody, poly, blender) |
 | StateMapper._fireAllGroups | state_mapper.js | 964 | Fire all groups synchronously (no stagger) |
 | StateMapper._effectiveFloor | state_mapper.js | 24 | Per-track floor override during stagger |
+| StateMapper.startCycleDecay | state_mapper.js | 234 | Schedule cycle-decay gain ramps (SPEC_008 §3 + SPEC_012 timeline) |
+| StateMapper._decayDispatched | state_mapper.js | 242 | Per-group wind-down dispatch flags (melody/texture/harmony/rhythm) |
 
 ---
 
@@ -138,9 +143,12 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | MelodyEngine._irFilter | melody.js | 956 | I-R post-filter: gap-fill + direction closure probability modifier (SPEC_036 §5) |
 | MelodyEngine._irUpdate | melody.js | 1007 | Update I-R state after note pick (SPEC_036 §5.3) |
 | MelodyEngine._intervalAffinity | melody.js | 1035 | Per-palette interval affinity soft bias (SPEC_036 §7) |
-| MelodyEngine._killLiveVoice | melody.js | 1295 | Kill persistent legato oscillator chain (SPEC_032) |
-| MelodyEngine._playMelodyNote | melody.js | 1322 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
+| MelodyEngine._killLiveVoice | melody.js | 1387 | Kill persistent legato oscillator chain (SPEC_032) |
+| MelodyEngine._playMelodyNote | melody.js | 1414 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
 | MelodyEngine._liveOsc/Gain/Filter | melody.js | 30 | Legato state: persistent osc, gain, filter refs (SPEC_032) |
+| MelodyEngine.windDown | melody.js | 796 | Trigger theatrical melody exit: kill legato + clear motif + start wind-down (SPEC_012 §3.2) |
+| MelodyEngine._processWindDown | melody.js | 812 | Per-beat descent/sustain/stutter dispatch during cycle decay (SPEC_012) |
+| MelodyEngine._windingDown | melody.js | 47 | Wind-down state: type, beats remaining, cadence step (SPEC_012) |
 
 ---
 
@@ -172,8 +180,9 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | _enterDecay/Bridge/Rebuild() | conductor.js | 38–60 | Cycle state transition functions |
 | _exitCycle() | conductor.js | 62 | End rebuild → resume at surge |
 | _doPaletteSwap() | conductor.js | 78 | Palette swap during bridge (§4) |
-| _processCycleBeat() | conductor.js | 100 | Per-beat cycle state machine |
-| _resetCycleState() | conductor.js | 153 | Reset all cycle state vars |
+| _dispatchDecayGroup() | conductor.js | 136 | Per-group wind-down dispatch during decay (SPEC_012 §5.3) |
+| _processCycleBeat() | conductor.js | 173 | Per-beat cycle state machine — melody/texture/harmony/rhythm dispatch |
+| _resetCycleState() | conductor.js | 213 | Reset all cycle state vars |
 | Conductor.start() | conductor.js | 161 | Start playback with optional palette |
 | Conductor.stop() | conductor.js | 176 | Stop all audio |
 | Conductor.setCycleMode() | conductor.js | 198 | Toggle cycle mode on/off |

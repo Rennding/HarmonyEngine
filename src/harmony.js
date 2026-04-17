@@ -230,6 +230,7 @@ var PALETTES = [
     ir: { gapThreshold: 5, strength: 0.6 },
     // Interval affinity (SPEC_036 §7.3)
     intervalAffinity: { 0: 0.3, 1: 0.4, 2: 1.0, 3: 1.2, 4: 0.8, 5: 1.4, 6: 0.3, 7: 1.3 },
+    decay: { melodyExit: 'sustain', chordExit: 'mute', padReleaseMult: 2.0, bassHoldBeats: 4, rhythmStyle: 'sparse', reverbBoost: 1.1 },
   },
 
   {
@@ -375,6 +376,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'parallel', reuseLength: 3 },
     ir: { gapThreshold: 5, strength: 0.7 },
     intervalAffinity: { 0: 0.3, 1: 0.3, 2: 1.0, 3: 0.9, 4: 1.4, 5: 1.3, 6: 0.3, 7: 1.0, 8: 0.8, 9: 1.3 },
+    decay: { melodyExit: 'descend', chordExit: 'hold', padReleaseMult: 3.0, bassHoldBeats: 2, rhythmStyle: 'halftime', reverbBoost: 1.4 },
   },
   {
     name: 'glitch',
@@ -518,6 +520,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'contrasting' },
     ir: { gapThreshold: 7, strength: 0.2 },
     intervalAffinity: { 0: 0.5, 1: 1.2, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0, 6: 1.1, 7: 1.0 },
+    decay: { melodyExit: 'stutter', chordExit: 'mute', padReleaseMult: 1.5, bassHoldBeats: 2, rhythmStyle: 'instant', reverbBoost: 1.0 },
   },
 
   {
@@ -660,6 +663,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'contrasting' },
     ir: { gapThreshold: 4, strength: 0.5 },
     intervalAffinity: { 0: 0.3, 1: 1.5, 2: 0.8, 3: 0.8, 4: 0.5, 5: 1.0, 6: 1.4, 7: 0.6, 10: 1.3 },
+    decay: { melodyExit: 'sustain', chordExit: 'hold', padReleaseMult: 6.0, bassHoldBeats: 4, rhythmStyle: 'sparse', reverbBoost: 1.6 },
   },
 
   // ── lo-fi_chill (SPEC_019 §1.1) ──────────────────────────────────────────
@@ -808,6 +812,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'parallel', reuseLength: 2 },
     ir: { gapThreshold: 5, strength: 0.8 },
     intervalAffinity: { 0: 0.3, 1: 0.4, 2: 1.3, 3: 1.4, 4: 0.9, 5: 1.0, 6: 0.3, 7: 1.1 },
+    decay: { melodyExit: 'descend', chordExit: 'decay', padReleaseMult: 4.0, bassHoldBeats: 2, rhythmStyle: 'halftime', reverbBoost: 1.5 },
   },
 
   // ── chiptune (SPEC_019 §1.3) ─────────────────────────────────────────────
@@ -953,6 +958,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'parallel', reuseLength: 3 },
     ir: { gapThreshold: 5, strength: 0.7 },
     intervalAffinity: { 0: 0.3, 1: 0.3, 2: 1.2, 3: 1.0, 4: 1.3, 5: 1.0, 6: 0.3, 7: 1.3 },
+    decay: { melodyExit: 'descend', chordExit: 'mute', padReleaseMult: 1.0, bassHoldBeats: 2, rhythmStyle: 'halftime', reverbBoost: 1.0 },
   },
 
   // ── noir_jazz (SPEC_019 §1.4) ──────────────────────────────────────────
@@ -1178,6 +1184,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'contrasting' },
     ir: { gapThreshold: 4, strength: 0.9 },
     intervalAffinity: { 0: 0.4, 1: 1.0, 2: 1.0, 3: 1.3, 4: 0.9, 5: 1.0, 6: 1.1, 7: 1.0, 10: 1.3 },
+    decay: { melodyExit: 'descend', chordExit: 'decay', padReleaseMult: 4.0, bassHoldBeats: 2, rhythmStyle: 'halftime', reverbBoost: 1.5 },
   },
 
   // ── industrial (SPEC_019 §1.2) ──────────────────────────────────────────
@@ -1436,6 +1443,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'parallel', reuseLength: 2 },
     ir: { gapThreshold: 7, strength: 0.3 },
     intervalAffinity: { 0: 0.4, 1: 1.1, 2: 1.0, 3: 1.0, 4: 0.8, 5: 1.3, 6: 0.5, 7: 1.3, 8: 0.5 },
+    decay: { melodyExit: 'stutter', chordExit: 'mute', padReleaseMult: 1.5, bassHoldBeats: 4, rhythmStyle: 'instant', reverbBoost: 1.0 },
   },
 
   // ── vaporwave (SPEC_019 §1.5) ────────────────────────────────────────────
@@ -1582,6 +1590,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'parallel', reuseLength: 2 },
     ir: { gapThreshold: 5, strength: 0.6 },
     intervalAffinity: { 0: 0.3, 1: 0.4, 2: 1.2, 3: 1.0, 4: 1.3, 5: 1.0, 6: 0.4, 7: 1.1 },
+    decay: { melodyExit: 'sustain', chordExit: 'hold', padReleaseMult: 5.0, bassHoldBeats: 4, rhythmStyle: 'sparse', reverbBoost: 1.5 },
   },
 
   // ── breakbeat (SPEC_019 §1.6) ────────────────────────────────────────────
@@ -1730,6 +1739,7 @@ var PALETTES = [
     phrasing: { pairStyle: 'parallel', reuseLength: 2 },
     ir: { gapThreshold: 5, strength: 0.5 },
     intervalAffinity: { 0: 0.3, 1: 0.4, 2: 1.1, 3: 1.2, 4: 1.0, 5: 1.3, 6: 0.3, 7: 1.0 },
+    decay: { melodyExit: 'descend', chordExit: 'decay', padReleaseMult: 2.0, bassHoldBeats: 2, rhythmStyle: 'halftime', reverbBoost: 1.2 },
   },
 ];
 

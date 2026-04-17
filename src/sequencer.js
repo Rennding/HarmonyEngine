@@ -1024,6 +1024,8 @@ var PadTrack = {
   _lastChordRoot: -1,   // detect chord changes
   _detuneOverride: 0,   // set by StateMapper at Maelstrom (doubles detune)
   _lpf:      null,      // shared low-pass filter — tames overtones so pad sits behind mix
+  _decayFreeze: false,  // set by windDown — blocks new voice builds during decay (SPEC_012 §3.3)
+  _decayReleaseMult: 1.0, // release multiplier during decay
 
   initRun: function(palette) {
     this.shutdown();
@@ -1033,6 +1035,13 @@ var PadTrack = {
     this._muted   = true;
     this._lastChordRoot = -1;
     this._voices  = [];
+    this._decayFreeze = false;
+    this._decayReleaseMult = 1.0;
+    // Restore reverb send if still boosted from prior decay
+    if (typeof _trackReverbSends !== 'undefined' && _trackReverbSends.pad && _trackReverbSends.pad._decayOriginal !== undefined) {
+      _trackReverbSends.pad.gain.setValueAtTime(_trackReverbSends.pad._decayOriginal, audioCtx ? audioCtx.currentTime : 0);
+      _trackReverbSends.pad._decayOriginal = undefined;
+    }
 
     // Shared low-pass: cuts harsh overtones from sawtooth/triangle pads
     var padDest = (typeof _trackGains !== 'undefined' && _trackGains.pad) ? _trackGains.pad : submixGain;
@@ -1048,6 +1057,7 @@ var PadTrack = {
   // Called every beat from Sequencer.tick — only on step 0 (downbeat)
   tick: function(beatTime) {
     if (!this._active || !audioCtx || !submixGain || this._muted) return;
+    if (this._decayFreeze) return; // SPEC_012 §3.3 — no new voices during decay
     if (!this._palette || typeof HarmonyEngine === 'undefined') return;
 
     var chord = HarmonyEngine.getCurrentChord();
@@ -1183,6 +1193,34 @@ var PadTrack = {
     }
   },
 
+
+  // ── Wind-down: freeze chord + extend release + reverb boost (SPEC_012 §3.3) ───
+  windDown: function(beatTime, durationBeats, releaseMult, reverbBoost) {
+    this._decayFreeze = true;
+    this._decayReleaseMult = releaseMult || 1.0;
+    if (!audioCtx) return;
+    var t = beatTime || audioCtx.currentTime;
+    var rel = ((this._palette && this._palette.release) || 1.2) * this._decayReleaseMult;
+    // Extend release on currently-sounding voices
+    for (var i = 0; i < this._voices.length; i++) {
+      var v = this._voices[i];
+      if (v.gain) {
+        v.gain.gain.cancelScheduledValues(t);
+        v.gain.gain.setValueAtTime(Math.max(v.gain.gain.value, 0.0001), t);
+        v.gain.gain.exponentialRampToValueAtTime(0.0001, t + rel);
+      }
+      if (v.osc)  { try { v.osc.stop(t + rel + 0.05); } catch(e) {} }
+      if (v.osc2) { try { v.osc2.stop(t + rel + 0.05); } catch(e) {} }
+      if (v.osc3) { try { v.osc3.stop(t + rel + 0.05); } catch(e) {} }
+    }
+    // Boost reverb send during decay
+    if (reverbBoost && reverbBoost > 1.0 && typeof _trackReverbSends !== 'undefined' && _trackReverbSends.pad) {
+      if (_trackReverbSends.pad._decayOriginal === undefined) {
+        _trackReverbSends.pad._decayOriginal = _trackReverbSends.pad.gain.value;
+      }
+      _trackReverbSends.pad.gain.setTargetAtTime(_trackReverbSends.pad._decayOriginal * reverbBoost, t, 0.1);
+    }
+  },
   shutdown: function() {
     if (audioCtx) this._fadeOutVoices();
     if (this._lpf) { try { this._lpf.disconnect(); } catch(e) {} this._lpf = null; }
@@ -1398,6 +1436,7 @@ var FillSystem = {
   // beatIdx: current G.beatCount. Guards against rapid re-trigger.
   triggerPhaseFill: function(phase, beatIdx) {
     if (!this._active) return;
+    if (typeof Conductor !== 'undefined' && Conductor.getCycleState && Conductor.getCycleState() === 'decay') return; // SPEC_012 §6.7
     if ((beatIdx - this._lastFillBeat) < this._FILL_COOLDOWN) return;
     this._lastFillBeat = beatIdx;
     this._armFill('kick',  this._selectFill('kick',  phase));
@@ -1409,6 +1448,7 @@ var FillSystem = {
   // Trigger a mini-fill: snare + hat last-4-steps style (every 16 beats).
   triggerMiniFill: function(phase) {
     if (!this._active) return;
+    if (typeof Conductor !== 'undefined' && Conductor.getCycleState && Conductor.getCycleState() === 'decay') return; // SPEC_012 §6.7
     // Only fire if no fill is already active on these instruments
     if (this._fills.snare && this._fills.snare.stepsLeft > 0) return;
     this._armFill('snare', 'fill_snare_mini');
@@ -1418,6 +1458,7 @@ var FillSystem = {
   // Trigger a kick build fill at intensity milestones (10, 20, 50).
   triggerIntensityBuild: function(phase) {
     if (!this._active) return;
+    if (typeof Conductor !== 'undefined' && Conductor.getCycleState && Conductor.getCycleState() === 'decay') return; // SPEC_012 §6.7
     // Only fire if kick fill not already running
     if (this._fills.kick && this._fills.kick.stepsLeft > 0) return;
     this._armFill('kick', this._selectFill('kick', phase) || 'fill_kick_build');
@@ -1457,6 +1498,9 @@ var WalkingBass = {
   _approachQueue: null,     // { notes: [midi, midi], stepIdx: 0 } — 2-step approach figure
   _lastChordRoot: -1,       // detect chord changes independently (semitone)
   _passDir:       1,        // passing tone direction: +1 ascending, -1 descending
+  _decayMode:    false,     // SPEC_012 §3.4 — force tier 0 + stride-gate notes during decay
+  _decayHoldBeats: 2,       // note duration in beats during decay (2 = half-notes, 4 = whole notes)
+  _decayStepCounter: 0,     // counts active-step invocations during decay for stride gating
 
   initRun: function(palette) {
     this._palette       = palette;
@@ -1465,12 +1509,26 @@ var WalkingBass = {
     this._approachQueue = null;
     this._lastChordRoot = -1;
     this._passDir       = 1;
+    this._decayMode = false;
+    this._decayHoldBeats = 2;
+    this._decayStepCounter = 0;
+  },
+
+
+  // --- Decay mode (SPEC_012 §3.4): force tier 0 + stride-gate notes ---
+  setDecayMode: function(holdBeats) {
+    this._decayMode = true;
+    this._decayHoldBeats = Math.max(1, holdBeats || 2);
+    this._decayStepCounter = 0;
+    this._approachQueue = null; // cancel any pending chord-change approach
   },
 
   stop: function() {
     this._active        = false;
     this._approachQueue = null;
     this._palette       = null;
+    this._decayMode = false;
+    this._decayStepCounter = 0;
   },
 
   // --- Complexity tier ---
@@ -1554,6 +1612,18 @@ var WalkingBass = {
   // octave = palette bass octave.
   getNote: function(bStep, intensity, octave) {
     if (!this._active || !bStep || !bStep.active) return -1;
+
+    // Decay mode: root-only at stride, silence otherwise (SPEC_012 §3.4)
+    if (this._decayMode) {
+      var stride = Math.max(4, (this._decayHoldBeats || 2) * 4);
+      var shouldFire = (this._decayStepCounter % stride === 0);
+      this._decayStepCounter++;
+      if (!shouldFire) return -1;
+      var decayRoot = this._chordRoot(octave);
+      if (decayRoot < 0) return decayRoot;
+      this._lastNote = decayRoot;
+      return decayRoot;
+    }
     if (typeof HarmonyEngine === 'undefined' || !HarmonyEngine._currentChord) return -1;
 
     var tierCap = (this._palette && this._palette.bass && typeof this._palette.bass.tierCap === 'number')
@@ -2008,6 +2078,7 @@ var ChordTrack = {
   _step:        0,         // current step (0–15, advances per 16th note in tick)
   _lpf:         null,      // shared lowpass filter
   _arpIndex:    0,         // current arp position (cycles through chord tones)
+  _decayFreeze: false,  // set by windDown — blocks tickStep during decay (SPEC_012 §3.2 patch)
 
   initRun: function(palette) {
     this.shutdown();
@@ -2024,6 +2095,7 @@ var ChordTrack = {
     this._muted   = true;   // StateMapper will unmute at entryPhase
     this._step    = 0;
     this._arpIndex = 0;
+    this._decayFreeze = false;
 
     // Resolve pattern
     this._pattern = _CHORD_PATTERNS[chordCfg.pattern] || _CHORD_PATTERNS.offbeat_stab;
@@ -2042,6 +2114,7 @@ var ChordTrack = {
   // Called per 16th-note sub-step from Sequencer tick loop
   tickStep: function(time, stepIdx) {
     if (!this._active || !audioCtx || this._muted || !this._palette) return;
+    if (this._decayFreeze) return; // SPEC_012 — wind-down freeze
     if (!this._pattern) return;
 
     var pat = this._pattern[stepIdx % 16];
@@ -2153,6 +2226,43 @@ var ChordTrack = {
     this._muted = (curIdx < entryIdx);
   },
 
+
+  // ── Wind-down: mute / hold / decay per palette (SPEC_012 §3 patch) ───────
+  windDown: function(beatTime, durationBeats, chordExit) {
+    this._decayFreeze = true;
+    var mode = chordExit || 'mute';
+    if (mode === 'mute') {
+      this._muted = true;
+      return;
+    }
+    if (mode === 'hold' && audioCtx && this._lpf && this._palette && typeof HarmonyEngine !== 'undefined') {
+      var cfg = this._palette;
+      var tones = HarmonyEngine.getChordTones(cfg.octave || 4);
+      if (tones && tones.length > 0) {
+        var baseGain = (CFG.GAIN.chord || 0.10) * (cfg.gainScalar || 1.0) * 0.5;
+        var voiceCount = Math.min(cfg.voices || 3, tones.length);
+        var beatDur = 60 / (G.bpm || 120);
+        var holdDur = Math.max(1, durationBeats || 4) * beatDur;
+        var t = beatTime || audioCtx.currentTime;
+        for (var i = 0; i < voiceCount; i++) {
+          var freq = midiToFreq(tones[i]);
+          var osc = audioCtx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t);
+          var gain = audioCtx.createGain();
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(baseGain, t + 0.08);
+          gain.gain.linearRampToValueAtTime(baseGain * 0.5, t + holdDur * 0.5);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + holdDur);
+          osc.connect(gain);
+          gain.connect(this._lpf);
+          osc.start(t);
+          osc.stop(t + holdDur + 0.05);
+        }
+      }
+    }
+    // 'decay': pattern freezes, existing scheduled notes tail naturally
+  },
   shutdown: function() {
     this._active = false;
     this._muted  = true;
@@ -2160,6 +2270,7 @@ var ChordTrack = {
     this._pattern = null;
     this._step    = 0;
     this._arpIndex = 0;
+    this._decayFreeze = false;
     if (this._lpf) {
       try { this._lpf.disconnect(); } catch(e) {}
       this._lpf = null;

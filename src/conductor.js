@@ -130,6 +130,44 @@ var Conductor = (function() {
                 ' (seed=' + G.songSeed + ', bpm=' + G.bpm + ')');
   }
 
+  // ── Decay group dispatch (SPEC_012 §5.3) ──────────────────────────────────
+  // Fires per-group wind-down calls at simplify bar offsets. Each group
+  // simplifies its musical output before gain fade begins.
+  function _dispatchDecayGroup(group, beatTime) {
+    var palette = (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette)
+      ? HarmonyEngine.getPalette() : null;
+    var decay = (palette && palette.decay) || {};
+
+    if (group === 'melody') {
+      // 16-beat wind-down spans bars 0–4 (cover full melody-group window)
+      if (typeof MelodyEngine !== 'undefined' && MelodyEngine.windDown) {
+        MelodyEngine.windDown(beatTime, 16, decay.melodyExit || 'descend');
+      }
+    } else if (group === 'texture') {
+      if (typeof PadTrack !== 'undefined' && PadTrack.windDown) {
+        PadTrack.windDown(beatTime, 24, decay.padReleaseMult || 1.0, decay.reverbBoost || 1.0);
+      }
+      // Percussion mutes immediately at simplify entry
+      if (typeof Sequencer !== 'undefined' && Sequencer._mute) Sequencer._mute.perc = true;
+    } else if (group === 'harmony') {
+      if (typeof WalkingBass !== 'undefined' && WalkingBass.setDecayMode) {
+        WalkingBass.setDecayMode(decay.bassHoldBeats || 2);
+      }
+      if (typeof ChordTrack !== 'undefined' && ChordTrack.windDown) {
+        ChordTrack.windDown(beatTime, 12, decay.chordExit || 'mute');
+      }
+    } else if (group === 'rhythm') {
+      var style = decay.rhythmStyle || 'halftime';
+      if (style === 'halftime' && typeof Sequencer !== 'undefined' && Sequencer.setHalfTime) {
+        Sequencer.setHalfTime(beatTime, 8); // 2 bars half-time into fade
+      } else if (typeof Sequencer !== 'undefined' && Sequencer._mute) {
+        // sparse + instant: mute snare + hat immediately, kick continues
+        Sequencer._mute.snare = true;
+        Sequencer._mute.hat = true;
+      }
+    }
+  }
+
   // ── Cycle beat processing ─────────────────────────────────────────────────
   function _processCycleBeat(beatTime) {
     if (_cycleState === null) return;
@@ -139,6 +177,29 @@ var Conductor = (function() {
     if (_cycleState === 'decay') {
       // Freeze intensity during decay (SPEC_008 §3)
       G.intensity = _frozenIntensity;
+
+      // Per-beat wind-down dispatch (SPEC_012 §5.3) — bar offsets match simplify windows:
+      // melody=bar 0 (beat 1), texture=bar 2 (beat 9), harmony=bar 4 (beat 17), rhythm=bar 6 (beat 25)
+      var sm = (typeof StateMapper !== 'undefined') ? StateMapper : null;
+      if (sm && sm._decayDispatched) {
+        if (_cycleBeats === 1 && !sm._decayDispatched.melody) {
+          _dispatchDecayGroup('melody', beatTime);
+          sm._decayDispatched.melody = true;
+        }
+        if (_cycleBeats === 9 && !sm._decayDispatched.texture) {
+          _dispatchDecayGroup('texture', beatTime);
+          sm._decayDispatched.texture = true;
+        }
+        if (_cycleBeats === 17 && !sm._decayDispatched.harmony) {
+          _dispatchDecayGroup('harmony', beatTime);
+          sm._decayDispatched.harmony = true;
+        }
+        if (_cycleBeats === 25 && !sm._decayDispatched.rhythm) {
+          _dispatchDecayGroup('rhythm', beatTime);
+          sm._decayDispatched.rhythm = true;
+        }
+      }
+
       if (_cycleBeats >= _barsToBts(CFG.CYCLE.DECAY_BARS)) {
         _enterBridge(beatTime);
       }
@@ -242,6 +303,17 @@ var Conductor = (function() {
     _maelstromSustainBeats = 0;
     _nextPalette = null;
     _frozenIntensity = 0;
+    // Clear wind-down state from any in-progress or aborted decay (SPEC_012 §5.4)
+    if (typeof MelodyEngine !== 'undefined') {
+      MelodyEngine._windingDown = false;
+      MelodyEngine._windDownBeatsLeft = 0;
+    }
+    if (typeof PadTrack !== 'undefined') PadTrack._decayFreeze = false;
+    if (typeof ChordTrack !== 'undefined') ChordTrack._decayFreeze = false;
+    if (typeof WalkingBass !== 'undefined') WalkingBass._decayMode = false;
+    if (typeof StateMapper !== 'undefined') {
+      StateMapper._decayDispatched = null;
+    }
   }
 
   return {

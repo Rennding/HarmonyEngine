@@ -9,6 +9,32 @@
 
 ---
 
+## 2026-04-17 — Rust native migration planned — B+A cascading → SPEC_057, #58/#59/#60/#61/#62
+
+Generational architecture plan. HarmonyEngine migrates off single-thread JS to Rust native (desktop + mobile). Motivation isn't current perf (main-thread cost is 5–15ms/beat, fine) — it's headroom for ambition: #40 VoicingEngine, #41 harmonic rhythm, future counterpoint/strings/brass/symphony work will cap a single thread.
+
+Key finding that shaped the plan: audio synthesis already runs on Web Audio's native thread. JS is the *composition-decision* bottleneck-to-be, not the audio bottleneck. So the Rust story isn't about faster DSP — it's about parallelizing composition.
+
+Aram chose **B+A cascading hybrid**: per-voice parallelism (B) as engineering skeleton — bass, drums, melody, chord, pad each on their own thread, meeting at a lock-free audio thread via SPSC ring buffers. Pipeline-ahead (A) layered on top as per-voice enrichment — each voice extends its composition horizon 1–4 bars past the current beat (melody the longest at 4 bars for cadential planning + motivic callbacks; drums shortest at 1 bar for groove responsiveness). Conductor thread publishes a read-mostly plan struct via basedrop; voices read it and compose inside it; plan changes trigger a flush using the existing PhaseStagger order.
+
+Vision: **a live band of composers**. Each voice is its own musician with its own head, thinking ahead, playing its part. Scales to symphonies (strings/winds/brass sections) without architectural rewrite — add another voice thread + ring buffer.
+
+Stack: cpal (audio I/O — only option with real shipped iOS/Android apps), dasp + hand-rolled voices (matches per-palette×per-voice cleanly), ringbuf + crossbeam + basedrop (canonical RT-audio threading), Slint (best mobile-ready Rust UI), cargo-mobile2 (packaging).
+
+Four phases, each its own session:
+- **#59 Phase 1** — parity port, desktop, one palette (dark_techno), single-threaded (6–8 weeks, Opus)
+- **#60 Phase 2a** — Shape B per-voice threads, all 10 palettes, beat-by-beat (4–5 weeks, Opus)
+- **#61 Phase 2b** — Shape A per-voice lookahead, VoicingEngine + harmonic rhythm first real implementation (3–4 weeks, Opus)
+- **#62 Phase 3** — Slint UI + cargo-mobile2 + store submission (4–8 weeks, Sonnet)
+
+Honest total: 4–6 months part-time solo. Decision "Rust is the road" — pause new JS feature work (#40/#41/#43/#45/#46/#47/#38/#18/#19/#13/#12/#11 port or re-evaluate into Rust phases). In-flight QA (#30/#42/#44/#56) finishes its cycle. JS engine frozen at current capability, kept playable in `legacy/` as A/B parity reference until Phase 3 ships.
+
+Plan artifact saved at `/root/.claude/plans/plan-we-have-a-steady-peach.md`.
+
+**Files changed:** `specs/SPEC_057_RUST_MIGRATION.md` (new), `CLAUDE.md` §6 (2 decisions logged) + §7 (Tier 0 block, paused block, awaiting QA regrouped, rest collapsed under Historical backlog).
+
+---
+
 ## 2026-04-17 — #56 noir_jazz 60s detective overhaul built
 
 Retuned noir_jazz to a 60s film-noir feel: thick crawling upright bass as the always-on foundation; violin and harmonica as occasional sparse lead phrases instead of a sustained single lead. Bass wavetable gets 3rd/5th/7th partials + gainScalar 1.15 + filter opens to 950Hz at Maelstrom. Melody engine gets three opt-in palette hooks — `timbreWeights` (per-phrase dice picks violin or harmonica wavetable), `restRange` (long gaps between phrases), `maxPhraseLen` (short 2–5 note fragments). Chord gainScalar 0.75→0.40 + entryPhase moved to Storm so leads own Swell/Surge. Drum synth internal gains -3 dB. No other palettes affected — hooks are opt-in. #56 awaiting QA.

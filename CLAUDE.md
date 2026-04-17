@@ -213,12 +213,40 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | 2026-04-16 | Stagger timing = per-palette hardcoded + optional override, not UI-configurable initially | Palette identity drives transition feel (techno=tight, ambient=wide). Override exists for future tuning. Avoids premature UI complexity. |
 | 2026-04-16 | Manual phase forcing still staggers (no snap) | Consistency — user expects same musical behavior regardless of trigger source. Snap would break the "band shifting gears" feel. |
 | 2026-04-16 | Downward phase transitions reverse stagger order (melody out first, rhythm last) | Mirrors real arrangement: lead instruments drop first, rhythm section is last to simplify. Musical convention. |
+| 2026-04-17 | Migrate to Rust native (desktop + mobile), B+A cascading architecture — per-voice threads + per-voice pipeline-ahead | Headroom for ambition — #40/#41 and future counterpoint/symphony work will cap JS single-thread. Audio synthesis already on native thread; JS bottleneck is composition decisions. B is skeleton (per-voice threads), A is intelligence (lookahead per voice). Vision: live band of composers. Spec: SPEC_057. Umbrella: #58. |
+| 2026-04-17 | "Rust is the road" — pause new JS feature work during migration | Momentum > parallel tracks. In-flight QA (#30/#42/#44/#56) finishes its cycle; new build sessions on #40/#41/#43/#45/#46/#47/#38/#18/#19/#13/#12/#11 pause. Work ports into Phase 2a/2b/3 or re-evaluates for Rust. |
 
 ---
 
 ## 7 · DO THIS NEXT
 
-**Status: #30 + #42 + #44 + #56 awaiting QA. Next: #40/#41, then #43.**
+**Status: Rust migration is the road (SPEC_057, #58). In-flight JS QA (#30/#42/#44/#56) continues; new JS builds paused. Next build: #59 Phase 1 parity port.**
+
+### Tier 0 · Rust native migration (P1) — SPEC_057_RUST_MIGRATION.md
+✅ Rust migration plan complete → SPEC_057_RUST_MIGRATION.md
+- **#58** Umbrella — B+A cascading, desktop + mobile (plan-session)
+- **#59** Phase 1 — Parity port: desktop, one palette (dark_techno), single-threaded (Opus)
+- **#60** Phase 2a — Shape B: per-voice threads, all 10 palettes, beat-by-beat (Opus, depends on #59)
+- **#61** Phase 2b — Shape A: per-voice lookahead, VoicingEngine + harmonic rhythm first implementation (Opus, depends on #60)
+- **#62** Phase 3 — Slint UI + cargo-mobile2 + store submission (Sonnet, depends on #61)
+
+### Paused JS backlog (resumes as Rust ports during migration phases)
+⏸ **#38** Melody rhythm extensions (qa-improve) — ports into Phase 2a melody worker
+⏸ **#40** VoicingEngine — first implemented in Rust during Phase 2b
+⏸ **#41** Phase-driven harmonic rhythm — first implemented in Rust during Phase 2b
+⏸ **#43** Diagnostic expansion — extended in Rust during Phase 2a
+⏸ **#45/#46/#47** UI overhaul A/B/C — rebuilt in Slint during Phase 3
+⏸ **#11/#12/#13/#18/#19/#28** — re-evaluate for Rust after Phase 2b
+
+### Awaiting QA (JS — in-flight, complete current QA cycle)
+⚠️ **#30** Post-Maelstrom theatrical decrescendo (Opus, P1) — built, awaiting QA
+⚠️ **#42** Diagnostic foundation (Opus) — built, awaiting QA
+⚠️ **#44** Bug: Legato pop (Opus, P1) — built, awaiting QA
+⚠️ **#56** noir_jazz 60s detective overhaul (Opus) — built, awaiting QA
+
+---
+
+### Historical backlog (frozen at migration start — kept for reference)
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass

@@ -9,6 +9,18 @@
 
 ---
 
+## 2026-04-17 — #44 Legato pop — third root cause found, fixed
+
+Pop persisted after onPhaseChange guard. Real cause: legato re-trigger path re-fires LPF from peak on every phrase-start note, while filter was already closed during the preceding rest. For noir_jazz (lpfEnvAmount=300): 2000→2300Hz burst = pop, every phrase. Fix: `_phraseEntry` flag set on first note of each phrase, suppresses LPF to start at base not peak in the legato re-trigger path. Gate passes.
+
+---
+
+## 2026-04-17 — #44 Legato pop — new root cause found, re-fixed
+
+Original fix (guard window + LPF suppression) addressed the hold-gap expiry case but missed the real dominant cause. Aram confirmed pops happen specifically at melody entry on a bar. Root cause: `onPhaseChange()` fires 3 resolution notes unconditionally even when `_muted = true` — creating a live legato oscillator chain before melody's stagger delay fires. On the very next tick when melody unmutes, `_liveOsc` is non-null → freshKill path → pop. Fix: one-line `|| this._muted` guard in `onPhaseChange`. Also repaired a pre-existing melody.js file truncation (file was cut off mid-line on disk; restored from git HEAD). Gate passes.
+
+---
+
 ## 2026-04-17 — #44 Legato pop fix built
 
 Fixed brittle pops in legato palettes (noir_jazz, vaporwave, synthwave). Three changes in melody.js: dynamic guard window scaled to sub-beat duration instead of hardcoded 150ms, LPF burst suppressed on legato-death restart, chainStart gap widened to 30ms. Awaiting QA.

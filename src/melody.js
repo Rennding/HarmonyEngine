@@ -41,6 +41,7 @@ var MelodyEngine = {
   _livePwmLfo: null,       // PWM LFO oscillator
   _livePwmGain: null,      // PWM depth gain node
   _liveNoteEnd: 0,         // scheduled end time of current legato note
+  _phraseEntry: false,     // true on first note of each phrase — suppresses LPF burst (#44)
 
   // ── Phase density config ──────────────────────────────────────────────────
   // restRange: [min, max] beats of rest between phrases
@@ -677,8 +678,11 @@ var MelodyEngine = {
 
       midiNote = this._revalidateNote(midiNote);
 
+      // Flag first note of phrase so legato re-trigger suppresses LPF burst (#44)
+      this._phraseEntry = (this._phrasePos === 1);
       // Pass sub-beat duration hint for envelope scaling (noteDurSec reflects dotted compensation)
       this._playMelodyNote(midiNote, subTime, undefined, noteDurSec);
+      this._phraseEntry = false;
 
       // --- End of phrase: schedule rest ---
       if (this._phrasePos >= this._currentPhrase.length) {
@@ -743,7 +747,7 @@ var MelodyEngine = {
 
   // ── Phase transition: play resolution phrase (SPEC_017 §5) ────────────────
   onPhaseChange: function(newPhase, beatTime) {
-    if (!this._active || !audioCtx) return;
+    if (!this._active || !audioCtx || this._muted) return;
     // Resolution: quick ascending scale run to tonic
     if (typeof HarmonyEngine !== 'undefined') {
       var scaleNotes = HarmonyEngine.getScaleNotes(5);
@@ -1409,12 +1413,15 @@ var MelodyEngine = {
       this._liveGain.gain.setValueAtTime(sustainGain, noteOff - release);
       this._liveGain.gain.exponentialRampToValueAtTime(0.0001, noteOff);
       // Re-trigger filter envelope
+      // #44: suppress LPF burst at phrase entry — filter was closed during rest, opening from
+      // peak creates a percussive transient. Start from base on first note of each phrase.
       if (this._liveFilter && mCfg.lpfEnvAmount) {
         var lpfBase = (mCfg.lpfCutoff !== undefined) ? mCfg.lpfCutoff : 3000;
         var lpfPeak = lpfBase + (mCfg.lpfEnvAmount || 0);
         var lpfDecay = (mCfg.lpfEnvDecay !== undefined) ? mCfg.lpfEnvDecay : 0.1;
+        var lpfStart = this._phraseEntry ? Math.max(lpfBase, 20) : Math.min(lpfPeak, 20000);
         this._liveFilter.frequency.cancelScheduledValues(time);
-        this._liveFilter.frequency.setValueAtTime(Math.min(lpfPeak, 20000), time);
+        this._liveFilter.frequency.setValueAtTime(lpfStart, time);
         this._liveFilter.frequency.exponentialRampToValueAtTime(Math.max(lpfBase, 20), time + lpfDecay);
       }
       // Extend stop times

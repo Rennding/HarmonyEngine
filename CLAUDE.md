@@ -271,6 +271,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | QA Brief only in chat, not GitHub | Build sessions must post QA Brief as a GitHub comment on the issue. Chat is not a substitute. |
 | Over-splitting build issues | Default = batch. Split only when: model mismatch, QA gate, scope >40 edits, or true independence. |
 | MCP validation errors | Fix ALL fields from error payload in one pass, propagate to sibling calls. Never use \n in body fields — use real newlines. |
+| onPhaseChange fires before mute clears | Any `_playMelodyNote` call in `onPhaseChange` while `_muted=true` creates a live legato osc — poisoning the first real tick. Always guard with `this._muted` check. |
+| Legato LPF burst at phrase entry | Legato re-trigger path fires LPF from peak even after a rest, when filter was already closed. Use `_phraseEntry` flag (true on `_phrasePos===1`) to start LPF at base not peak on first note of each phrase. |
 | Game state reference in audio | All G.* fields must exist in state.js — grep for G. references after any audio module change |
 | StateMapper expects game objects | StateMapper references PerkEffects* — stub or guard with typeof checks |
 | Standalone synth fns lack palette access | _synthBass/_synthDrum are module-scope functions, not Sequencer methods — they only see _activePaletteName, not the full palette object. When adding per-palette config reads, ensure _activePalette (full object) is set alongside _activePaletteName in Sequencer.initRun(). |

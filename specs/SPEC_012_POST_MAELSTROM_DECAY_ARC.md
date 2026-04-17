@@ -44,8 +44,8 @@ Each group has a **simplify window** followed by a **fade window**. These overla
 
 | Group | Simplify starts (bar) | Fade starts (bar) | Silence by (bar) | Behavior during simplify |
 |---|---|---|---|---|
-| **Melody** | 0 | 2 | 4 | Final descending phrase → sustain → silence |
-| **Texture** (pad, perc) | 2 | 6 | 8 | Pad: freeze chord, extend release. Perc: mute |
+| **Melody** | 0 | 2 | 4 | Kill legato voice → clear motif → final descending phrase → sustain → silence |
+| **Texture** (pad, perc, chord) | 2 | 6 | 8 | Pad: freeze chord, extend release. Perc: mute. Chord: palette-driven (mute/hold/decay). |
 | **Harmony** (bass) | 4 | 10 | 12 | Drop to root-only (tier 0), extend note duration |
 | **Rhythm** (snare, hat) | 6 | 12 | 14 | Half-time feel, drop fills. Hat: quarter notes only |
 | **Kick** | — | 14 | 16 | Gain fade only (last heartbeat) |
@@ -57,6 +57,8 @@ This preserves the SPEC_008 §3 stagger order (melody → texture → harmony �
 MelodyEngine gets a `windDown(beatTime, durationBeats)` call at decay bar 0.
 
 During wind-down:
+- **Kill legato voice first** — call `_killLiveVoice()` (melody.js line 1295) before generating the first descent note. Prevents the #44 pop pattern: a fresh descent note on top of a dead legato chain re-triggers the LPF envelope from peak, producing a brittle pop. The descent phrase must start from a clean voice state.
+- **Clear motif state** — set `_motif = null`, `_phrIdx = 0`, `_antecedentOpening = null` at wind-down entry. The descent phrase is generated directly by the forced-descending Markov chain, not by the motif variation system (SPEC_036). This prevents orphaned motif data from leaking into the next cycle's rebuild.
 - **Force descending motion** — override Markov chain to prefer notes below the current pitch. Each generated note is constrained to be ≤ current note (within the current scale).
 - **Extend note duration** — double the base note length (from palette's melody rhythm to 2× duration)
 - **Final note** — after `durationBeats / 2`, play the root of the current chord and hold it for the remaining duration
@@ -71,6 +73,11 @@ During wind-down:
 - **Extend release** — set envelope release to 4× normal (long, reverberant tail)
 - **Boost reverb send** — +30% reverb send during wind-down (creates the "hall ring-out" feel)
 - **Perc: immediate mute** — percussion track is muted at wind-down start (perc is the first thing that sounds "wrong" if it keeps playing during decay)
+- **ChordTrack exit** — also gets a `windDown(beatTime, durationBeats, exitType)` call at the same bar offset (2). Behavior driven by `palette.decay.chordExit`:
+  - `mute` — stop pattern, silence voices immediately (glitch, chiptune, industrial)
+  - `hold` — freeze on last stab, extend release to match pad, let it ring (dark_techno, synthwave, ambient_dread, vaporwave)
+  - `decay` — stop pattern firing but let existing notes' natural release tail out; reverb boost applies (noir_jazz, lo_fi_chill, breakbeat)
+  - In all cases: stop calling `_playStab` / `_playArpNote` once wind-down is active (prevents new note-ons during fade).
 
 ### 3.4 Bass exit
 
@@ -105,29 +112,36 @@ decay: {
   bassHoldBeats: Number,     // note duration during decay (2 = half-notes, 4 = whole notes)
   rhythmStyle: 'halftime' | 'sparse' | 'instant',
   reverbBoost: Number,       // reverb send multiplier during decay (1.0 = none, 1.3 = +30%)
+  chordExit: 'mute' | 'hold' | 'decay',  // ChordTrack exit behavior (added post-audit)
 }
 ```
 
 ### 4.2 Palette-by-palette tuning
 
-| Palette | melodyExit | padReleaseMult | bassHoldBeats | rhythmStyle | reverbBoost | Rationale |
-|---|---|---|---|---|---|---|
-| **dark_techno** | sustain | 2.0 | 4 | sparse | 1.1 | Minimal, drone-like exit. Bass holds root whole notes. Drums go sparse (kick + occasional hat), not half-time. |
-| **synthwave** | descend | 3.0 | 2 | halftime | 1.4 | Cinematic wind-down. Long reverb tails. Classic 80s fade feel. |
-| **glitch** | stutter | 1.5 | 2 | instant | 1.0 | Abrupt — melody glitches and stops, drums cut immediately, bass holds briefly. No reverb padding. |
-| **ambient_dread** | sustain | 6.0 | 4 | sparse | 1.6 | Extremely long pad release. Bass drones. Drums barely there. Maximum reverb — the room keeps ringing. |
-| **lo_fi_chill** | descend | 4.0 | 2 | halftime | 1.5 | Gentle descent. Warm reverb tail. Relaxed half-time feel. |
-| **chiptune** | descend | 1.0 | 2 | halftime | 1.0 | Quick, clean exit. No long reverb (8-bit games don't have reverb). |
-| **noir_jazz** | descend | 4.0 | 2 | halftime | 1.5 | Walking bass simplifies to root, melody plays a final descending phrase. Club closing time. |
-| **industrial** | stutter | 1.5 | 4 | instant | 1.0 | Hard cut. Melody stutters out. Drums stop abruptly. Bass holds a low drone. |
-| **vaporwave** | sustain | 5.0 | 4 | sparse | 1.5 | Dreamy dissolution. Everything rings out into reverb. |
-| **breakbeat** | descend | 2.0 | 2 | halftime | 1.2 | Break drops to half-time, melody descends. Mid-length reverb. |
+| Palette | melodyExit | padReleaseMult | bassHoldBeats | rhythmStyle | reverbBoost | chordExit | Rationale |
+|---|---|---|---|---|---|---|---|
+| **dark_techno** | sustain | 2.0 | 4 | sparse | 1.1 | hold | Minimal, drone-like exit. Bass holds root whole notes. Drums go sparse (kick + occasional hat), not half-time. Chord freezes as a drone. |
+| **synthwave** | descend | 3.0 | 2 | halftime | 1.4 | hold | Cinematic wind-down. Long reverb tails. Classic 80s fade feel. Chord ring-out matches pad. |
+| **glitch** | stutter | 1.5 | 2 | instant | 1.0 | mute | Abrupt — melody glitches and stops, drums cut immediately, bass holds briefly, chord cuts. No reverb padding. |
+| **ambient_dread** | sustain | 6.0 | 4 | sparse | 1.6 | hold | Extremely long pad release. Bass drones. Drums barely there. Chord freezes and rings. Maximum reverb — the room keeps ringing. |
+| **lo_fi_chill** | descend | 4.0 | 2 | halftime | 1.5 | decay | Gentle descent. Warm reverb tail. Chord pattern stops, existing stabs ring out. Relaxed half-time feel. |
+| **chiptune** | descend | 1.0 | 2 | halftime | 1.0 | mute | Quick, clean exit. No long reverb (8-bit games don't have reverb). Chord cuts cleanly. |
+| **noir_jazz** | descend | 4.0 | 2 | halftime | 1.5 | decay | Walking bass simplifies to root, melody plays a final descending phrase, last chord stab rings out. Club closing time. |
+| **industrial** | stutter | 1.5 | 4 | instant | 1.0 | mute | Hard cut. Melody stutters out. Drums stop abruptly. Bass holds a low drone. Chord slams shut. |
+| **vaporwave** | sustain | 5.0 | 4 | sparse | 1.5 | hold | Dreamy dissolution. Everything rings out into reverb — chord included. |
+| **breakbeat** | descend | 2.0 | 2 | halftime | 1.2 | decay | Break drops to half-time, melody descends, chord pattern stops and tail decays. Mid-length reverb. |
 
 ### 4.3 Melody exit types
 
 - **descend** — Markov chain forced to descending pitches, lands on root, holds. The "jazz standard ending."
 - **sustain** — Melody plays one final note (current pitch or root) and sustains it. The "ambient drone exit."
 - **stutter** — Melody repeats its last note with decreasing velocity (4 repeats, each -25% gain), then stops. The "glitch/industrial cut."
+
+### 4.4 Chord exit types
+
+- **mute** — ChordTrack stops firing stabs immediately on wind-down entry; any currently-ringing voices are killed with a short release (matches the abrupt cut of the melody's stutter exit). Used by cut-style palettes.
+- **hold** — ChordTrack freezes on its current chord articulation. The last stab's natural release is extended via the pad's releaseMult. Used by drone / long-ring palettes.
+- **decay** — ChordTrack stops firing new stabs but existing voices are allowed to tail out naturally. Reverb boost applies; no release extension. Used by "band winding down" palettes where the last chord hit organically rings out.
 
 ---
 
@@ -137,19 +151,22 @@ decay: {
 
 | Module | Function | Description |
 |---|---|---|
-| sequencer.js | `MelodyEngine.windDown(beatTime, durationBeats, exitType)` | Triggers melody exit behavior |
+| melody.js | `MelodyEngine.windDown(beatTime, durationBeats, exitType)` | Kills legato voice, clears motif state, triggers melody exit behavior |
 | sequencer.js | `PadTrack.windDown(beatTime, durationBeats, releaseMult, reverbBoost)` | Triggers pad freeze + extended release |
+| sequencer.js | `ChordTrack.windDown(beatTime, durationBeats, exitType, releaseMult, reverbBoost)` | Stops pattern firing; applies mute/hold/decay per palette |
 | sequencer.js | `WalkingBass.setDecayMode(holdBeats)` | Forces tier 0 + extended note duration |
-| state_mapper.js | `StateMapper.startCycleDecay(beatTime)` | **Modified** — adds musical simplification before gain ramps |
-| harmony.js | `PALETTES[n].decay` | New per-palette decay profile (×10) |
+| state_mapper.js | `StateMapper.startCycleDecay(beatTime)` | **Modified** — reads `palette.decay`, dispatches wind-down calls, schedules gain ramps |
+| harmony.js | `PALETTES[n].decay` | New per-palette decay profile (×10), now includes `chordExit` |
 
 ### 5.2 Modification to startCycleDecay
 
-The existing `startCycleDecay` schedules gain ramps only. The new version:
+**Current code gap:** `StateMapper.startCycleDecay` (state_mapper.js ~line 232) currently schedules only hardcoded gain ramps (melody=0 bars, pad/perc=4, snare/bass=8, hat=12). It does not read palette data at all. This build must add a palette lookup at the top of the function and use the palette's `decay` profile to tune the dispatch.
 
-1. Reads the current palette's `decay` profile
-2. On the first beat, triggers musical simplifications (wind-down calls) at their scheduled bar offsets
-3. Then schedules the gain ramps at their existing bar offsets (which are now the *fade* portion, after simplification has already started)
+The new version:
+
+1. Reads `HarmonyEngine.getPalette().decay` profile on entry
+2. On the first beat, triggers musical simplifications (wind-down calls) at their scheduled bar offsets — dispatching MelodyEngine, PadTrack, ChordTrack, WalkingBass with their palette-specific parameters
+3. Then schedules the gain ramps at their existing bar offsets (which are now the *fade* portion, after simplification has already started). Ramp timings remain hardcoded per SPEC_008 §3; palette data only tunes the *behavior* during simplify, not the 16-bar envelope.
 
 The timing is pre-scheduled on first beat of decay (like now), but wind-down calls are dispatched per-beat as their trigger bar arrives — not all at once — because they modify live state (pattern selection, Markov chain behavior) rather than scheduling Web Audio parameter ramps.
 
@@ -206,6 +223,26 @@ NarrativeConductor's motif system is phase-driven. During decay, phase stays at 
 
 If FillSystem exists, suppress it during decay — fills during wind-down would fight the simplification. Check: `if (_cycleState === 'decay') return;` guard in `FillSystem.triggerPhaseFill`.
 
+### 6.8 Legato voice lifecycle (#44)
+
+The melody legato system (SPEC_032 §5, #39/#44 bugfixes) persists an oscillator + gain + filter chain between notes when the palette has `legato: true` (noir_jazz, vaporwave, synthwave, lo_fi_chill). Known failure mode from #44: firing a new note onto a dead legato chain re-triggers the LPF envelope from peak and produces a brittle pop.
+
+`MelodyEngine.windDown()` generates new descent notes on entry. Without an explicit legato teardown, this triggers #44's exact failure pattern — worse, because the decay arc runs on the most-watched moment of the song.
+
+**Required:**
+- `windDown()` must call `_killLiveVoice()` as its very first action, before any note is scheduled.
+- The `_phraseEntry = true` flag (set by the #44 fix for phrase-start notes) must also be set on the first descent note so the LPF starts at base, not peak.
+- Once wind-down is active, the melody's `tick()` path should short-circuit before any new-note generation — wind-down owns the voice until decay ends.
+
+### 6.9 Motif state lifecycle (SPEC_036)
+
+MelodyEngine's motif system (`_motif`, `_phrIdx`, `_antecedentOpening`, `_variationUseCounts`) represents the current cycle's melodic DNA. If decay ends with a non-null motif, the next rebuild phase (SPEC_008 §4) would either resume that motif (wrong — it's a new cycle) or replace it (fine, but with a fleeting window of stale state on the first rebuild tick).
+
+**Required:**
+- `windDown()` clears motif state on entry (`_motif = null`, `_phrIdx = 0`, `_antecedentOpening = null`, `_variationUseCounts = {}`).
+- The descent phrase during wind-down is generated directly by the forced-descending Markov path, not by `_applyVariation` or `_generateMotif` — those are dormant during wind-down.
+- `resetRun()` and the rebuild-phase motif regen (existing behavior) still run normally on the next cycle.
+
 ---
 
 ## 7 · Build issues
@@ -213,9 +250,11 @@ If FillSystem exists, suppress it during decay — fills during wind-down would 
 **Single build session.** All changes are tightly coupled: conductor dispatches wind-down calls, each instrument module implements its exit behavior, StateMapper integrates the scheduling, palette profiles tune the feel. No testable intermediate state (melody wind-down without bass wind-down sounds broken).
 
 **One issue:**
-- **#___ Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles** (Opus)
+- **#30 Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles** (Opus)
 
-Scope: ~35 edits across conductor.js (dispatch logic), sequencer.js (MelodyEngine.windDown, PadTrack.windDown, WalkingBass.setDecayMode), state_mapper.js (startCycleDecay modification), harmony.js (×10 palette decay profiles), config.js (optional constants). Within single-session budget.
+Scope (post-audit): ~50 edits across conductor.js (dispatch logic, 2 edits), melody.js (windDown with legato kill + motif reset, ~10 edits), sequencer.js (PadTrack.windDown + ChordTrack.windDown + WalkingBass.setDecayMode, ~15 edits), state_mapper.js (startCycleDecay palette lookup + dispatch, ~5 edits), harmony.js (×10 palette decay profiles including chordExit, ~15 edits — mostly data), config.js (optional constants).
+
+At the edge of single-session budget (~50 > ~40 guideline) but tightly coupled and not splittable — any partial build produces broken intermediate state. The data-heavy portions (10 palette objects × 6 fields = 60 property additions) are low risk since they're flat object-literal additions, not logic. Logic edits total ~30 and fit comfortably.
 
 ---
 
@@ -226,11 +265,14 @@ Scope: ~35 edits across conductor.js (dispatch logic), sequencer.js (MelodyEngin
 3. **Bass simplifies** — no walking bass patterns during decay, just root notes
 4. **Drums simplify before fading** — half-time feel, no fills, no ghost notes
 5. **Pad rings out** — extended release creates a reverberant tail during decay
-6. **16-bar total envelope preserved** — decay still takes exactly 16 bars (SPEC_008 contract unchanged)
-7. **Bridge/rebuild unaffected** — all wind-down states are cleared before bridge
-8. **Same seed reproducibility** — decay behavior is deterministic (no randomized exit phrases)
-9. **No regression** — cycle mode, phase progression, stagger, tension all work correctly
-10. `npm run gate` passes
+6. **ChordTrack exits cleanly** — pattern stops, exit style matches palette (mute/hold/decay); no ChordTrack stabs fire during gain fade
+7. **No legato pop** — noir_jazz / vaporwave / synthwave / lo_fi_chill enter wind-down without triggering #44's LPF-burst pop on the first descent note
+8. **Motif cleared cleanly** — next cycle's rebuild starts with fresh motif state (verified by inspecting `_motif` after decay → bridge → rebuild)
+9. **16-bar total envelope preserved** — decay still takes exactly 16 bars (SPEC_008 contract unchanged)
+10. **Bridge/rebuild unaffected** — all wind-down states are cleared before bridge
+11. **Same seed reproducibility** — decay behavior is deterministic (no randomized exit phrases)
+12. **No regression** — cycle mode, phase progression, stagger, tension all work correctly
+13. `npm run gate` passes
 
 ---
 

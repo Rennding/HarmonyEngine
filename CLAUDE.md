@@ -164,7 +164,7 @@ src/ → config.js, state.js, conductor.js,
        audio.js, harmony.js, sequencer.js,
        voice_pool.js, groove.js, state_mapper.js,
        wavetables.js, melody.js, narrative.js,
-       shell.html
+       diagnostic.js, shell.html
 scripts/dev-server.js
 build.js, package.json, CLAUDE.md, DEVLOG.md, INDEX.md
 specs/ dist/
@@ -190,7 +190,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #35 + #36 + #37 + #39 awaiting QA. Next: #30, then #40/#41.**
+**Status: #42 awaiting QA. Next: #44 (legato pop bug), then #30, then #40/#41, then #43.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -222,19 +222,25 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#32** Per-palette voice overhaul — plan complete → SPEC_032_PER_PALETTE_VOICE_OVERHAUL.md
 ✅ **#33** Melody synth rebuild — per-palette synthesis chain (Opus) — qa-pass
 ✅ **#34** ChordTrack — rhythmic chord articulation engine (Opus) — qa-pass
-✅ **#35** ChordTrack stagger + phase tuning (Sonnet) — built, awaiting QA
+✅ **#35** ChordTrack stagger + phase tuning (Sonnet) — qa-pass
 ✅ Melody evolution — plan complete → SPEC_036_MELODY_EVOLUTION.md
-✅ **#36** Melody evolution — seed motif + phrase pairing + contour bias (Opus) — built, awaiting QA
-✅ **#37** Melody evolution — I-R post-filter + interval affinity (Opus) — built, awaiting QA
+✅ **#36** Melody evolution — seed motif + phrase pairing + contour bias (Opus) — qa-pass
+✅ **#37** Melody evolution — I-R post-filter + interval affinity (Opus) — qa-pass
 ⚠️ **#38** Melody evolution — melodic rhythm extensions (Sonnet) — qa-improve → see #39
 ✅ Melody rhythm palette fix — plan complete → SPEC_039_MELODY_RHYTHM_PALETTE_FIX.md
-✅ **#39** Melody rhythm palette fix — swing×syncopation + legato guard + attack pop (Opus) — built, awaiting QA
+✅ **#39** Melody rhythm palette fix — swing×syncopation + legato guard + attack pop (Opus) — qa-pass
+- **#44** Bug: Legato voice expiration causes brittle pops in noir_jazz, vaporwave, synthwave (Opus, P1)
 ✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
 - **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus)
 ✅ Chord evolution — plan complete → SPEC_040_CHORD_EVOLUTION.md
 - **#40** VoicingEngine — per-palette voicing intelligence + extension ramp + collision avoidance (Opus)
 - **#41** Phase-driven harmonic rhythm — per-palette × per-phase chord change rate (Sonnet, depends on #40)
 - **#13** Faster start — skip empty Pulse or add intro phrase (plan)
+
+### Tier 4b · QA Tooling (P2)
+✅ Audio diagnostic system — plan complete → SPEC_042_AUDIO_DIAGNOSTIC_SYSTEM.md
+✅ **#42** Diagnostic foundation — vocab + panel + 9 gain/voice detectors + hooks (Opus) — built, awaiting QA
+- **#43** Diagnostic expansion — 16 spectral + musical + rhythm + envelope detectors (Opus, depends on #42)
 
 ### Tier 5 · UI/UX (P2–P3)
 - **#14** UI overhaul — musical feedback + per-palette visualizer colors (P2, Sonnet) [absorbed #15]

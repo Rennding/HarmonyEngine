@@ -202,6 +202,16 @@ var VoicePool = {
     return voice;
   },
 
+  // --- Diagnostic accessors (SPEC_042 §5) ---
+  stealCount: 0,  // incremented on voice steal, reset each beat by diagnostic
+  activeCount: function() {
+    var n = 0;
+    for (var i = 0; i < this._pool.length; i++) {
+      if (this._pool[i].active) n++;
+    }
+    return n;
+  },
+
   // --- Hard stop all voices immediately (called on scene death/shutdown) ---
   // Cancels all pending timeouts to prevent post-death callbacks.
   shutdown: function() {

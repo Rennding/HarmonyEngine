@@ -9,6 +9,36 @@
 
 ---
 
+## 2026-04-17 — #39 QA pass + #44 legato pop bug filed
+
+Closed #39 (melody rhythm palette fix) — swing×syncopation, syncopation reduction, legato guard, attack pop all working as specced.
+
+Residual bug found during QA: brittle pops / "laser beam" transients in legato palettes. noir_jazz (constant), vaporwave (storm→surge ~60%), synthwave (rare, surge). Root cause: hardcoded `_liveNoteEnd` guard (+0.15s) doesn't survive hold skips — the legato voice dies and the fresh chain fires the LPF envelope from peak, creating a bright transient burst. The timing math perfectly explains the per-palette frequency of the bug. Filed as #44 (P1 bug, Opus, ~6 edits in melody.js).
+
+**Files changed:** none (QA session)
+
+---
+
+## 2026-04-17 — #42 Diagnostic foundation (Opus build)
+
+New `src/diagnostic.js` module: real-time audio diagnostic overlay for QA. Press D to toggle.
+
+**Built:** DIAGNOSTIC_VOCAB (17 terms), DiagnosticPanel (state + tracks + anomaly log), DiagnosticLog (50-entry ring buffer + clipboard copy), AnomalyDetector (9 detectors), NoteEventBus, glossary popup, CFG.DIAGNOSTIC thresholds. Thin hooks in voice_pool.js (activeCount, stealCount), audio.js (getLimiterReduction), state_mapper.js (_lastTargetGains, _lastStaggerFire). Shell integration + build inclusion.
+
+**Files changed:** src/diagnostic.js (new), src/config.js, src/voice_pool.js, src/audio.js, src/state_mapper.js, src/shell.html, build.js, INDEX.md
+
+**Status:** Awaiting QA. Next: #30 (Post-Maelstrom decay), then #40/#41 (chord evolution).
+
+---
+
+## 2026-04-17 — Audio Diagnostic System plan → SPEC_042, #42, #43
+
+Designed a two-part QA tooling system to fix the "I can't describe what I hear" problem. Part A: shared vocabulary of 17 audio descriptors (muddy, boomy, harsh, etc.) mapping human symptoms to technical causes. Part B: active diagnostic overlay toggled with D key — 25 anomaly detectors across 7 categories (gain, spectral/FFT, voice pool, musical coherence, envelope, phase transition, rhythm) that auto-log issues with full reproduction context (beat, phase, palette, seed). Copy-to-clipboard for instant QA paste. Split into #42 (foundation: panel + vocab + 9 gain/voice detectors) and #43 (expansion: 16 spectral/musical/rhythm/envelope detectors, depends on #42). Both Opus.
+
+**Files changed:** `specs/SPEC_042_AUDIO_DIAGNOSTIC_SYSTEM.md` (new), `CLAUDE.md` §5/§7
+
+---
+
 ## 2026-04-17 — #39 Melody rhythm palette fix (build)
 Fixed four QA issues from #38: swing×syncopation mutual exclusion (noir_jazz no longer sounds like ambient_dread), noir_jazz syncopation 0.70→0.40, 20ms phrase-boundary gap + wider legato guard (no more pops/plucks in synthwave/noir_jazz/ambient_dread), synthwave attack 0.04→0.08, ambient_dread melody gain 0.9→0.75. Gate passes. Awaiting QA.
 

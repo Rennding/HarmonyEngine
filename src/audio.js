@@ -403,6 +403,11 @@ function applyVolumeSetting() {
 // ── FFT analyser access for visualizer (SPEC_028 §3) ──────────────────────
 function getAnalyser() { return _analyser; }
 
+// ── Limiter reduction access for diagnostic (SPEC_042 §5) ─────────────────
+function getLimiterReduction() {
+  return _limiter ? _limiter.reduction : 0;
+}
+
 // ── SFX bus mute/unmute — master switch for all non-music audio ──────────
 // Call muteSfx() on pause, perkPause, death. unmuteSfx() on resume/unpause.
 function muteSfx() {

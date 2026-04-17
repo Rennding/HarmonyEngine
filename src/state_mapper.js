@@ -17,6 +17,10 @@ var StateMapper = {
   _sidechainPhaseMult: 1.0,    // per-phase sidechain intensity multiplier (SPEC_016 §5)
   _cycleFrozen: false,         // true during decay/bridge — suppress _updateLayers
 
+  // ── Diagnostic hooks (SPEC_042 §5) ─────────────────────────────────────────
+  _lastTargetGains: {},    // { trackName: lastTargetValue } — written on every gain ramp
+  _lastStaggerFire: null,  // { group, beat } — written after each stagger group fires
+
   // ── PhaseStagger state (SPEC_010) ──────────────────────────────────────────
   _staggerQueue:    [],      // { group, triggerBeat, phase, oldPhase }
   _staggerActive:   false,   // true while stagger window is in progress
@@ -342,6 +346,7 @@ var StateMapper = {
         if (hasGainNodes && _trackGains[tk]) {
           var floorGain = inFloor ? 0.3 : 0.0;
           _trackGains[tk].gain.setTargetAtTime(floorGain, t, 0.02);
+          this._lastTargetGains[tk] = floorGain;   // SPEC_042 diagnostic hook
         }
       }
       return;
@@ -378,6 +383,7 @@ var StateMapper = {
           targetGain = 0.3 + 0.7 * aboveNorm;
         }
         _trackGains[trk].gain.setTargetAtTime(targetGain, t, rampTau);
+        this._lastTargetGains[trk] = targetGain;   // SPEC_042 diagnostic hook
       }
     }
 
@@ -590,6 +596,8 @@ var StateMapper = {
     }
     // Update _effectiveFloor for this group's tracks
     this._updateEffectiveFloor(group, phase);
+    // SPEC_042 diagnostic hook
+    this._lastStaggerFire = { group: group, beat: G.beatCount };
   },
 
   // --- Update _effectiveFloor for tracks belonging to a group ---

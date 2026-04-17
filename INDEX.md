@@ -180,3 +180,26 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Conductor.isCycleMode() | conductor.js | 202 | Read cycle mode state |
 | Conductor.getCycleState() | conductor.js | 203 | Current cycle transition state |
 | Conductor.forcePhase() | conductor.js | 221 | Override phase progression (locked during cycle) |
+
+---
+
+## X · diagnostic.js — Audio diagnostic system (SPEC_042)
+
+| Symbol | File | Line | Description |
+|---|---|---|---|
+| DIAGNOSTIC_VOCAB | diagnostic.js | 6 | 17-term shared QA vocabulary (key → label, description, technicalHint, freqRange) |
+| NoteEventBus | diagnostic.js | 28 | Lightweight pub/sub for note-on/note-off timestamps |
+| DiagnosticLog | diagnostic.js | 39 | Ring buffer (50 entries) + clipboard formatter |
+| AnomalyDetector | diagnostic.js | 78 | Per-beat detector runner: 9 gain/voice/state detectors |
+| DiagnosticPanel | diagnostic.js | 313 | DOM construction, D-key toggle, beat-driven update loop |
+
+### Thin hooks added by SPEC_042
+
+| Symbol | File | Description |
+|---|---|---|
+| VoicePool.activeCount() | voice_pool.js | Returns count of active voices |
+| VoicePool.stealCount | voice_pool.js | Per-beat steal counter (reset by diagnostic) |
+| getLimiterReduction() | audio.js | Returns _limiter.reduction for clip detection |
+| StateMapper._lastTargetGains | state_mapper.js | Last target gain per track (written on ramp) |
+| StateMapper._lastStaggerFire | state_mapper.js | { group, beat } after each stagger group fires |
+| CFG.DIAGNOSTIC | config.js | All detector thresholds + per-detector enable flags |

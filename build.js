@@ -22,6 +22,7 @@ const MODULE_ORDER = [
   'melody.js',
   'narrative.js',
   'conductor.js',
+  'diagnostic.js',
 ];
 
 // Globals the smoke test verifies exist after eval
@@ -67,24 +68,24 @@ function smokeTest(js) {
     const script = new vm.Script(js);
     script.runInContext(ctx);
   } catch (e) {
-    // Runtime errors (e.g. browser API calls) are expected — we only care that
+    // Runtime errors (e.g. browser API calls) are expected -- we only care that
     // top-level declarations succeeded and required globals are defined.
   }
 
-  // var declarations don't appear as sandbox properties — probe via a script in same context
+  // var declarations don't appear as sandbox properties -- probe via a script in same context
   const missing = REQUIRED_GLOBALS.filter(g => {
     try {
-      const result = new vm.Script(`typeof ${g}`).runInContext(ctx);
+      const result = new vm.Script('typeof ' + g).runInContext(ctx);
       return result === 'undefined';
     } catch (_) {
       return true;
     }
   });
   if (missing.length > 0) {
-    console.error('SMOKE TEST FAILED — missing globals: ' + missing.join(', '));
+    console.error('SMOKE TEST FAILED -- missing globals: ' + missing.join(', '));
     process.exit(1);
   }
-  console.log('Smoke test OK — globals present: ' + REQUIRED_GLOBALS.join(', '));
+  console.log('Smoke test OK -- globals present: ' + REQUIRED_GLOBALS.join(', '));
 }
 
 function build() {
@@ -95,10 +96,10 @@ function build() {
   for (const mod of MODULE_ORDER) {
     const fp = path.join(SRC, mod);
     if (!fs.existsSync(fp)) {
-      console.error(`MISSING: ${mod}`);
+      console.error('MISSING: ' + mod);
       process.exit(1);
     }
-    js += `// ── ${mod} ──────────────────────────────────────────\n`;
+    js += '// -- ' + mod + ' --------------------------------------------------\n';
     js += fs.readFileSync(fp, 'utf8') + '\n\n';
   }
 
@@ -123,7 +124,7 @@ function build() {
   const output = shell.replace('/* __INJECT_JS__ */', js);
 
   fs.writeFileSync(path.join(DIST, 'index.html'), output, 'utf8');
-  console.log(`Built → dist/index.html (${(output.length / 1024).toFixed(1)} KB)`);
+  console.log('Built -> dist/index.html (' + (output.length / 1024).toFixed(1) + ' KB)');
 }
 
 build();

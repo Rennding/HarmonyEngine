@@ -11,6 +11,7 @@
 3. Sync GitHub: `list_issues` state:open on Rennding/HarmonyEngine (when repo exists)
 4. **Desync check:**
    - Cross-check §7 (Backlog, Awaiting QA, Build queue) against open issues. Remove any entry whose issue is closed.
+   - **Cross-check §7 ✅ items (plan-complete / qa-pass) against open issues — if any is still open on GH, it's an orphan; close it with a desync-cleanup comment.**
    - List local branches — any `claude/*` branch without an open issue or merged PR = orphan; flag to Aram.
    - Scan last 10 merged PRs — any missing `Closes #NN` = flag to Aram.
    Advance §7 header if next task is ready. Fix all desync before doing anything else.
@@ -101,6 +102,7 @@ Every session = one open issue. Every commit = one issue ref. Every PR = one `Cl
 | PR open | Body includes `Closes #NN` (or `Refs #NN` for partial). Title ≤70 chars. |
 | PR merge | Verify linked issue auto-closed. If not, close manually + comment. |
 | QA verdict | See §3 `qa[NN]:` workflow — unchanged. |
+| **Plan-session end** | **Close the plan-session issue** after firing SPEC + build issues + DEVLOG. The plan issue is NOT a tracking ticket for the build — the build issues are. Post closing comment: `Plan complete. SPEC_NNN written. Build issues: #NN, #NN. Closing per §2a.` |
 | Session end | See §4 checklist. |
 
 **Exemptions:** `q:` / `quick:` / `decision:` / `code:` prefixes skip issue creation, but still require a one-line comment on the most-recent relevant issue if the work touches code.
@@ -152,8 +154,8 @@ Default: one spec → one build issue → one session. Issues are fine-grained (
 
 ## 4 · Session end (in this order)
 
-1. Update issue body if scope drifted; post closing comment (QA Brief for build sessions).
-2. Relabel and close the issue (or apply `needs-aram` if QA pending).
+1. Update issue body if scope drifted; post closing comment (QA Brief for build sessions, plan-complete summary for plan sessions).
+2. Relabel and close the issue (or apply `needs-aram` if QA pending). **Plan-session issues close when the spec + build issues + DEVLOG are fired** — not when the build ships. The plan is the deliverable; the builds are separate tickets.
 3. Update §7 DO THIS NEXT below (title + model + prompt = atomic unit). Advance header.
 4. Mirror 1-line summary to DEVLOG.md (human-facing only).
 5. Extract 0–3 learnings → §8 failure modes.
@@ -339,6 +341,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | Orphan branch (no issue, no PR) | All branches named `claude/issue-NN-slug`. Session-start §1 step 4 flags bare `claude/*` branches. Never delete a branch without Aram's OK. |
 | PR merged without `Closes #NN` | PR body must include `Closes #NN` or `Refs #NN`. Session-start check audits last 10 merged PRs; flag misses to Aram. |
 | Commit without issue ref | Commit messages use `[#NN] subject` prefix. `[#infra]` allowed for meta work. Reject vague messages like "edits" — rewrite before push. |
+| Plan-session issue left open after spec + builds fired | Plan-session issues close when the plan's deliverables (SPEC file + build issues + DEVLOG entry) are fired — NOT when the build ships. §2a has an explicit row; §4 step 2 reiterates. Orphan plan issues (§7 marks ✅ but GH still open) caught by the §1 step 4 desync check — close immediately with a desync-cleanup comment. |
 
 ---
 

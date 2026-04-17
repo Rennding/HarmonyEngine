@@ -218,7 +218,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #30 + #42 + #44 awaiting QA. Next: #40/#41, then #43.**
+**Status: #30 + #40 + #42 + #44 awaiting QA. Next: #41, then #43.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -261,7 +261,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
 ⚠️ **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus) — built, awaiting QA
 ✅ Chord evolution — plan complete → SPEC_040_CHORD_EVOLUTION.md
-- **#40** VoicingEngine — per-palette voicing intelligence + extension ramp + collision avoidance (Opus)
+⚠️ **#40** VoicingEngine — per-palette voicing intelligence + extension ramp + collision avoidance (Opus) — built, awaiting QA
 - **#41** Phase-driven harmonic rhythm — per-palette × per-phase chord change rate (Sonnet, depends on #40)
 - **#13** Faster start — skip empty Pulse or add intro phrase (plan)
 

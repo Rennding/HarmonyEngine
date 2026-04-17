@@ -9,6 +9,14 @@
 
 ---
 
+## 2026-04-17 — #40 VoicingEngine built (awaiting QA)
+
+Built SPEC_040 §3/§5/§6 — chord voicing intelligence per palette. New VoicingEngine object in harmony.js sits between chord symbols and synthesis; ChordTrack + PadTrack both route through it now. Seven voicing styles (power/close/drop2/open/shell/cluster/spread), phase-driven extension ramp (no extensions for techno/industrial/chiptune, up to 9ths for synthwave/lo_fi/vaporwave, full 7/9/11/13 for noir_jazz), register enforcement with octave-3 density cap, and chord-melody collision avoidance (avoid/split/none modes).
+
+Pre-build audit caught that #30's build landed on `claude/build-improvements-XmJ4H` — an orphan-named branch that violates §2a (should have been `claude/issue-30-*`) and is still unmerged. #40 built on current main base; merge with #30 will be mechanical when #30 passes QA. Narrative and SFX calls to `getChordTones` intentionally left as raw-triad gesture layer (confirmed with Aram).
+
+---
+
 ## 2026-04-17 — UI overhaul rescope → SPEC_014, #45, #46, #47
 
 Re-planned all of Tier 5 against the current engine. #14 (the original UI overhaul) was written before ChordTrack, cycle mode, staggered phase transitions, tension curve randomization, melody motifs, and the D-key diagnostic panel (#42) all landed. Its instrument list, chord surface, and phase representation were stale.

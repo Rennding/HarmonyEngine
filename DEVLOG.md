@@ -9,6 +9,18 @@
 
 ---
 
+## 2026-04-17 — Diagnostic panel mobile polish
+
+Ad-hoc fix for the #42 diagnostic overlay. Two changes in `src/diagnostic.js`:
+- Added `@media (max-width: 600px)` rule: panel/glossary go full-width with ≥40px touch targets on phones.
+- Replaced the error-only badge with an always-visible `DIAG` toggle button in the top-right corner. Doubles as error indicator (turns red on unseen errors, cyan-filled while panel open). 'd' hotkey retained for desktop.
+
+No spec, no issue — session ran on branch `claude/mobile-diagnostic-page-TOdjK`. QA: Aram confirmed working on device.
+
+**Files changed:** `src/diagnostic.js`.
+
+---
+
 ## 2026-04-17 — UI overhaul rescope → SPEC_014, #45, #46, #47
 
 Re-planned all of Tier 5 against the current engine. #14 (the original UI overhaul) was written before ChordTrack, cycle mode, staggered phase transitions, tension curve randomization, melody motifs, and the D-key diagnostic panel (#42) all landed. Its instrument list, chord surface, and phase representation were stale.

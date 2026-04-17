@@ -130,12 +130,16 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 |---|---|---|---|
 | MelodyEngine | melody.js | 6 | Markov melody generator |
 | MelodyEngine._motif/_phrIdx | melody.js | 25 | Motif state: seed motif, phrase index, antecedent cache (SPEC_036) |
-| MelodyEngine._generateMotif | melody.js | 789 | Generate seed motif from Markov chain (SPEC_036 §3) |
-| MelodyEngine._applyVariation | melody.js | 825 | Apply variation to motif: repeat/transpose/invert/diminish/fragment (SPEC_036 §3.6) |
-| MelodyEngine._pickVariationType | melody.js | 888 | Pick variation type based on phase + palette weights (SPEC_036 §3.5) |
-| MelodyEngine._contourBias | melody.js | 916 | Contour direction bias per phrase position (SPEC_036 §4) |
-| MelodyEngine._killLiveVoice | melody.js | 1185 | Kill persistent legato oscillator chain (SPEC_032) |
-| MelodyEngine._playMelodyNote | melody.js | 1212 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
+| MelodyEngine._irState | melody.js | 32 | I-R state: lastInterval, gapFillRemaining, directionRun (SPEC_036 §5) |
+| MelodyEngine._generateMotif | melody.js | 793 | Generate seed motif from Markov chain (SPEC_036 §3) |
+| MelodyEngine._applyVariation | melody.js | 829 | Apply variation to motif: repeat/transpose/invert/diminish/fragment (SPEC_036 §3.6) |
+| MelodyEngine._pickVariationType | melody.js | 892 | Pick variation type based on phase + palette weights (SPEC_036 §3.5) |
+| MelodyEngine._contourBias | melody.js | 920 | Contour direction bias per phrase position (SPEC_036 §4) |
+| MelodyEngine._irFilter | melody.js | 956 | I-R post-filter: gap-fill + direction closure probability modifier (SPEC_036 §5) |
+| MelodyEngine._irUpdate | melody.js | 1007 | Update I-R state after note pick (SPEC_036 §5.3) |
+| MelodyEngine._intervalAffinity | melody.js | 1035 | Per-palette interval affinity soft bias (SPEC_036 §7) |
+| MelodyEngine._killLiveVoice | melody.js | 1295 | Kill persistent legato oscillator chain (SPEC_032) |
+| MelodyEngine._playMelodyNote | melody.js | 1322 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
 | MelodyEngine._liveOsc/Gain/Filter | melody.js | 30 | Legato state: persistent osc, gain, filter refs (SPEC_032) |
 
 ---

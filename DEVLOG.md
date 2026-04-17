@@ -9,6 +9,14 @@
 
 ---
 
+## 2026-04-17 — #37 Build: Melody evolution — I-R post-filter + interval affinity
+
+**What:** Added two note-selection refinement layers to the melody engine. I-R (Implication-Realization) post-filter tracks gap-fill obligations and direction runs — after a large leap, the next 1–3 notes are biased toward opposite stepwise motion. Direction closure kicks in after 3+ same-direction moves. Interval affinity gives each palette a soft weight map on semitone intervals — jazz favors chromatic m2 and tritone, synthwave favors bright M3/P4, ambient favors tense m2/tritone, techno favors open P4/P5. Both layers are multiplied into the existing candidate tournament alongside contour bias. Per-palette `ir` and `intervalAffinity` configs added to all 10 palettes.
+
+**Files:** melody.js (3 new functions: `_irFilter`, `_irUpdate`, `_intervalAffinity` + state wiring), harmony.js (×10 palette configs).
+
+---
+
 ## 2026-04-17 — #36 Build: Melody evolution — seed motif + phrase pairing + contour bias
 
 **What:** Built the first three melody evolution subsystems from SPEC_036. The melody engine now generates a seed motif at song/cycle start and derives all subsequent phrases from it via variation (repeat, transpose, invert, diminish, fragment). Phrases come in antecedent-consequent pairs (question ends unresolved, answer resolves to root). Per-palette contour bias shapes phrases toward genre-appropriate arcs (synthwave arches, jazz descends, ambient undulates, techno stays flat). Replaced NarrativeConductor motif seeding (25% chance) with the full motif system. Added `motif`, `contour`, `phrasing` configs to all 10 palettes.

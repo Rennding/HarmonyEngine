@@ -28,6 +28,9 @@ var MelodyEngine = {
   _antecedentOpening: null, // cached opening degrees of antecedent phrase (for parallel pairing)
   _variationUseCounts: null, // track usage of each variation type for balancing
 
+  // ── I-R state (SPEC_036 §5) ───────────────────────────────────────────────
+  _irState: null,            // { lastInterval, gapFillRemaining, directionRun } — reset per phrase
+
   // ── Legato state (SPEC_032 §3.4) ──────────────────────────────────────────
   _liveOsc: null,          // persistent oscillator for legato mode
   _liveOsc2: null,         // PWM second oscillator (chiptune)
@@ -549,6 +552,7 @@ var MelodyEngine = {
     this._phrIdx = 0;
     this._antecedentOpening = null;
     this._variationUseCounts = { repeat: 0, transpose: 0, invert: 0, diminish: 0, fragment: 0 };
+    this._irState = { lastInterval: 0, gapFillRemaining: 0, directionRun: 0 };
     // Motif generation deferred to first _generatePhrase call (needs HarmonyEngine ready)
 
     // Cache rhythm config (SPEC_023 §B1)
@@ -948,8 +952,106 @@ var MelodyEngine = {
     return 1.0;
   },
 
-  // ── Phrase generation: motif → variation → contour → pairing (SPEC_036) ───
+  // ── I-R post-filter: Narmour gap-fill + direction closure (SPEC_036 §5) ──
+  _irFilter: function(candidateDeg, prevDeg, scaleNotes) {
+    var irCfg = (this._palette && this._palette.ir) || {};
+    var gapThreshold = irCfg.gapThreshold !== undefined ? irCfg.gapThreshold : 5;
+    var strength = irCfg.strength !== undefined ? irCfg.strength : 0.5;
+
+    // Phase-scale I-R strictness (SPEC_036 §2)
+    var phase = G.phase || 'pulse';
+    var phaseScales = { pulse: 0, swell: 1.0, surge: 1.0, storm: 0.7, maelstrom: 0.5 };
+    strength *= (phaseScales[phase] !== undefined ? phaseScales[phase] : 0.7);
+
+    if (strength < 0.01) return 1.0;
+
+    var ir = this._irState;
+    if (!ir) return 1.0;
+
+    // Compute candidate interval in semitones (signed)
+    var numDeg = scaleNotes.length;
+    var prevIdx = ((prevDeg % numDeg) + numDeg) % numDeg;
+    var candIdx = ((candidateDeg % numDeg) + numDeg) % numDeg;
+    var candInterval = scaleNotes[candIdx] - scaleNotes[prevIdx];
+    var mod = 1.0;
+
+    // Rule 1: Gap-fill — after leap, bias toward stepwise contrary motion
+    if (ir.gapFillRemaining > 0) {
+      var oppositeDir = ir.lastInterval > 0 ? -1 : 1;
+      var isOppositeStep = (candInterval * oppositeDir > 0) && Math.abs(candInterval) <= 2;
+      var isSameDir = (candInterval * ir.lastInterval > 0);
+      // Interpolate multipliers by strength
+      if (isOppositeStep) {
+        mod *= 1.0 + strength * 1.0;  // at strength=1: 2.0×
+      } else if (isSameDir) {
+        mod *= 1.0 - strength * 0.7;  // at strength=1: 0.3×
+      }
+    }
+
+    // Rule 2: Closure — after 3+ same-direction moves, bias toward reversal
+    if (ir.directionRun >= 3) {
+      var runDir = ir.lastInterval > 0 ? 1 : -1;
+      var reverses = (candInterval * runDir < 0);
+      var continues = (candInterval * runDir > 0);
+      if (reverses) {
+        mod *= 1.0 + strength * 0.5;  // at strength=1: 1.5×
+      } else if (continues) {
+        mod *= 1.0 - strength * 0.5;  // at strength=1: 0.5×
+      }
+    }
+
+    return Math.max(mod, 0.05); // floor to prevent zeroing out
+  },
+
+  // ── Update I-R state after a note is picked (SPEC_036 §5.3) ──────────────
+  _irUpdate: function(pickedDeg, prevDeg, scaleNotes) {
+    var ir = this._irState;
+    if (!ir) return;
+    var irCfg = (this._palette && this._palette.ir) || {};
+    var gapThreshold = irCfg.gapThreshold !== undefined ? irCfg.gapThreshold : 5;
+
+    var numDeg = scaleNotes.length;
+    var prevIdx = ((prevDeg % numDeg) + numDeg) % numDeg;
+    var pickIdx = ((pickedDeg % numDeg) + numDeg) % numDeg;
+    var interval = scaleNotes[pickIdx] - scaleNotes[prevIdx];
+
+    // Trigger gap-fill if leap exceeds threshold
+    if (Math.abs(interval) > gapThreshold) {
+      ir.gapFillRemaining = Math.min(Math.max(Math.floor(Math.abs(interval) / 2), 1), 3);
+    } else if (ir.gapFillRemaining > 0) {
+      ir.gapFillRemaining--;
+    }
+
+    // Track direction run
+    if (interval !== 0) {
+      var sameDir = (interval > 0 && ir.lastInterval > 0) || (interval < 0 && ir.lastInterval < 0);
+      ir.directionRun = sameDir ? ir.directionRun + 1 : 1;
+    }
+
+    ir.lastInterval = interval;
+  },
+
+  // ── Per-palette interval affinity soft bias (SPEC_036 §7) ─────────────────
+  _intervalAffinity: function(candidateDeg, prevDeg, scaleNotes) {
+    var affinityMap = this._palette && this._palette.intervalAffinity;
+    if (!affinityMap) return 1.0;
+
+    var numDeg = scaleNotes.length;
+    var prevIdx = ((prevDeg % numDeg) + numDeg) % numDeg;
+    var candIdx = ((candidateDeg % numDeg) + numDeg) % numDeg;
+    var absSemitones = Math.abs(scaleNotes[candIdx] - scaleNotes[prevIdx]);
+    // Normalize to 0-11 range (octave-equivalent)
+    absSemitones = absSemitones % 12;
+
+    var weight = affinityMap[absSemitones];
+    return (weight !== undefined) ? weight : 1.0;
+  },
+
+  // ── Phrase generation: motif → variation → contour → I-R → affinity → pairing (SPEC_036) ───
   _generatePhrase: function() {
+    // Reset I-R state per phrase (SPEC_036 §5.3)
+    this._irState = { lastInterval: 0, gapFillRemaining: 0, directionRun: 0 };
+
     var phase = G.phase || 'pulse';
     var density = this._PHASE_DENSITY[phase] || this._PHASE_DENSITY.pulse;
     // Scale phrase length by subdivision (SPEC_023 §B2)
@@ -1013,11 +1115,15 @@ var MelodyEngine = {
       }
     }
 
-    // ── Step 5: Apply contour bias to Markov-generated notes (SPEC_036 §4) ──
-    // For notes beyond the motif/reuse region, re-select with contour weighting
+    // ── Step 5: Apply contour → I-R → interval affinity to Markov notes (SPEC_036 §4,5,7) ──
+    // For notes beyond the motif/reuse region, re-select with layered weighting
     var contourStart = isAntecedent ? 1 : (pairStyle === 'parallel' ? reuseLength : 1);
+    // Seed I-R state from motif/reuse region so gap-fill is primed
+    for (var irSeed = 1; irSeed < contourStart && irSeed < degs.length; irSeed++) {
+      this._irUpdate(degs[irSeed], degs[irSeed - 1], scaleNotes);
+    }
     for (var ci = contourStart; ci < degs.length; ci++) {
-      // Use contour-weighted selection: evaluate multiple candidates
+      // Use layered-weighted selection: evaluate multiple candidates
       var prevDeg = degs[ci - 1];
       this._history = ci >= 2 ? [degs[ci - 2], prevDeg] : [prevDeg, prevDeg];
       var bestDeg = degs[ci]; // fallback: keep variation's choice
@@ -1026,13 +1132,17 @@ var MelodyEngine = {
       for (var cand = 0; cand < candidates; cand++) {
         var candDeg = this._selectNextNote(numDegrees, scaleNotes, chordTones, ci, degs.length);
         var contourMod = this._contourBias(ci, degs.length, candDeg, prevDeg, numDegrees);
-        var score = contourMod * (0.5 + rng() * 0.5); // stochastic + contour
+        var irMod = this._irFilter(candDeg, prevDeg, scaleNotes);
+        var affinityMod = this._intervalAffinity(candDeg, prevDeg, scaleNotes);
+        var score = contourMod * irMod * affinityMod * (0.5 + rng() * 0.5);
         if (score > bestScore) {
           bestScore = score;
           bestDeg = candDeg;
         }
       }
       degs[ci] = bestDeg;
+      // Update I-R state with the picked note
+      this._irUpdate(bestDeg, prevDeg, scaleNotes);
     }
 
     // ── Step 6: Enforce phrase ending (SPEC_036 §6.2) ──

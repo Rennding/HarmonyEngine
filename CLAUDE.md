@@ -190,7 +190,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #35 + #36 awaiting QA. Next: #37 → #38 → #30.**
+**Status: #35 + #36 + #37 awaiting QA. Next: #38 → #30.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -225,7 +225,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#35** ChordTrack stagger + phase tuning (Sonnet) — built, awaiting QA
 ✅ Melody evolution — plan complete → SPEC_036_MELODY_EVOLUTION.md
 ✅ **#36** Melody evolution — seed motif + phrase pairing + contour bias (Opus) — built, awaiting QA
-- **#37** Melody evolution — I-R post-filter + interval affinity (Opus)
+✅ **#37** Melody evolution — I-R post-filter + interval affinity (Opus) — built, awaiting QA
 - **#38** Melody evolution — melodic rhythm extensions (Sonnet)
 ✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
 - **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus)

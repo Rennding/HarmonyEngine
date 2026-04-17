@@ -166,6 +166,12 @@
 </head>
 <body>
 
+<!-- Hidden media-element sink for background-audio reliability on mobile.
+     audio.js routes the final limiter output through a MediaStream into this
+     element so Chrome/Firefox Android treat the tab as actively-playing media
+     and exempt it from background setInterval throttling. -->
+<audio id="hePlayback" playsinline style="display:none"></audio>
+
 <h1>HARMONY ENGINE</h1>
 <p class="subtitle">Procedural music station — extracted from DemoShooter</p>
 

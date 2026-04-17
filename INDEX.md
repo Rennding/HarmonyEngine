@@ -51,14 +51,17 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| initAudio() | audio.js | 129 | Builds full Web Audio graph |
-| startBeatClock() | audio.js | 419 | Chris Wilson lookahead scheduler |
-| stopBeatClock() | audio.js | 437 | Clears scheduler |
+| initAudio() | audio.js | 180 | Builds full Web Audio graph (limiter → MediaStreamDestination → `<audio>`) |
+| startBeatClock() | audio.js | 493 | Chris Wilson lookahead scheduler |
+| stopBeatClock() | audio.js | 511 | Clears scheduler |
 | _trackGains | audio.js | 24 | Per-track gain nodes |
-| _pumpTrackSidechains() | audio.js | 478 | Per-track sidechain pump |
-| playImpactSFX() | audio.js | 513 | Hit feedback SFX |
-| playNearSFX() | audio.js | 596 | 3-tier near-event SFX |
-| getAnalyser() | audio.js | 401 | FFT analyser node |
+| _pumpTrackSidechains() | audio.js | ~530 | Per-track sidechain pump |
+| playImpactSFX() | audio.js | ~565 | Hit feedback SFX |
+| playNearSFX() | audio.js | ~648 | 3-tier near-event SFX |
+| getAnalyser() | audio.js | 470 | FFT analyser node |
+| _mediaDest / _mediaElement | audio.js | 24–25 | MediaStream sink + hidden `<audio id="hePlayback">` — mobile background-audio routing |
+| _attachMediaElement() | audio.js | 136 | Bind _mediaDest.stream to hidden audio element, autoplay/play() |
+| _installVisibilityHandler() | audio.js | 162 | visibilitychange: resume ctx + clamp _nextBeatTime on tab return |
 
 ---
 
@@ -180,6 +183,7 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Conductor.isCycleMode() | conductor.js | 202 | Read cycle mode state |
 | Conductor.getCycleState() | conductor.js | 203 | Current cycle transition state |
 | Conductor.forcePhase() | conductor.js | 221 | Override phase progression (locked during cycle) |
+| _updateMediaSession() | conductor.js | 39 | MediaSession metadata + play/pause/stop handlers (mobile bg audio) |
 
 ---
 

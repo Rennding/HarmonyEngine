@@ -1955,11 +1955,12 @@ var _CHORD_PATTERNS = {
     {a:1,v:0.75}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
   ],
   // Syncopated comp: jazz voicing — 1-and, 2, and-of-3, 4
+  // Velocities reduced to prevent gain collision with simultaneous melody notes (qa39 improve)
   synco_comp: [
-    {a:1,v:0.6}, {a:0,v:0}, {a:1,v:0.4}, {a:0,v:0},
-    {a:1,v:0.7}, {a:0,v:0}, {a:0,v:0}, {a:1,v:0.3},
-    {a:0,v:0}, {a:0,v:0}, {a:1,v:0.5}, {a:0,v:0},
-    {a:1,v:0.65}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+    {a:1,v:0.45}, {a:0,v:0}, {a:1,v:0.35}, {a:0,v:0},
+    {a:1,v:0.55}, {a:0,v:0}, {a:0,v:0}, {a:1,v:0.25},
+    {a:0,v:0}, {a:0,v:0}, {a:1,v:0.40}, {a:0,v:0},
+    {a:1,v:0.50}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
   ],
   // Ascending arp — every 16th note, cycling through chord tones
   arp_up: [

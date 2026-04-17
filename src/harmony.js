@@ -614,7 +614,7 @@ var PALETTES = [
       vibratoDepth: 8, vibratoRate: 3.5, vibratoDelay: 0.2,
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
       legato: true, legatoTime: 0.12, staccato: false,
-      gainScalar: 0.75, // SPEC_039 Fix D: reduced from 0.9 — less aggressive on fresh chain starts
+      gainScalar: 0, // muted: boinging oscillator artifact -- pending dedicated fix session
       narrativeMotif: false, // legato bloom drowns mix on narrative stabs
     },
 

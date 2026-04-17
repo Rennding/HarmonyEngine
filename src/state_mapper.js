@@ -472,14 +472,9 @@ var StateMapper = {
         _delayFeedback.gain.setValueAtTime(_delayFeedback.gain.value, t);
         _delayFeedback.gain.linearRampToValueAtTime(Math.min(paletteFx.delayFb, 0.55), t + rampSec);
       }
-      if (_delay && paletteFx.delayTime && typeof G !== 'undefined' && G.bpm) {
-        var beatSec = 60 / G.bpm;
-        var dMap = { '4n': beatSec, '8n': beatSec / 2, '16n': beatSec / 4 };
-        var dTime = dMap[paletteFx.delayTime] || (beatSec / 2);
-        _delay.delayTime.cancelScheduledValues(t);
-        _delay.delayTime.setValueAtTime(_delay.delayTime.value, t);
-        _delay.delayTime.linearRampToValueAtTime(dTime, t + rampSec);
-      }
+      // delayTime automation omitted: changing delay time mid-playback causes audible clicks
+      // as the delay buffer re-reads at a new position (Web Audio limitation).
+      // Feedback and send levels are animated instead; time stays at initAudio value.
 
       // Delay send amounts
       if (typeof _trackDelaySends !== 'undefined') {

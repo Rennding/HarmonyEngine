@@ -2185,7 +2185,7 @@ var PALETTES = [
       vibratoDepth: 8, vibratoRate: 3.5, vibratoDelay: 0.2,
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
       legato: true, legatoTime: 0.12, staccato: false,
-      gainScalar: 0.75, // SPEC_039 Fix D: reduced from 0.9 — less aggressive on fresh chain starts
+      gainScalar: 0, // muted: boinging oscillator artifact -- pending dedicated fix session
       narrativeMotif: false, // legato bloom drowns mix on narrative stabs
     },
 
@@ -6356,11 +6356,12 @@ var _CHORD_PATTERNS = {
     {a:1,v:0.75}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
   ],
   // Syncopated comp: jazz voicing — 1-and, 2, and-of-3, 4
+  // Velocities reduced to prevent gain collision with simultaneous melody notes (qa39 improve)
   synco_comp: [
-    {a:1,v:0.6}, {a:0,v:0}, {a:1,v:0.4}, {a:0,v:0},
-    {a:1,v:0.7}, {a:0,v:0}, {a:0,v:0}, {a:1,v:0.3},
-    {a:0,v:0}, {a:0,v:0}, {a:1,v:0.5}, {a:0,v:0},
-    {a:1,v:0.65}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
+    {a:1,v:0.45}, {a:0,v:0}, {a:1,v:0.35}, {a:0,v:0},
+    {a:1,v:0.55}, {a:0,v:0}, {a:0,v:0}, {a:1,v:0.25},
+    {a:0,v:0}, {a:0,v:0}, {a:1,v:0.40}, {a:0,v:0},
+    {a:1,v:0.50}, {a:0,v:0}, {a:0,v:0}, {a:0,v:0},
   ],
   // Ascending arp — every 16th note, cycling through chord tones
   arp_up: [
@@ -7834,14 +7835,9 @@ var StateMapper = {
         _delayFeedback.gain.setValueAtTime(_delayFeedback.gain.value, t);
         _delayFeedback.gain.linearRampToValueAtTime(Math.min(paletteFx.delayFb, 0.55), t + rampSec);
       }
-      if (_delay && paletteFx.delayTime && typeof G !== 'undefined' && G.bpm) {
-        var beatSec = 60 / G.bpm;
-        var dMap = { '4n': beatSec, '8n': beatSec / 2, '16n': beatSec / 4 };
-        var dTime = dMap[paletteFx.delayTime] || (beatSec / 2);
-        _delay.delayTime.cancelScheduledValues(t);
-        _delay.delayTime.setValueAtTime(_delay.delayTime.value, t);
-        _delay.delayTime.linearRampToValueAtTime(dTime, t + rampSec);
-      }
+      // delayTime automation omitted: changing delay time mid-playback causes audible clicks
+      // as the delay buffer re-reads at a new position (Web Audio limitation).
+      // Feedback and send levels are animated instead; time stays at initAudio value.
 
       // Delay send amounts
       if (typeof _trackDelaySends !== 'undefined') {

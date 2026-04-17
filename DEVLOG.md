@@ -9,6 +9,30 @@
 
 ---
 
+## 2026-04-17 — Chord Evolution plan → SPEC_040, #40, #41
+
+**What:** Plan session for chord system evolution. Designed four subsystems based on AUDIT_MELODY_CHORDS_RESEARCH.md Part 2 + Part 6 items 9–12:
+
+1. **VoicingEngine** (#40, Opus) — new object in harmony.js that sits between HarmonyEngine's chord symbols and ChordTrack/PadTrack. Per-palette voicing styles: drop-2 for jazz, power chords for techno/industrial, open spread for synthwave, shell for lo-fi, cluster for ambient_dread, close triads for chiptune. Includes voice leading, register enforcement (octave 3 max 2 notes), and chord-melody collision avoidance (three modes: avoid, split, none).
+2. **Extension ramp** (part of #40) — per-palette × per-phase whitelist replacing the binary allow9th flag. Swell = triads only. Surge = +7ths. Storm = +9ths. Maelstrom = full extensions for jazz/lo-fi (11ths, 13ths). Techno/industrial/chiptune stay bare throughout.
+3. **Phase-driven harmonic rhythm** (#41, Sonnet) — replaces hardcoded `_beatsPerChord = 4` with per-palette × per-phase table. dark_techno: 32 beats at Pulse → 4 at Maelstrom. noir_jazz: 2 beats at Pulse → 0.5 at Maelstrom. ambient_dread: 64 → 8.
+4. **Chord-melody collision avoidance** (part of #40) — VoicingEngine checks MelodyEngine's last note, avoids doubling at same octave. Register split mode for minimal palettes.
+
+**Spec:** SPEC_040_CHORD_EVOLUTION.md
+**Issues:** #40 (VoicingEngine, Opus, ~35 edits), #41 (harmonic rhythm, Sonnet, ~20 edits, depends on #40)
+
+---
+
+## 2026-04-17 — #38 QA: qa-improve → #39 opened
+
+**What:** Three issues diagnosed in #38 melody rhythm extensions. (1) noir_jazz sounds like ambient_dread — swing inheritance and syncopation both displacing the same note steps simultaneously, producing chaotic off-grid timing instead of jazz feel; syncopation rate also far too high at 70%. (2) Note pops at phrase boundaries in synthwave and noir_jazz — fresh oscillator chain starts too close to prior voice kill, 40ms attack creating transient click. (3) ambient_dread and noir_jazz both sounding like plucks instead of legato — legato chain continuity guard too tight (50ms) causing chain-break and fresh-attack on notes that should sustain.
+
+**Spec written:** SPEC_039_MELODY_RHYTHM_PALETTE_FIX.md. Four fixes: swing×syncopation mutual exclusion, noir_jazz syncopation rate 70%→40%, legato guard 50ms→150ms, 20ms phrase-boundary gap + synthwave attack 40ms→80ms.
+
+**Files:** specs/SPEC_039_MELODY_RHYTHM_PALETTE_FIX.md (new)
+
+---
+
 ## 2026-04-17 — #38 Build: Melody evolution — melodic rhythm extensions
 
 **What:** Three new `melodyRhythm` fields wired into `MelodyEngine.tick()`: `syncopationProbability` shifts a note's scheduled time early by half a sub-unit (jazzy push), `dottedBias` makes a note 1.5× duration with the next note shortened by 0.5× to compensate (long-short feel), and `rubato` adds ±12.5ms freeform timing drift. All three cached in `initRun()` from palette config. Per-palette values added to all 10 palettes — noir_jazz and lo_fi_chill are heavy syncopators, synthwave and breakbeat use dotted rhythm, ambient/vaporwave/lo_fi use rubato, dark_techno and industrial stay mechanically on-grid.

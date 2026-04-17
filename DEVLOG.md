@@ -413,3 +413,28 @@ Next: #8 plan-session — Cycle mode / radio station.
 ---
 
 <!-- Entries will appear above this line, newest first -->
+
+## 2026-04-17 — built #30: post-maelstrom theatrical decrescendo
+
+Replaced cycle decay's gain-only fade with a musical wind-down. Each
+instrument simplifies before its gain ramps — melody plays a final
+phrase (descend/sustain/stutter), bass drops to tier-0 root notes at
+stride, pad freezes and rings out with boosted reverb, chord stabs
+mute/hold/decay per palette, drums go half-time/sparse/instant. Kick
+remains full through the 16 bars as the "last heartbeat." Each of
+the 10 palettes has its own exit profile (melodyExit, chordExit,
+padReleaseMult, bassHoldBeats, rhythmStyle, reverbBoost).
+
+Fixed three audit gaps from spec-written-before-later-specs: (1)
+legato voice is killed before any descent note is scheduled so #44's
+LPF burst pop doesn't reappear at cycle exit; (2) motif state is
+cleared on wind-down entry so no stale phrases leak into rebuild;
+(3) ChordTrack now has its own wind-down path (wasn't in original
+spec because #34/#35 post-dated it).
+
+Aborted-decay safety: _resetCycleState clears all wind-down flags,
+so toggling cycle mode off mid-decay recovers cleanly via
+_updateLayers' setTargetAtTime overriding the pending gain ramps.
+
+Scope: ~50 edits across conductor/melody/sequencer/state_mapper/harmony.
+Gate passes. Branch: claude/build-improvements-XmJ4H.

@@ -23,6 +23,8 @@ var _SCHEDULER_MS = 25;   // scheduler tick interval
 // ── Mobile background-audio routing (see initAudio) ────────────────────────
 var _mediaDest = null;        // MediaStreamAudioDestinationNode (final WebAudio sink)
 var _mediaElement = null;     // HTMLAudioElement consuming _mediaDest.stream
+var _silentElement = null;    // HTMLAudioElement with real src — triggers Android media notification
+var _silentUrl = null;        // generated silent-WAV blob URL
 var _visibilityBound = false; // guard: install visibilitychange listener once
 
 // ── Per-track mix nodes (SPEC_016 §4) ──────────────────────────────────────
@@ -131,6 +133,63 @@ function _makeImpulse(duration, decay) {
   return impulse;
 }
 
+// Build a 1-second silent mono 8kHz WAV as a blob URL. Used as a real `src`
+// for the fallback <audio> element so Chrome Android renders a media
+// notification (it ignores <audio srcObject=MediaStream> for notifications).
+function _makeSilentWavUrl() {
+  if (_silentUrl) return _silentUrl;
+  var sampleRate = 8000;
+  var numSamples = sampleRate; // 1 second
+  var bytesPerSample = 2;
+  var dataLen = numSamples * bytesPerSample;
+  var buf = new ArrayBuffer(44 + dataLen);
+  var v = new DataView(buf);
+  function writeStr(offset, s) {
+    for (var i = 0; i < s.length; i++) v.setUint8(offset + i, s.charCodeAt(i));
+  }
+  writeStr(0, 'RIFF');
+  v.setUint32(4, 36 + dataLen, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  v.setUint32(16, 16, true);           // PCM chunk size
+  v.setUint16(20, 1, true);            // PCM format
+  v.setUint16(22, 1, true);            // mono
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, sampleRate * bytesPerSample, true); // byte rate
+  v.setUint16(32, bytesPerSample, true);              // block align
+  v.setUint16(34, 16, true);           // bits per sample
+  writeStr(36, 'data');
+  v.setUint32(40, dataLen, true);
+  // samples default to 0 → silence
+  var blob = new Blob([buf], { type: 'audio/wav' });
+  _silentUrl = URL.createObjectURL(blob);
+  return _silentUrl;
+}
+
+// Attach the silent fallback element. It plays at volume 0 (inaudible) but
+// satisfies Chrome Android's "this tab has playing media with a real src"
+// check — which is the trigger for showing media notifications. Idempotent.
+function _attachSilentElement() {
+  if (typeof document === 'undefined') return;
+  if (!_silentElement) {
+    _silentElement = document.getElementById('heSilent');
+    if (!_silentElement) {
+      _silentElement = document.createElement('audio');
+      _silentElement.id = 'heSilent';
+      _silentElement.loop = true;
+      _silentElement.playsInline = true;
+      _silentElement.preload = 'auto';
+      _silentElement.style.display = 'none';
+      document.body.appendChild(_silentElement);
+    }
+  }
+  _silentElement.loop = true;
+  _silentElement.volume = 0.0;
+  if (!_silentElement.src) _silentElement.src = _makeSilentWavUrl();
+  var p = _silentElement.play();
+  if (p && typeof p.catch === 'function') p.catch(function() {});
+}
+
 // Bind _mediaDest.stream to the hidden <audio id="hePlayback"> sink created
 // in shell.html. Called from initAudio after _mediaDest exists. Idempotent.
 function _attachMediaElement() {
@@ -181,8 +240,9 @@ function initAudio() {
   if (audioCtx) {
     // Already exists — resume if suspended (autoplay policy or after stop)
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    // Re-prime the media element in case the user tapped Stop then Play.
+    // Re-prime the media elements in case the user tapped Stop then Play.
     _attachMediaElement();
+    _attachSilentElement();
     _installVisibilityHandler();
     return;
   }
@@ -428,6 +488,7 @@ function initAudio() {
   _mediaDest = audioCtx.createMediaStreamDestination();
   _limiter.connect(_mediaDest);
   _attachMediaElement();
+  _attachSilentElement();
   _installVisibilityHandler();
 
   // ── Legacy compat: submixGain → mixBus (for any code still using it) ──

@@ -172,6 +172,13 @@
      and exempt it from background setInterval throttling. -->
 <audio id="hePlayback" playsinline style="display:none"></audio>
 
+<!-- Silent-src fallback element for Chrome Android media notifications.
+     Chrome Android often refuses to render a media notification for
+     <audio srcObject=MediaStream> (the heuristic wants a "real" src URL).
+     audio.js generates a silent WAV blob and assigns it as src on first play
+     so lock-screen / notif-shade controls appear alongside the real stream. -->
+<audio id="heSilent" playsinline loop preload="auto" style="display:none"></audio>
+
 <h1>HARMONY ENGINE</h1>
 <p class="subtitle">Procedural music station — extracted from DemoShooter</p>
 
@@ -865,6 +872,8 @@ var _SCHEDULER_MS = 25;   // scheduler tick interval
 // ── Mobile background-audio routing (see initAudio) ────────────────────────
 var _mediaDest = null;        // MediaStreamAudioDestinationNode (final WebAudio sink)
 var _mediaElement = null;     // HTMLAudioElement consuming _mediaDest.stream
+var _silentElement = null;    // HTMLAudioElement with real src — triggers Android media notification
+var _silentUrl = null;        // generated silent-WAV blob URL
 var _visibilityBound = false; // guard: install visibilitychange listener once
 
 // ── Per-track mix nodes (SPEC_016 §4) ──────────────────────────────────────
@@ -973,6 +982,63 @@ function _makeImpulse(duration, decay) {
   return impulse;
 }
 
+// Build a 1-second silent mono 8kHz WAV as a blob URL. Used as a real `src`
+// for the fallback <audio> element so Chrome Android renders a media
+// notification (it ignores <audio srcObject=MediaStream> for notifications).
+function _makeSilentWavUrl() {
+  if (_silentUrl) return _silentUrl;
+  var sampleRate = 8000;
+  var numSamples = sampleRate; // 1 second
+  var bytesPerSample = 2;
+  var dataLen = numSamples * bytesPerSample;
+  var buf = new ArrayBuffer(44 + dataLen);
+  var v = new DataView(buf);
+  function writeStr(offset, s) {
+    for (var i = 0; i < s.length; i++) v.setUint8(offset + i, s.charCodeAt(i));
+  }
+  writeStr(0, 'RIFF');
+  v.setUint32(4, 36 + dataLen, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  v.setUint32(16, 16, true);           // PCM chunk size
+  v.setUint16(20, 1, true);            // PCM format
+  v.setUint16(22, 1, true);            // mono
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, sampleRate * bytesPerSample, true); // byte rate
+  v.setUint16(32, bytesPerSample, true);              // block align
+  v.setUint16(34, 16, true);           // bits per sample
+  writeStr(36, 'data');
+  v.setUint32(40, dataLen, true);
+  // samples default to 0 → silence
+  var blob = new Blob([buf], { type: 'audio/wav' });
+  _silentUrl = URL.createObjectURL(blob);
+  return _silentUrl;
+}
+
+// Attach the silent fallback element. It plays at volume 0 (inaudible) but
+// satisfies Chrome Android's "this tab has playing media with a real src"
+// check — which is the trigger for showing media notifications. Idempotent.
+function _attachSilentElement() {
+  if (typeof document === 'undefined') return;
+  if (!_silentElement) {
+    _silentElement = document.getElementById('heSilent');
+    if (!_silentElement) {
+      _silentElement = document.createElement('audio');
+      _silentElement.id = 'heSilent';
+      _silentElement.loop = true;
+      _silentElement.playsInline = true;
+      _silentElement.preload = 'auto';
+      _silentElement.style.display = 'none';
+      document.body.appendChild(_silentElement);
+    }
+  }
+  _silentElement.loop = true;
+  _silentElement.volume = 0.0;
+  if (!_silentElement.src) _silentElement.src = _makeSilentWavUrl();
+  var p = _silentElement.play();
+  if (p && typeof p.catch === 'function') p.catch(function() {});
+}
+
 // Bind _mediaDest.stream to the hidden <audio id="hePlayback"> sink created
 // in shell.html. Called from initAudio after _mediaDest exists. Idempotent.
 function _attachMediaElement() {
@@ -1023,8 +1089,9 @@ function initAudio() {
   if (audioCtx) {
     // Already exists — resume if suspended (autoplay policy or after stop)
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    // Re-prime the media element in case the user tapped Stop then Play.
+    // Re-prime the media elements in case the user tapped Stop then Play.
     _attachMediaElement();
+    _attachSilentElement();
     _installVisibilityHandler();
     return;
   }
@@ -1270,6 +1337,7 @@ function initAudio() {
   _mediaDest = audioCtx.createMediaStreamDestination();
   _limiter.connect(_mediaDest);
   _attachMediaElement();
+  _attachSilentElement();
   _installVisibilityHandler();
 
   // ── Legacy compat: submixGain → mixBus (for any code still using it) ──
@@ -11278,7 +11346,15 @@ var Conductor = (function() {
   // Declares the tab as an active media player to the OS. Reinforces
   // background-audio exemption from Layer 1 and exposes lock-screen /
   // notification transport controls on mobile.
+  //
+  // Action handler mapping (limited to standard MediaSession actions — the
+  // browser/OS chooses which icons to render):
+  //   play / pause / stop       → transport
+  //   nexttrack / previoustrack → next / prev palette
+  //   seekforward / seekbackward → step phase up / down
   var _mediaSessionBound = false;
+  var _lastMediaSessionPhase = null;
+  var _artworkCache = {};  // paletteName → data URL (cheap SVG)
   function _mediaSessionSupported() {
     return typeof navigator !== 'undefined' && 'mediaSession' in navigator;
   }
@@ -11289,21 +11365,59 @@ var Conductor = (function() {
     }
     return '';
   }
+  // Palette-colored SVG artwork as data URL. Some Chrome Android versions
+  // only render the media notification when MediaMetadata.artwork is set.
+  function _paletteArtwork(name) {
+    if (_artworkCache[name]) return _artworkCache[name];
+    var colors = {
+      dark_techno:   ['#0a0a0f', '#00ffcc'],
+      synthwave:     ['#1a0a2a', '#ff00aa'],
+      glitch:        ['#0a1a0a', '#aaff00'],
+      ambient_dread: ['#0a0a1a', '#557799'],
+      lo_fi_chill:   ['#1a1a0a', '#ffcc66'],
+      chiptune:      ['#000a0a', '#00ffee'],
+      noir_jazz:     ['#0a0a0a', '#cc9966'],
+      industrial:    ['#1a0a0a', '#ff6622'],
+      vaporwave:     ['#1a0a1a', '#66ccff'],
+      breakbeat:     ['#0a0a0a', '#ff3366']
+    };
+    var c = colors[name] || ['#0a0a0f', '#00ffcc'];
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">' +
+      '<rect width="512" height="512" fill="' + c[0] + '"/>' +
+      '<text x="256" y="230" font-family="monospace" font-size="64" font-weight="bold" fill="' + c[1] + '" text-anchor="middle">HARMONY</text>' +
+      '<text x="256" y="310" font-family="monospace" font-size="64" font-weight="bold" fill="' + c[1] + '" text-anchor="middle">ENGINE</text>' +
+      '<text x="256" y="400" font-family="monospace" font-size="32" fill="' + c[1] + '" text-anchor="middle" opacity="0.7">' + (name || '').toUpperCase().replace(/_/g, ' ') + '</text>' +
+      '</svg>';
+    var url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    _artworkCache[name] = url;
+    return url;
+  }
   function _updateMediaSession(state) {
     if (!_mediaSessionSupported()) return;
     try {
+      var pal = _currentPaletteName();
       if (typeof MediaMetadata !== 'undefined') {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: 'Harmony Engine',
-          artist: _currentPaletteName() || 'Procedural',
-          album: 'Procedural music station'
+          title: pal ? ('Harmony Engine — ' + pal) : 'Harmony Engine',
+          artist: pal || 'Procedural',
+          album: G && G.phase ? ('Phase: ' + G.phase) : 'Procedural music station',
+          artwork: [
+            { src: _paletteArtwork(pal), sizes: '512x512', type: 'image/svg+xml' }
+          ]
         });
       }
       navigator.mediaSession.playbackState = state; // 'playing' | 'paused' | 'none'
       if (!_mediaSessionBound) {
-        navigator.mediaSession.setActionHandler('play', function() { Conductor.resume(); });
-        navigator.mediaSession.setActionHandler('pause', function() { Conductor.pause(); });
-        navigator.mediaSession.setActionHandler('stop', function() { Conductor.stop(); });
+        var setH = function(action, fn) {
+          try { navigator.mediaSession.setActionHandler(action, fn); } catch (e) {}
+        };
+        setH('play',          function() { Conductor.resume(); });
+        setH('pause',         function() { Conductor.pause(); });
+        setH('stop',          function() { Conductor.stop(); });
+        setH('nexttrack',     function() { Conductor.nextPalette(); });
+        setH('previoustrack', function() { Conductor.prevPalette(); });
+        setH('seekforward',   function() { Conductor.stepPhase(+1); });
+        setH('seekbackward',  function() { Conductor.stepPhase(-1); });
         _mediaSessionBound = true;
       }
     } catch (e) {}
@@ -11512,6 +11626,13 @@ var Conductor = (function() {
     if (typeof PaletteBlender !== 'undefined') PaletteBlender.onBeat();
     if (typeof GrooveEngine !== 'undefined') GrooveEngine.onPhaseChange(G.phase);
 
+    // Refresh MediaSession metadata when phase changes so lock-screen/notif
+    // album line tracks the current phase. Cheap string compare — skip otherwise.
+    if (G.phase !== _lastMediaSessionPhase) {
+      _lastMediaSessionPhase = G.phase;
+      _updateMediaSession(_paused ? 'paused' : 'playing');
+    }
+
     // Dispatch beat event for UI (extended with cycleState — SPEC_008 §9)
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('conductor:beat', {
@@ -11641,6 +11762,51 @@ var Conductor = (function() {
       }
       _autoPhase = false;
       _manualPhase = name;
+      _updateMediaSession(_paused ? 'paused' : 'playing');
+    },
+
+    // Step forward/backward through CFG.PHASES (wraps).
+    // delta = +1 or -1. Locked during cycle transitions.
+    stepPhase: function(delta) {
+      if (_cycleState !== null) return;
+      if (typeof CFG === 'undefined' || !CFG.PHASES) return;
+      var phases = CFG.PHASES;
+      var cur = (typeof G !== 'undefined' && G.phase) ? G.phase : phases[0].name;
+      var idx = 0;
+      for (var i = 0; i < phases.length; i++) {
+        if (phases[i].name === cur) { idx = i; break; }
+      }
+      var next = ((idx + delta) % phases.length + phases.length) % phases.length;
+      _autoPhase = false;
+      _manualPhase = phases[next].name;
+      _updateMediaSession(_paused ? 'paused' : 'playing');
+    },
+
+    // Switch to a different palette. Uses stop+lockPalette+start — a brief
+    // gap, but deterministic. Mid-stream swap without cycle-mode is avoided
+    // because StateMapper/HarmonyEngine state machines expect cycle scaffolding.
+    setPalette: function(idx) {
+      if (typeof PALETTES === 'undefined') return;
+      var n = PALETTES.length;
+      var clamped = ((idx % n) + n) % n;
+      var wasRunning = _running;
+      if (wasRunning) this.stop();
+      this.lockPalette(clamped);
+      if (wasRunning) this.start(null);
+    },
+    nextPalette: function() {
+      if (typeof PALETTES === 'undefined') return;
+      var cur = (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette)
+        ? HarmonyEngine.getPalette() : null;
+      var i = cur ? PALETTES.indexOf(cur) : -1;
+      this.setPalette((i < 0 ? 0 : i + 1));
+    },
+    prevPalette: function() {
+      if (typeof PALETTES === 'undefined') return;
+      var cur = (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette)
+        ? HarmonyEngine.getPalette() : null;
+      var i = cur ? PALETTES.indexOf(cur) : 0;
+      this.setPalette(i - 1);
     },
     setVolume: function(v) {
       G.settings.volume = Math.max(0, Math.min(1, v));

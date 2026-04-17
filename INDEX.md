@@ -60,8 +60,11 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | playNearSFX() | audio.js | ~648 | 3-tier near-event SFX |
 | getAnalyser() | audio.js | 470 | FFT analyser node |
 | _mediaDest / _mediaElement | audio.js | 24–25 | MediaStream sink + hidden `<audio id="hePlayback">` — mobile background-audio routing |
-| _attachMediaElement() | audio.js | 136 | Bind _mediaDest.stream to hidden audio element, autoplay/play() |
-| _installVisibilityHandler() | audio.js | 162 | visibilitychange: resume ctx + clamp _nextBeatTime on tab return |
+| _silentElement / _silentUrl | audio.js | 26–27 | Silent-WAV fallback `<audio id="heSilent">` — triggers Chrome Android media notification |
+| _makeSilentWavUrl() | audio.js | ~137 | Generate 1s silent mono WAV blob URL (runtime) |
+| _attachSilentElement() | audio.js | ~166 | Attach + play silent fallback element (idempotent) |
+| _attachMediaElement() | audio.js | ~192 | Bind _mediaDest.stream to hidden audio element, autoplay/play() |
+| _installVisibilityHandler() | audio.js | ~218 | visibilitychange: resume ctx + clamp _nextBeatTime on tab return |
 
 ---
 
@@ -183,7 +186,12 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Conductor.isCycleMode() | conductor.js | 202 | Read cycle mode state |
 | Conductor.getCycleState() | conductor.js | 203 | Current cycle transition state |
 | Conductor.forcePhase() | conductor.js | 221 | Override phase progression (locked during cycle) |
-| _updateMediaSession() | conductor.js | 39 | MediaSession metadata + play/pause/stop handlers (mobile bg audio) |
+| Conductor.stepPhase() | conductor.js | ~395 | Step CFG.PHASES by ±1 (MediaSession seekforward/seekbackward) |
+| Conductor.setPalette() | conductor.js | ~412 | stop+lockPalette+start to a specific palette index |
+| Conductor.nextPalette() | conductor.js | ~421 | MediaSession nexttrack → next palette |
+| Conductor.prevPalette() | conductor.js | ~428 | MediaSession previoustrack → prev palette |
+| _updateMediaSession() | conductor.js | 39 | MediaSession metadata + artwork + 7 action handlers (mobile bg audio) |
+| _paletteArtwork() | conductor.js | ~52 | Per-palette SVG artwork data URL (for notification rendering) |
 
 ---
 

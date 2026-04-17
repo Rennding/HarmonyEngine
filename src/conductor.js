@@ -25,7 +25,15 @@ var Conductor = (function() {
   // Declares the tab as an active media player to the OS. Reinforces
   // background-audio exemption from Layer 1 and exposes lock-screen /
   // notification transport controls on mobile.
+  //
+  // Action handler mapping (limited to standard MediaSession actions — the
+  // browser/OS chooses which icons to render):
+  //   play / pause / stop       → transport
+  //   nexttrack / previoustrack → next / prev palette
+  //   seekforward / seekbackward → step phase up / down
   var _mediaSessionBound = false;
+  var _lastMediaSessionPhase = null;
+  var _artworkCache = {};  // paletteName → data URL (cheap SVG)
   function _mediaSessionSupported() {
     return typeof navigator !== 'undefined' && 'mediaSession' in navigator;
   }
@@ -36,21 +44,59 @@ var Conductor = (function() {
     }
     return '';
   }
+  // Palette-colored SVG artwork as data URL. Some Chrome Android versions
+  // only render the media notification when MediaMetadata.artwork is set.
+  function _paletteArtwork(name) {
+    if (_artworkCache[name]) return _artworkCache[name];
+    var colors = {
+      dark_techno:   ['#0a0a0f', '#00ffcc'],
+      synthwave:     ['#1a0a2a', '#ff00aa'],
+      glitch:        ['#0a1a0a', '#aaff00'],
+      ambient_dread: ['#0a0a1a', '#557799'],
+      lo_fi_chill:   ['#1a1a0a', '#ffcc66'],
+      chiptune:      ['#000a0a', '#00ffee'],
+      noir_jazz:     ['#0a0a0a', '#cc9966'],
+      industrial:    ['#1a0a0a', '#ff6622'],
+      vaporwave:     ['#1a0a1a', '#66ccff'],
+      breakbeat:     ['#0a0a0a', '#ff3366']
+    };
+    var c = colors[name] || ['#0a0a0f', '#00ffcc'];
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">' +
+      '<rect width="512" height="512" fill="' + c[0] + '"/>' +
+      '<text x="256" y="230" font-family="monospace" font-size="64" font-weight="bold" fill="' + c[1] + '" text-anchor="middle">HARMONY</text>' +
+      '<text x="256" y="310" font-family="monospace" font-size="64" font-weight="bold" fill="' + c[1] + '" text-anchor="middle">ENGINE</text>' +
+      '<text x="256" y="400" font-family="monospace" font-size="32" fill="' + c[1] + '" text-anchor="middle" opacity="0.7">' + (name || '').toUpperCase().replace(/_/g, ' ') + '</text>' +
+      '</svg>';
+    var url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    _artworkCache[name] = url;
+    return url;
+  }
   function _updateMediaSession(state) {
     if (!_mediaSessionSupported()) return;
     try {
+      var pal = _currentPaletteName();
       if (typeof MediaMetadata !== 'undefined') {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: 'Harmony Engine',
-          artist: _currentPaletteName() || 'Procedural',
-          album: 'Procedural music station'
+          title: pal ? ('Harmony Engine — ' + pal) : 'Harmony Engine',
+          artist: pal || 'Procedural',
+          album: G && G.phase ? ('Phase: ' + G.phase) : 'Procedural music station',
+          artwork: [
+            { src: _paletteArtwork(pal), sizes: '512x512', type: 'image/svg+xml' }
+          ]
         });
       }
       navigator.mediaSession.playbackState = state; // 'playing' | 'paused' | 'none'
       if (!_mediaSessionBound) {
-        navigator.mediaSession.setActionHandler('play', function() { Conductor.resume(); });
-        navigator.mediaSession.setActionHandler('pause', function() { Conductor.pause(); });
-        navigator.mediaSession.setActionHandler('stop', function() { Conductor.stop(); });
+        var setH = function(action, fn) {
+          try { navigator.mediaSession.setActionHandler(action, fn); } catch (e) {}
+        };
+        setH('play',          function() { Conductor.resume(); });
+        setH('pause',         function() { Conductor.pause(); });
+        setH('stop',          function() { Conductor.stop(); });
+        setH('nexttrack',     function() { Conductor.nextPalette(); });
+        setH('previoustrack', function() { Conductor.prevPalette(); });
+        setH('seekforward',   function() { Conductor.stepPhase(+1); });
+        setH('seekbackward',  function() { Conductor.stepPhase(-1); });
         _mediaSessionBound = true;
       }
     } catch (e) {}
@@ -259,6 +305,13 @@ var Conductor = (function() {
     if (typeof PaletteBlender !== 'undefined') PaletteBlender.onBeat();
     if (typeof GrooveEngine !== 'undefined') GrooveEngine.onPhaseChange(G.phase);
 
+    // Refresh MediaSession metadata when phase changes so lock-screen/notif
+    // album line tracks the current phase. Cheap string compare — skip otherwise.
+    if (G.phase !== _lastMediaSessionPhase) {
+      _lastMediaSessionPhase = G.phase;
+      _updateMediaSession(_paused ? 'paused' : 'playing');
+    }
+
     // Dispatch beat event for UI (extended with cycleState — SPEC_008 §9)
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('conductor:beat', {
@@ -388,6 +441,51 @@ var Conductor = (function() {
       }
       _autoPhase = false;
       _manualPhase = name;
+      _updateMediaSession(_paused ? 'paused' : 'playing');
+    },
+
+    // Step forward/backward through CFG.PHASES (wraps).
+    // delta = +1 or -1. Locked during cycle transitions.
+    stepPhase: function(delta) {
+      if (_cycleState !== null) return;
+      if (typeof CFG === 'undefined' || !CFG.PHASES) return;
+      var phases = CFG.PHASES;
+      var cur = (typeof G !== 'undefined' && G.phase) ? G.phase : phases[0].name;
+      var idx = 0;
+      for (var i = 0; i < phases.length; i++) {
+        if (phases[i].name === cur) { idx = i; break; }
+      }
+      var next = ((idx + delta) % phases.length + phases.length) % phases.length;
+      _autoPhase = false;
+      _manualPhase = phases[next].name;
+      _updateMediaSession(_paused ? 'paused' : 'playing');
+    },
+
+    // Switch to a different palette. Uses stop+lockPalette+start — a brief
+    // gap, but deterministic. Mid-stream swap without cycle-mode is avoided
+    // because StateMapper/HarmonyEngine state machines expect cycle scaffolding.
+    setPalette: function(idx) {
+      if (typeof PALETTES === 'undefined') return;
+      var n = PALETTES.length;
+      var clamped = ((idx % n) + n) % n;
+      var wasRunning = _running;
+      if (wasRunning) this.stop();
+      this.lockPalette(clamped);
+      if (wasRunning) this.start(null);
+    },
+    nextPalette: function() {
+      if (typeof PALETTES === 'undefined') return;
+      var cur = (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette)
+        ? HarmonyEngine.getPalette() : null;
+      var i = cur ? PALETTES.indexOf(cur) : -1;
+      this.setPalette((i < 0 ? 0 : i + 1));
+    },
+    prevPalette: function() {
+      if (typeof PALETTES === 'undefined') return;
+      var cur = (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette)
+        ? HarmonyEngine.getPalette() : null;
+      var i = cur ? PALETTES.indexOf(cur) : 0;
+      this.setPalette(i - 1);
     },
     setVolume: function(v) {
       G.settings.volume = Math.max(0, Math.min(1, v));

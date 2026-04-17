@@ -172,6 +172,13 @@
      and exempt it from background setInterval throttling. -->
 <audio id="hePlayback" playsinline style="display:none"></audio>
 
+<!-- Silent-src fallback element for Chrome Android media notifications.
+     Chrome Android often refuses to render a media notification for
+     <audio srcObject=MediaStream> (the heuristic wants a "real" src URL).
+     audio.js generates a silent WAV blob and assigns it as src on first play
+     so lock-screen / notif-shade controls appear alongside the real stream. -->
+<audio id="heSilent" playsinline loop preload="auto" style="display:none"></audio>
+
 <h1>HARMONY ENGINE</h1>
 <p class="subtitle">Procedural music station — extracted from DemoShooter</p>
 

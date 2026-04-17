@@ -563,6 +563,12 @@ var MelodyEngine = {
     this._holdProbability = mr.holdProbability !== undefined ? mr.holdProbability : 0.20;
     this._restStyle = mr.restStyle || 'even';          // 'even' | 'rhythmic'
 
+    // Melodic rhythm extensions (SPEC_036 §8)
+    this._syncopationProbability = mr.syncopationProbability !== undefined ? mr.syncopationProbability : 0.0;
+    this._dottedBias = mr.dottedBias !== undefined ? mr.dottedBias : 0.0;
+    this._rubato = !!mr.rubato;
+    this._dottedCompensate = false; // flag: next note should be shortened by 0.5×
+
     // Initial rest in sub-beat units (2 beats worth)
     var initSubMult = (this._subdivide === '16th') ? 4 : (this._subdivide === '8th') ? 2 : 1;
     this._restBeats = 2 * initSubMult;
@@ -617,6 +623,30 @@ var MelodyEngine = {
       // Advance melody step counter (for groove step tracking)
       this._melodyStep++;
 
+      // --- Melodic rhythm extensions (SPEC_036 §8) ---
+      // Syncopation: shift note early by half a sub-unit
+      if (this._syncopationProbability > 0 && (_songRng || Math.random)() < this._syncopationProbability) {
+        var syncShift = subDurSec * 0.5;
+        // Clamp: don't go before the beat boundary
+        subTime = Math.max(beatTime, subTime - syncShift);
+      }
+      // Dotted compensation: previous note was dotted, shorten this one by 0.5×
+      // (stored as a duration scalar on the note; tracked via _dottedCompensate flag)
+      // Dotted bias: make this note 1.5× duration (next note compensates)
+      // Both are applied in _playMelodyNote via the subDurSec hint — we pass a modified value
+      var noteDurSec = subDurSec;
+      if (this._dottedCompensate) {
+        noteDurSec = subDurSec * 0.5;
+        this._dottedCompensate = false;
+      } else if (this._dottedBias > 0 && (_songRng || Math.random)() < this._dottedBias) {
+        noteDurSec = subDurSec * 1.5;
+        this._dottedCompensate = true;
+      }
+      // Rubato: ±12.5ms freeform drift (independent of swing grid)
+      if (this._rubato) {
+        subTime += ((_songRng || Math.random)() - 0.5) * 0.025;
+      }
+
       // --- Rest between phrases ---
       if (this._restBeats > 0) {
         // Decrement rest in sub-beat units
@@ -645,8 +675,8 @@ var MelodyEngine = {
 
       midiNote = this._revalidateNote(midiNote);
 
-      // Pass sub-beat duration hint for envelope scaling
-      this._playMelodyNote(midiNote, subTime, undefined, subDurSec);
+      // Pass sub-beat duration hint for envelope scaling (noteDurSec reflects dotted compensation)
+      this._playMelodyNote(midiNote, subTime, undefined, noteDurSec);
 
       // --- End of phrase: schedule rest ---
       if (this._phrasePos >= this._currentPhrase.length) {

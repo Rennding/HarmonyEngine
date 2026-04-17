@@ -186,6 +186,9 @@ var PALETTES = [
       humanizeInherit: false,
       holdProbability: 0.15,     // mostly new notes — repetitive
       restStyle: 'even',         // floating entry OK for techno
+      syncopationProbability: 0.10, // slight push — mostly grid-locked
+      dottedBias: 0.0,              // no dotted — mechanical
+      rubato: false,                // quantized
     },
 
     voicing: {
@@ -332,6 +335,9 @@ var PALETTES = [
       humanizeInherit: false,
       holdProbability: 0.25,     // held notes for anthem feel
       restStyle: 'even',         // floating entry OK
+      syncopationProbability: 0.35, // anthem push — notes anticipate the beat
+      dottedBias: 0.25,             // long-short dotted rhythm — synthwave signature
+      rubato: false,                // quantized — grid-locked anthem feel
     },
 
     voicing: {
@@ -472,6 +478,9 @@ var PALETTES = [
       humanizeInherit: false,
       holdProbability: 0.10,     // tight, minimal holds
       restStyle: 'rhythmic',     // bar-aligned starts
+      syncopationProbability: 0.80, // maximum syncopation — stuttered, unpredictable
+      dottedBias: 0.10,             // occasional dotted stutter
+      rubato: false,                // quantized — glitch = precise chaos
     },
 
     voicing: {
@@ -613,6 +622,9 @@ var PALETTES = [
       humanizeInherit: true,
       holdProbability: 0.50,     // long holds — lots of space
       restStyle: 'even',         // floating entry = ethereal
+      syncopationProbability: 0.05, // almost none — freeform drift via rubato instead
+      dottedBias: 0.0,              // no dotted — freeform
+      rubato: true,                 // freeform drift — eerie, human, off-grid
     },
 
     voicing: {
@@ -752,6 +764,9 @@ var PALETTES = [
       humanizeInherit: true,
       holdProbability: 0.35,     // moderate holds — laid-back
       restStyle: 'rhythmic',     // bar-aligned phrases
+      syncopationProbability: 0.55, // hip-hop push — notes land before the beat
+      dottedBias: 0.10,             // occasional long-short — lazy dotted feel
+      rubato: true,                 // behind-the-beat human drift
     },
 
     voicing: {
@@ -897,6 +912,9 @@ var PALETTES = [
       humanizeInherit: false,
       holdProbability: 0.10,     // minimal holds — tight runs
       restStyle: 'rhythmic',     // bar-aligned phrases
+      syncopationProbability: 0.12, // minimal — tightly quantized NES feel
+      dottedBias: 0.0,              // no dotted — crisp even notes
+      rubato: false,                // machine-precise
     },
 
     voicing: {
@@ -1118,6 +1136,9 @@ var PALETTES = [
       humanizeInherit: true,
       holdProbability: 0.40,     // held notes — space and breath
       restStyle: 'rhythmic',     // bar-aligned phrase starts
+      syncopationProbability: 0.70, // heavy syncopation — jazz anticipation, notes push the beat
+      dottedBias: 0.15,             // dotted feel — jazz long-short phrasing
+      rubato: true,                 // human drift — jazz is never fully quantized
     },
 
     voicing: {
@@ -1373,6 +1394,9 @@ var PALETTES = [
       humanizeInherit: false,
       holdProbability: 0.05,     // almost no holds — relentless
       restStyle: 'even',         // no bar alignment — cold
+      syncopationProbability: 0.12, // slight machine stutter — mostly on-grid
+      dottedBias: 0.0,              // no dotted — cold, even
+      rubato: false,                // mechanically precise
     },
 
     voicing: {
@@ -1515,6 +1539,9 @@ var PALETTES = [
       humanizeInherit: true,
       holdProbability: 0.45,     // long holds — pitched-down feel
       restStyle: 'even',         // floating entry = dreamy
+      syncopationProbability: 0.10, // minimal — mostly floating on beats
+      dottedBias: 0.05,             // rare dotted — occasional dreamy lilt
+      rubato: true,                 // freeform drift — nostalgia, temporal ambiguity
     },
 
     voicing: {
@@ -1657,6 +1684,9 @@ var PALETTES = [
       humanizeInherit: true,
       holdProbability: 0.15,     // mostly tight notes
       restStyle: 'rhythmic',     // bar-aligned phrase starts
+      syncopationProbability: 0.40, // punchy anticipation — breakbeat push
+      dottedBias: 0.20,             // dotted feel — long-short breakbeat accent
+      rubato: false,                // quantized — breakbeat is precise
     },
 
     voicing: {

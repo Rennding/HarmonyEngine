@@ -9,6 +9,14 @@
 
 ---
 
+## 2026-04-17 — #38 Build: Melody evolution — melodic rhythm extensions
+
+**What:** Three new `melodyRhythm` fields wired into `MelodyEngine.tick()`: `syncopationProbability` shifts a note's scheduled time early by half a sub-unit (jazzy push), `dottedBias` makes a note 1.5× duration with the next note shortened by 0.5× to compensate (long-short feel), and `rubato` adds ±12.5ms freeform timing drift. All three cached in `initRun()` from palette config. Per-palette values added to all 10 palettes — noir_jazz and lo_fi_chill are heavy syncopators, synthwave and breakbeat use dotted rhythm, ambient/vaporwave/lo_fi use rubato, dark_techno and industrial stay mechanically on-grid.
+
+**Files:** `src/melody.js`, `src/harmony.js`
+
+---
+
 ## 2026-04-17 — #37 Build: Melody evolution — I-R post-filter + interval affinity
 
 **What:** Added two note-selection refinement layers to the melody engine. I-R (Implication-Realization) post-filter tracks gap-fill obligations and direction runs — after a large leap, the next 1–3 notes are biased toward opposite stepwise motion. Direction closure kicks in after 3+ same-direction moves. Interval affinity gives each palette a soft weight map on semitone intervals — jazz favors chromatic m2 and tritone, synthwave favors bright M3/P4, ambient favors tense m2/tritone, techno favors open P4/P5. Both layers are multiplied into the existing candidate tournament alongside contour bias. Per-palette `ir` and `intervalAffinity` configs added to all 10 palettes.

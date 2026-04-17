@@ -1,6 +1,6 @@
 # HarmonyEngine — Claude Operating File
 <!-- This file is Claude's single source of truth. Human-facing notes go in DEVLOG.md. -->
-<!-- LINE BUDGET: 300 max. If exceeded, archive stale decisions/failure modes. -->
+<!-- LINE BUDGET: 350 max. If exceeded, archive stale decisions/failure modes. -->
 
 ---
 
@@ -9,7 +9,11 @@
 1. Read this file. **Nothing else unless routing says so.**
 2. Read `INDEX.md` — symbol-level lookup table. Use it instead of reading whole source files. To find any function/const: find its address → `Read file:line` with ±20 line window.
 3. Sync GitHub: `list_issues` state:open on Rennding/HarmonyEngine (when repo exists)
-4. **Desync check:** Cross-check §7 (Backlog, Awaiting QA, Build queue) against open issues. Remove any entry whose issue is closed. Advance §7 header if next task is ready. Fix before doing anything else.
+4. **Desync check:**
+   - Cross-check §7 (Backlog, Awaiting QA, Build queue) against open issues. Remove any entry whose issue is closed.
+   - List local branches — any `claude/*` branch without an open issue or merged PR = orphan; flag to Aram.
+   - Scan last 10 merged PRs — any missing `Closes #NN` = flag to Aram.
+   Advance §7 header if next task is ready. Fix all desync before doing anything else.
 5. Routing:
 
 | Session type | Also read | Skip |
@@ -38,6 +42,9 @@ Always use full filename when referencing specs in GitHub issues, comments, and 
 - Rewriting whole files — targeted edits only
 - Guessing on ambiguous spec — stop and ask
 - Fixing unrelated bugs mid-session — note in report, don't fix
+
+### Self-improvement
+Every session, evaluate: did a new pattern repeat, did a rule fail, did I invent a workflow on the fly? If yes, update CLAUDE.md in the same session — §2/§2a/§3 when rules change, §8 when a failure repeats. CLAUDE.md drifts when updates are deferred.
 
 ### Validation
 - `npm run validate` — build + syntax check (every session)
@@ -78,6 +85,25 @@ Signals: Aram knows what he wants, but the *shape* of the solution needs researc
 ### INDEX.md maintenance
 - After any build session that adds/moves/removes functions: update INDEX.md (add/edit/delete rows, fix line numbers).
 - Keep INDEX.md ≤ 250 lines. If exceeded, collapse cold symbols into section ranges.
+
+---
+
+## 2a · GitHub lifecycle contract
+
+Every session = one open issue. Every commit = one issue ref. Every PR = one `Closes` line.
+
+| Event | Required action |
+|---|---|
+| Session start (plan/build/audit/infra) | Issue exists or create one. Post opening comment: `Session started — scope: <one line>, model: <name>`. |
+| Branch create | **Strict:** `claude/issue-NN-slug` (NN = issue number required). Orphan branches forbidden. |
+| Commit | Message prefix: `[#NN] <subject>`. Use `[#infra]` only for meta work with no issue. Reject vague messages. |
+| Mid-session pivot | Comment on issue: `Scope change: <what/why>`. Update issue body if permanent. |
+| PR open | Body includes `Closes #NN` (or `Refs #NN` for partial). Title ≤70 chars. |
+| PR merge | Verify linked issue auto-closed. If not, close manually + comment. |
+| QA verdict | See §3 `qa[NN]:` workflow — unchanged. |
+| Session end | See §4 checklist. |
+
+**Exemptions:** `q:` / `quick:` / `decision:` / `code:` prefixes skip issue creation, but still require a one-line comment on the most-recent relevant issue if the work touches code.
 
 ---
 
@@ -124,14 +150,16 @@ Default: one spec → one build issue → one session. Issues are fine-grained (
 
 ---
 
-## 4 · Session end
+## 4 · Session end (in this order)
 
-1. GitHub updates (relabel, close, comment)
-2. Mirror to DEVLOG.md (human summary only)
-3. Update §7 DO THIS NEXT below (title + model + prompt = atomic unit)
-4. Extract 0–3 learnings → §8 failure modes
-5. State model + next steps directly in chat
-6. Push unpushed commits at session end. Plan approval (ExitPlanMode) covers the follow-through push — no second confirmation. For sessions with no plan-approval step (quick prefixes, audits, ad-hoc edits), summarize unpushed commits and ask for a one-word go/no-go first. Never force-push.
+1. Update issue body if scope drifted; post closing comment (QA Brief for build sessions).
+2. Relabel and close the issue (or apply `needs-aram` if QA pending).
+3. Update §7 DO THIS NEXT below (title + model + prompt = atomic unit). Advance header.
+4. Mirror 1-line summary to DEVLOG.md (human-facing only).
+5. Extract 0–3 learnings → §8 failure modes.
+6. **If a rule changed or a new pattern appeared twice, update §2/§2a/§3 — not just §8.**
+7. Push unpushed commits. Plan approval (ExitPlanMode) covers the follow-through push — no second confirmation. For sessions with no plan-approval step (quick prefixes, audits, ad-hoc edits), summarize unpushed commits and ask for a one-word go/no-go first. Never force-push.
+8. State model + next steps directly in chat.
 
 ---
 
@@ -226,7 +254,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ Melody evolution — plan complete → SPEC_036_MELODY_EVOLUTION.md
 ✅ **#36** Melody evolution — seed motif + phrase pairing + contour bias (Opus) — qa-pass
 ✅ **#37** Melody evolution — I-R post-filter + interval affinity (Opus) — qa-pass
-⚠️ **#38** Melody evolution — melodic rhythm extensions (Sonnet) — qa-improve → see #39
+✅ **#38** Melody evolution — melodic rhythm extensions (Sonnet) — qa-pass (follow-up delivered in #39)
 ✅ Melody rhythm palette fix — plan complete → SPEC_039_MELODY_RHYTHM_PALETTE_FIX.md
 ✅ **#39** Melody rhythm palette fix — swing×syncopation + legato guard + attack pop (Opus) — qa-pass
 ⚠️ **#44** Bug: Legato voice expiration causes brittle pops in noir_jazz, vaporwave, synthwave (Opus, P1) — built, awaiting QA
@@ -279,6 +307,9 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | Standalone synth fns lack palette access | _synthBass/_synthDrum are module-scope functions, not Sequencer methods — they only see _activePaletteName, not the full palette object. When adding per-palette config reads, ensure _activePalette (full object) is set alongside _activePaletteName in Sequencer.initRun(). |
 | `git push` scope | Plan approval covers follow-through push — don't re-ask. For no-plan sessions, confirm once before pushing. If Aram says no-go, ask what to improve instead of stopping silently. Never force-push. |
 | Large file truncation by Edit/Write tool | **Never use Edit or Write on files >600 lines.** Use bash+sed/awk for targeted edits: `sed -i 's/old/new/g'` for replacements, heredoc+awk for insertions. Always verify line count after: `wc -l src/file.js` and check tail: `tail -5 src/file.js`. If line count drops unexpectedly, restore from git immediately: `git checkout HEAD -- src/file.js`. Affected files: melody.js (1644), sequencer.js (2719), harmony.js (2492), state_mapper.js (1069), narrative.js (1054). |
+| Orphan branch (no issue, no PR) | All branches named `claude/issue-NN-slug`. Session-start §1 step 4 flags bare `claude/*` branches. Never delete a branch without Aram's OK. |
+| PR merged without `Closes #NN` | PR body must include `Closes #NN` or `Refs #NN`. Session-start check audits last 10 merged PRs; flag misses to Aram. |
+| Commit without issue ref | Commit messages use `[#NN] subject` prefix. `[#infra]` allowed for meta work. Reject vague messages like "edits" — rewrite before push. |
 
 ---
 

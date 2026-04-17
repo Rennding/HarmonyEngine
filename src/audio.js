@@ -20,6 +20,11 @@ var _nextBeatTime = 0;
 var _LOOKAHEAD_S = 0.1;   // 100ms lookahead window
 var _SCHEDULER_MS = 25;   // scheduler tick interval
 
+// ── Mobile background-audio routing (see initAudio) ────────────────────────
+var _mediaDest = null;        // MediaStreamAudioDestinationNode (final WebAudio sink)
+var _mediaElement = null;     // HTMLAudioElement consuming _mediaDest.stream
+var _visibilityBound = false; // guard: install visibilitychange listener once
+
 // ── Per-track mix nodes (SPEC_016 §4) ──────────────────────────────────────
 var _trackGains = {};     // { kick, bass, snare, hat, pad, arp, perc, sfx } → GainNode
 var _trackEQs   = {};     // { kick, bass, snare, hat, pad, arp, perc, sfx } → array of BiquadFilterNode
@@ -126,10 +131,59 @@ function _makeImpulse(duration, decay) {
   return impulse;
 }
 
+// Bind _mediaDest.stream to the hidden <audio id="hePlayback"> sink created
+// in shell.html. Called from initAudio after _mediaDest exists. Idempotent.
+function _attachMediaElement() {
+  if (!_mediaDest) return;
+  if (typeof document === 'undefined') return;
+  if (!_mediaElement) {
+    _mediaElement = document.getElementById('hePlayback');
+    if (!_mediaElement) {
+      // Fallback: create one if shell was served without the sink element.
+      _mediaElement = document.createElement('audio');
+      _mediaElement.id = 'hePlayback';
+      _mediaElement.playsInline = true;
+      _mediaElement.style.display = 'none';
+      document.body.appendChild(_mediaElement);
+    }
+  }
+  try { _mediaElement.srcObject = _mediaDest.stream; } catch (e) {}
+  _mediaElement.autoplay = true;
+  _mediaElement.playsInline = true;
+  _mediaElement.volume = 1.0;
+  // initAudio is called from the Play-button gesture path, so autoplay is allowed.
+  var p = _mediaElement.play();
+  if (p && typeof p.catch === 'function') p.catch(function() {});
+}
+
+// Resync guard: on tab return, resume a suspended ctx and skip any
+// scheduler backlog that accumulated while throttled. Prevents burst
+// catch-up of bunched notes after the tab was backgrounded. Installed once.
+function _installVisibilityHandler() {
+  if (_visibilityBound) return;
+  if (typeof document === 'undefined') return;
+  _visibilityBound = true;
+  document.addEventListener('visibilitychange', function() {
+    if (!audioCtx) return;
+    if (document.visibilityState !== 'visible') return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (_mediaElement && _mediaElement.paused) {
+      var p = _mediaElement.play();
+      if (p && typeof p.catch === 'function') p.catch(function() {});
+    }
+    if (_beatScheduler && audioCtx.currentTime - _nextBeatTime > 0.5) {
+      _nextBeatTime = audioCtx.currentTime + 0.05;
+    }
+  });
+}
+
 function initAudio() {
   if (audioCtx) {
     // Already exists — resume if suspended (autoplay policy or after stop)
     if (audioCtx.state === 'suspended') audioCtx.resume();
+    // Re-prime the media element in case the user tapped Stop then Play.
+    _attachMediaElement();
+    _installVisibilityHandler();
     return;
   }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -362,7 +416,19 @@ function initAudio() {
   _masterEQ.mid.connect(_masterEQ.high);
   _masterEQ.high.connect(masterGain);
   masterGain.connect(_limiter);
-  _limiter.connect(audioCtx.destination);
+
+  // ── Mobile background-audio routing ──────────────────────────────────
+  // Route final output through a MediaStreamDestination → HTMLAudioElement
+  // instead of audioCtx.destination. A tab with an audibly-playing <audio>
+  // element is exempt from background setInterval throttling on Chrome &
+  // Firefox Android; a raw AudioContext is not. Trade: ~50–100ms extra
+  // output buffer (inaudible for an ambient music station). All internal
+  // scheduling still runs on audioCtx.currentTime, so beat timing is
+  // unaffected — only the final analog output path moves.
+  _mediaDest = audioCtx.createMediaStreamDestination();
+  _limiter.connect(_mediaDest);
+  _attachMediaElement();
+  _installVisibilityHandler();
 
   // ── Legacy compat: submixGain → mixBus (for any code still using it) ──
   submixGain.connect(_mixBus);

@@ -21,6 +21,41 @@ var Conductor = (function() {
   // Convert bars to beats (4/4 time)
   function _barsToBts(bars) { return bars * 4; }
 
+  // ── MediaSession integration ─────────────────────────────────────────────
+  // Declares the tab as an active media player to the OS. Reinforces
+  // background-audio exemption from Layer 1 and exposes lock-screen /
+  // notification transport controls on mobile.
+  var _mediaSessionBound = false;
+  function _mediaSessionSupported() {
+    return typeof navigator !== 'undefined' && 'mediaSession' in navigator;
+  }
+  function _currentPaletteName() {
+    if (typeof HarmonyEngine !== 'undefined' && HarmonyEngine.getPalette) {
+      var p = HarmonyEngine.getPalette();
+      if (p && p.name) return p.name;
+    }
+    return '';
+  }
+  function _updateMediaSession(state) {
+    if (!_mediaSessionSupported()) return;
+    try {
+      if (typeof MediaMetadata !== 'undefined') {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'Harmony Engine',
+          artist: _currentPaletteName() || 'Procedural',
+          album: 'Procedural music station'
+        });
+      }
+      navigator.mediaSession.playbackState = state; // 'playing' | 'paused' | 'none'
+      if (!_mediaSessionBound) {
+        navigator.mediaSession.setActionHandler('play', function() { Conductor.resume(); });
+        navigator.mediaSession.setActionHandler('pause', function() { Conductor.pause(); });
+        navigator.mediaSession.setActionHandler('stop', function() { Conductor.stop(); });
+        _mediaSessionBound = true;
+      }
+    } catch (e) {}
+  }
+
   // ── Maelstrom sustain check (SPEC_008 §2) ─────────────────────────────────
   function _checkMaelstromSustain(beatTime) {
     if (!G.settings.cycleMode) return;
@@ -128,6 +163,9 @@ var Conductor = (function() {
 
     console.log('[Conductor] Cycle: palette swapped to ' + _nextPalette.name +
                 ' (seed=' + G.songSeed + ', bpm=' + G.bpm + ')');
+
+    // Refresh lock-screen / notification metadata for the new palette.
+    _updateMediaSession(_paused ? 'paused' : 'playing');
   }
 
   // ── Cycle beat processing ─────────────────────────────────────────────────
@@ -260,7 +298,10 @@ var Conductor = (function() {
       var resumePromise = (audioCtx && audioCtx.state !== 'running')
         ? audioCtx.resume()
         : Promise.resolve();
-      resumePromise.then(function() { startBeatClock(_onBeat); });
+      resumePromise.then(function() {
+        startBeatClock(_onBeat);
+        _updateMediaSession('playing');
+      });
     },
 
     stop: function() {
@@ -275,18 +316,21 @@ var Conductor = (function() {
       if (typeof StateMapper !== 'undefined') StateMapper.shutdown();
       if (typeof MelodyEngine !== 'undefined') MelodyEngine.shutdown();
       if (typeof NarrativeConductor !== 'undefined') NarrativeConductor.shutdown();
+      _updateMediaSession('none');
     },
 
     pause: function() {
       if (!_running || _paused) return;
       _paused = true;
       stopBeatClock();
+      _updateMediaSession('paused');
     },
 
     resume: function() {
       if (!_running || !_paused) return;
       _paused = false;
       startBeatClock(_onBeat);
+      _updateMediaSession('playing');
     },
 
     isRunning: function() { return _running; },

@@ -9,6 +9,22 @@
 
 ---
 
+## 2026-04-17 — UI overhaul rescope → SPEC_014, #45, #46, #47
+
+Re-planned all of Tier 5 against the current engine. #14 (the original UI overhaul) was written before ChordTrack, cycle mode, staggered phase transitions, tension curve randomization, melody motifs, and the D-key diagnostic panel (#42) all landed. Its instrument list, chord surface, and phase representation were stale.
+
+One umbrella spec (SPEC_014_UI_OVERHAUL.md), three build issues:
+
+1. **#45 Build A — listener UI + palette colors** (P2, Sonnet) — replaces dev-flavored status bar with listener display: palette name (colored), current chord, 5-segment phase track with DC fill + tension/plateau/spike/retreat variants + cycle-state label, 7 instrument dots driven by `StateMapper._lastTargetGains`. Per-palette `colors: { primary, accent, bg }` on all 10 palettes. Visualizer reads palette colors, interpolates on palette change. DC/beat/stagger demoted behind a "Dev" checkbox persisted in localStorage. Sim Hit / Sim Graze buttons removed. ~50 edits.
+2. **#46 Build B — keyboard shortcuts** (P3, Sonnet, depends on #45) — Space/Esc/arrows/1-5/0/M/?. Help overlay. D-key (diagnostic panel) preserved. ~20 edits.
+3. **#47 Build C — responsive/mobile** (P3, Sonnet, depends on #45) — canvas viewport sizing, 640px breakpoint, ≥44px touch targets, iOS safe-area insets. ~30 edits.
+
+Closed #14, #16, #17 as not-planned with supersede comments.
+
+**Files changed:** `specs/SPEC_014_UI_OVERHAUL.md` (new), `CLAUDE.md` §7 Tier 5.
+
+---
+
 ## 2026-04-17 — #44 Legato pop — third root cause found, fixed
 
 Pop persisted after onPhaseChange guard. Real cause: legato re-trigger path re-fires LPF from peak on every phrase-start note, while filter was already closed during the preceding rest. For noir_jazz (lpfEnvAmount=300): 2000→2300Hz burst = pop, every phrase. Fix: `_phraseEntry` flag set on first note of each phrase, suppresses LPF to start at base not peak in the legato re-trigger path. Gate passes.

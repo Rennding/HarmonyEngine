@@ -243,9 +243,10 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 - **#43** Diagnostic expansion — 16 spectral + musical + rhythm + envelope detectors (Opus, depends on #42)
 
 ### Tier 5 · UI/UX (P2–P3)
-- **#14** UI overhaul — musical feedback + per-palette visualizer colors (P2, Sonnet) [absorbed #15]
-- **#16** Keyboard shortcuts — space, arrows, standard music player keys (P3, Sonnet)
-- **#17** Responsive layout + mobile support (P3, Sonnet)
+✅ UI overhaul rescope — plan complete → SPEC_014_UI_OVERHAUL.md (supersedes #14, #16, #17)
+- **#45** UI overhaul A — listener UI rebuild + per-palette visualizer colors + dev toggle (P2, Sonnet)
+- **#46** UI overhaul B — keyboard shortcuts + help overlay (P3, Sonnet, depends on #45)
+- **#47** UI overhaul C — responsive / mobile layout (P3, Sonnet, depends on #45)
 
 ### Tier 6 · Distribution (P3)
 - **#18** WAV export via OfflineAudioContext (plan)

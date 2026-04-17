@@ -26,13 +26,13 @@ Never read DEVLOG.md at session start — it is human-facing only.
 ## 2 · Protocol
 
 ### Write order
-GitHub first (relabel, close, comment), local second (DEVLOG, this file).
+Relabel/close/comment the issue, mirror to DEVLOG, update §7 — all in one pass before session end.
 
 ### Spec references
 Always use full filename when referencing specs in GitHub issues, comments, and PR bodies (e.g. `SPEC_001_FEATURE_NAME.md`, never `SPEC_001`).
 
 ### Forbidden
-- `create_or_update_file` / `push_files` — these ARE pushes
+- `create_or_update_file` / `push_files` (GitHub MCP) — they write directly to the remote, bypassing local git, hooks, and `npm run validate`. Use `git add/commit/push` instead.
 - Editing `dist/` or any build output directory — build output only
 - Mixing Plan and Build in one session
 - Rewriting whole files — targeted edits only
@@ -44,7 +44,7 @@ Always use full filename when referencing specs in GitHub issues, comments, and 
 - `npm run gate` — validate + tests (build sessions)
 
 ### Roles
-- **Aram** = designer + QA. Never codes. Tests in browser, reports via GitHub or Cowork.
+- **Aram** = designer + QA. Never codes. Tests in browser, reports via GitHub issues/comments.
 - **Claude** = implementer. Reads specs, writes code, runs builds, manages GitHub. Pushes back when a prescribed fix has a clearly better alternative — one sentence, no elaboration. Only when it matters.
 
 ### Communication
@@ -96,7 +96,7 @@ needs-aram, P1/P2/P3, build/plan/audit-session, qa-pass/qa-improve/qa-fail, bug,
 ### QA workflow
 - `qalist` → list needs-aram issues (P1 first, 2 sentences each)
 - `qa[NN]:` → process verdict immediately:
-  1. GitHub first: relabel (remove needs-aram, apply verdict), close if pass
+  1. Relabel (remove needs-aram, apply verdict), close if pass
   2. Post structured QA comment — plain English, no dev terms, no file paths
   3. If improve/fail: write SPEC in same session, open new build issue
 
@@ -126,12 +126,12 @@ Default: one spec → one build issue → one session. Issues are fine-grained (
 
 ## 4 · Session end
 
-1. GitHub updates first
+1. GitHub updates (relabel, close, comment)
 2. Mirror to DEVLOG.md (human summary only)
 3. Update §7 DO THIS NEXT below (title + model + prompt = atomic unit)
 4. Extract 0–3 learnings → §8 failure modes
 5. State model + next steps directly in chat
-6. Remind Aram to push via GitHub Desktop
+6. If local commits are unpushed, summarize them (files + message) and ask Aram for a one-word go/no-go on `git push`. Never auto-push.
 
 ---
 
@@ -277,6 +277,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | Game state reference in audio | All G.* fields must exist in state.js — grep for G. references after any audio module change |
 | StateMapper expects game objects | StateMapper references PerkEffects* — stub or guard with typeof checks |
 | Standalone synth fns lack palette access | _synthBass/_synthDrum are module-scope functions, not Sequencer methods — they only see _activePaletteName, not the full palette object. When adding per-palette config reads, ensure _activePalette (full object) is set alongside _activePaletteName in Sequencer.initRun(). |
+| `git push` as blast radius | Never auto-push. At session end, summarize unpushed commits (files + message) and wait for Aram's explicit go-ahead before `git push`. |
 | Large file truncation by Edit/Write tool | **Never use Edit or Write on files >600 lines.** Use bash+sed/awk for targeted edits: `sed -i 's/old/new/g'` for replacements, heredoc+awk for insertions. Always verify line count after: `wc -l src/file.js` and check tail: `tail -5 src/file.js`. If line count drops unexpectedly, restore from git immediately: `git checkout HEAD -- src/file.js`. Affected files: melody.js (1644), sequencer.js (2719), harmony.js (2492), state_mapper.js (1069), narrative.js (1054). |
 
 ---

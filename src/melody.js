@@ -1418,7 +1418,7 @@ var MelodyEngine = {
         this._liveFilter.frequency.exponentialRampToValueAtTime(Math.max(lpfBase, 20), time + lpfDecay);
       }
       // Extend stop times
-      this._liveNoteEnd = noteOff + 0.15; // SPEC_039 Fix C: wider guard for legato continuity (was +0.05)
+      this._liveNoteEnd = noteOff + noteBasis + 0.05; // #44: dynamic guard = sub-beat + 50ms margin (was hardcoded +0.15)
       try { this._liveOsc.stop(this._liveNoteEnd); } catch(e) {}
       if (this._liveOsc2) { try { this._liveOsc2.stop(this._liveNoteEnd); } catch(e) {} }
       if (this._liveVibrato) { try { this._liveVibrato.stop(this._liveNoteEnd); } catch(e) {} }
@@ -1431,7 +1431,7 @@ var MelodyEngine = {
     // Kill any existing legato voice — SPEC_039 Fix C: 20ms guard gap prevents click
     var freshKill = !!this._liveOsc;
     if (freshKill) this._killLiveVoice(time);
-    var chainStart = freshKill ? time + 0.02 : time; // offset new chain after kill ramp
+    var chainStart = freshKill ? time + 0.03 : time; // #44: 30ms guard gap (was 20ms) for kill ramp safety
 
     // Oscillator
     var osc = audioCtx.createOscillator();
@@ -1485,7 +1485,9 @@ var MelodyEngine = {
     lpf.Q.value = lpfRes;
     if (lpfEnvAmount > 0) {
       var lpfPeak = Math.min(lpfBase + lpfEnvAmount, 20000);
-      lpf.frequency.setValueAtTime(lpfPeak, chainStart);
+      // #44: suppress LPF burst on legato-death restart — start at base, not peak
+      var lpfStart = freshKill ? Math.max(lpfBase, 20) : lpfPeak;
+      lpf.frequency.setValueAtTime(lpfStart, chainStart);
       lpf.frequency.exponentialRampToValueAtTime(Math.max(lpfBase, 20), chainStart + lpfEnvDecay);
     } else {
       lpf.frequency.value = lpfBase;
@@ -1566,7 +1568,7 @@ var MelodyEngine = {
       this._liveVibratoGain = vibratoGainNode;
       this._livePwmLfo = pwmLfo;
       this._livePwmGain = pwmGain;
-      this._liveNoteEnd = noteOff + 0.15; // SPEC_039 Fix C: wider guard for legato continuity (matches re-trigger path)
+      this._liveNoteEnd = noteOff + noteBasis + 0.05; // #44: dynamic guard = sub-beat + 50ms margin (matches re-trigger path)
     }
 
     this._lastNoteMidi = midiNote;

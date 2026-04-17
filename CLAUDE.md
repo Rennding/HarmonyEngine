@@ -190,7 +190,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #42 awaiting QA. Next: #44 (legato pop bug), then #30, then #40/#41, then #43.**
+**Status: #42 + #44 awaiting QA. Next: #30, then #40/#41, then #43.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -229,7 +229,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ⚠️ **#38** Melody evolution — melodic rhythm extensions (Sonnet) — qa-improve → see #39
 ✅ Melody rhythm palette fix — plan complete → SPEC_039_MELODY_RHYTHM_PALETTE_FIX.md
 ✅ **#39** Melody rhythm palette fix — swing×syncopation + legato guard + attack pop (Opus) — qa-pass
-- **#44** Bug: Legato voice expiration causes brittle pops in noir_jazz, vaporwave, synthwave (Opus, P1)
+⚠️ **#44** Bug: Legato voice expiration causes brittle pops in noir_jazz, vaporwave, synthwave (Opus, P1) — built, awaiting QA
 ✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
 - **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus)
 ✅ Chord evolution — plan complete → SPEC_040_CHORD_EVOLUTION.md

@@ -9,6 +9,12 @@
 
 ---
 
+## 2026-04-17 — #44 Legato pop fix built
+
+Fixed brittle pops in legato palettes (noir_jazz, vaporwave, synthwave). Three changes in melody.js: dynamic guard window scaled to sub-beat duration instead of hardcoded 150ms, LPF burst suppressed on legato-death restart, chainStart gap widened to 30ms. Awaiting QA.
+
+---
+
 ## 2026-04-17 — #39 QA pass + #44 legato pop bug filed
 
 Closed #39 (melody rhythm palette fix) — swing×syncopation, syncopation reduction, legato guard, attack pop all working as specced.

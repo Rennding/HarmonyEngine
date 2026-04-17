@@ -9,6 +9,24 @@
 
 ---
 
+## 2026-04-17 — #36 Build: Melody evolution — seed motif + phrase pairing + contour bias
+
+**What:** Built the first three melody evolution subsystems from SPEC_036. The melody engine now generates a seed motif at song/cycle start and derives all subsequent phrases from it via variation (repeat, transpose, invert, diminish, fragment). Phrases come in antecedent-consequent pairs (question ends unresolved, answer resolves to root). Per-palette contour bias shapes phrases toward genre-appropriate arcs (synthwave arches, jazz descends, ambient undulates, techno stays flat). Replaced NarrativeConductor motif seeding (25% chance) with the full motif system. Added `motif`, `contour`, `phrasing` configs to all 10 palettes.
+
+**Files changed:** melody.js (new: `_generateMotif`, `_applyVariation`, `_pickVariationType`, `_contourBias`; rewrite: `_generatePhrase`), harmony.js (×10 palette configs), INDEX.md.
+
+**Next:** #36 awaiting QA → then #37 (I-R post-filter + interval affinity).
+
+---
+
+## 2026-04-17 — #33 qa-pass, #34 qa-pass, #35 Build: ChordTrack stagger + phase tuning
+
+**What:** Processed QA passes for #33 (melody synth rebuild) and #34 (ChordTrack engine). Then built #35 — wired ChordTrack into the harmony stagger group. Added `ChordTrack.onPhaseChange()` in sequencer.js: checks palette's `entryPhase` and mutes/unmutes accordingly on each phase transition. Called from `StateMapper._dispatchHarmony()` so ChordTrack enters with bass during staggered transitions, never before. Updated INDEX.md with new symbol.
+
+**Files changed:** src/sequencer.js, src/state_mapper.js, INDEX.md
+
+---
+
 ## 2026-04-17 — #36 Plan: Melody Evolution — motivic development, contour, phrase pairing
 
 **What:** Planned the melody evolution system — six subsystems layered on top of the existing Markov chain to give melodies higher-level musical structure. (1) Seed motif: 4–8 note motif generated at song/cycle start, all phrases derive via variation (repeat, transpose, invert, diminish, fragment). Phase controls which variations unlock. (2) Contour bias: per-palette target phrase shape (arch for synthwave, descending for jazz, wave for ambient). (3) Antecedent-consequent pairing: phrases in question-answer pairs. (4) I-R post-filter: Narmour gap-fill rules enforce stepwise recovery after large leaps. (5) Interval affinity: per-palette soft bias on interval selection (dark_techno→4ths/5ths, ambient_dread→m2/tritones). (6) Melodic rhythm extensions: syncopation, dotted rhythms, rubato per palette.

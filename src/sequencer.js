@@ -2142,6 +2142,16 @@ var ChordTrack = {
     osc.stop(noteEnd + release + 0.01);
   },
 
+  // Called from StateMapper._dispatchHarmony on phase transition
+  onPhaseChange: function(phase) {
+    if (!this._active || !this._palette) return;
+    var phaseOrder = ['pulse', 'swell', 'surge', 'storm', 'maelstrom'];
+    var entryIdx = phaseOrder.indexOf(this._palette.entryPhase || 'swell');
+    var curIdx   = phaseOrder.indexOf(phase);
+    // Gate on entryPhase: unmute when phase meets or exceeds entry threshold
+    this._muted = (curIdx < entryIdx);
+  },
+
   shutdown: function() {
     this._active = false;
     this._muted  = true;

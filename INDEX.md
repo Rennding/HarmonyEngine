@@ -91,9 +91,10 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | WalkingBass | sequencer.js | 1453 | Dynamic bass pitch engine (tierCap from palette — SPEC_028) |
 | _CHORD_PATTERNS | sequencer.js | 1942 | 8 chord rhythm patterns (SPEC_032 §4) |
 | ChordTrack | sequencer.js | 2001 | Rhythmic chord stabs/comps/arps per palette (SPEC_032 §4) |
-| ChordTrack.tickStep | sequencer.js | ~2040 | Per-16th-note chord dispatch |
-| ChordTrack._playStab | sequencer.js | ~2070 | Multi-voice chord stab synthesis |
-| ChordTrack._playArpNote | sequencer.js | ~2100 | Single-voice arp note synthesis |
+| ChordTrack.onPhaseChange | sequencer.js | ~2145 | Harmony-group phase-entry gate: unmute at entryPhase (#35) |
+| ChordTrack.tickStep | sequencer.js | ~2055 | Per-16th-note chord dispatch |
+| ChordTrack._playStab | sequencer.js | ~2083 | Multi-voice chord stab synthesis |
+| ChordTrack._playArpNote | sequencer.js | ~2115 | Single-voice arp note synthesis |
 
 ---
 
@@ -128,9 +129,14 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Symbol | File | Line | Description |
 |---|---|---|---|
 | MelodyEngine | melody.js | 6 | Markov melody generator |
-| MelodyEngine._killLiveVoice | melody.js | 941 | Kill persistent legato oscillator chain (SPEC_032) |
-| MelodyEngine._playMelodyNote | melody.js | 968 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
-| MelodyEngine._liveOsc/Gain/Filter | melody.js | 25 | Legato state: persistent osc, gain, filter refs (SPEC_032) |
+| MelodyEngine._motif/_phrIdx | melody.js | 25 | Motif state: seed motif, phrase index, antecedent cache (SPEC_036) |
+| MelodyEngine._generateMotif | melody.js | 789 | Generate seed motif from Markov chain (SPEC_036 §3) |
+| MelodyEngine._applyVariation | melody.js | 825 | Apply variation to motif: repeat/transpose/invert/diminish/fragment (SPEC_036 §3.6) |
+| MelodyEngine._pickVariationType | melody.js | 888 | Pick variation type based on phase + palette weights (SPEC_036 §3.5) |
+| MelodyEngine._contourBias | melody.js | 916 | Contour direction bias per phrase position (SPEC_036 §4) |
+| MelodyEngine._killLiveVoice | melody.js | 1185 | Kill persistent legato oscillator chain (SPEC_032) |
+| MelodyEngine._playMelodyNote | melody.js | 1212 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
+| MelodyEngine._liveOsc/Gain/Filter | melody.js | 30 | Legato state: persistent osc, gain, filter refs (SPEC_032) |
 
 ---
 

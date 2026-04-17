@@ -21,6 +21,13 @@ var MelodyEngine = {
   _melodyStep: 0,      // melody's own 16th-note step counter for groove (SPEC_023 §B3)
   _barBeat: 0,         // beat position within current bar (0–3) for rest alignment (SPEC_023 §B4)
 
+  // ── Motif system (SPEC_036 §3) ────────────────────────────────────────────
+  _motif: null,           // { degrees: [int], lengths: [int] }
+  _motifVariation: null,  // current variation type: 'repeat'|'transpose'|'invert'|'diminish'|'fragment'
+  _phrIdx: 0,            // phrase index — tracks antecedent/consequent pairing
+  _antecedentOpening: null, // cached opening degrees of antecedent phrase (for parallel pairing)
+  _variationUseCounts: null, // track usage of each variation type for balancing
+
   // ── Legato state (SPEC_032 §3.4) ──────────────────────────────────────────
   _liveOsc: null,          // persistent oscillator for legato mode
   _liveOsc2: null,         // PWM second oscillator (chiptune)
@@ -536,6 +543,14 @@ var MelodyEngine = {
     this._melodyStep = 0;
     this._barBeat = 0;
 
+    // ── Motif system init (SPEC_036 §3.4) ──
+    this._motif = null;
+    this._motifVariation = null;
+    this._phrIdx = 0;
+    this._antecedentOpening = null;
+    this._variationUseCounts = { repeat: 0, transpose: 0, invert: 0, diminish: 0, fragment: 0 };
+    // Motif generation deferred to first _generatePhrase call (needs HarmonyEngine ready)
+
     // Cache rhythm config (SPEC_023 §B1)
     var mr = palette.melodyRhythm || {};
     this._subdivide = mr.subdivide || 'beat';          // 'beat' | '8th' | '16th'
@@ -766,77 +781,305 @@ var MelodyEngine = {
     return best;
   },
 
-  // ── Phrase generation with Markov chain + constraints ─────────────────────
-  _generatePhrase: function() {
-    var phase = G.phase || 'pulse';
-    var density = this._PHASE_DENSITY[phase] || this._PHASE_DENSITY.pulse;
-    // Scale phrase length by subdivision (SPEC_023 §B2)
-    // 8th = 2× notes to fill same musical time, 16th = 4×
-    var subMult = (this._subdivide === '16th') ? 4 : (this._subdivide === '8th') ? 2 : 1;
-    var maxLen = (density.maxPhraseLen + this._phraseLenBonus) * subMult;
-    if (maxLen <= 0) { this._currentPhrase = []; return; }
+  // ══════════════════════════════════════════════════════════════════════════
+  // MOTIF SYSTEM (SPEC_036 §3–§6)
+  // ══════════════════════════════════════════════════════════════════════════
 
-    // Pick phrase length (weighted: 2=20%, 3=50%, 4=30%, clamped to maxLen, then scaled)
-    var rng = (_songRng || Math.random);
-    var r = rng();
-    var len;
-    if (r < 0.20) len = 2;
-    else if (r < 0.70) len = 3;
-    else len = 4;
-    len = Math.min((len + this._phraseLenBonus) * subMult, maxLen);
-    len = Math.max(2, len);
-
-    // Get scale notes for resolution to chord tones — per-palette octave (SPEC_032 §3)
-    var mCfg = (this._palette && this._palette.melody) || {};
-    var melodyOctave = (mCfg.octave !== undefined) ? mCfg.octave : 5;
-    var scaleNotes = (typeof HarmonyEngine !== 'undefined') ? HarmonyEngine.getScaleNotes(melodyOctave) : null;
-    var chordTones = (typeof HarmonyEngine !== 'undefined') ? HarmonyEngine.getChordTones(melodyOctave) : null;
-    if (!scaleNotes || scaleNotes.length === 0) { this._currentPhrase = []; return; }
-
+  // ── Generate seed motif from Markov chain (SPEC_036 §3.2) ────────────────
+  _generateMotif: function(scaleNotes, chordTones) {
+    var rng = (typeof _songRng === 'function') ? _songRng : Math.random;
+    var mCfg = (this._palette && this._palette.motif) || {};
+    var motifLen = mCfg.length || 6;
     var numDegrees = scaleNotes.length;
-    var phrase = [];
 
-    // Motif seeding: 25% chance to start phrase from NarrativeConductor motif (SPEC_020 §9)
-    var motifDegrees = (typeof NarrativeConductor !== 'undefined') ? NarrativeConductor.getMotifDegrees() : null;
-    var useMotifSeed = motifDegrees && motifDegrees.length >= 2 && (_songRng || Math.random)() < 0.25;
+    var degrees = [];
+    var lengths = [];
 
-    // Starting note: chord tone of current chord (or motif-seeded)
-    var startDeg;
-    if (useMotifSeed) {
-      startDeg = motifDegrees[0] % numDegrees;
-    } else {
-      startDeg = this._pickChordToneDegree(scaleNotes, chordTones);
-    }
-    phrase.push(scaleNotes[startDeg]);
+    // First note: chord tone
+    var startDeg = this._pickChordToneDegree(scaleNotes, chordTones);
+    degrees.push(startDeg);
+    lengths.push(1); // base duration unit
 
-    // Initialize history if empty
+    // Init history for Markov walk
     if (this._history.length < 2) {
       this._history = [startDeg, startDeg];
     }
     this._history[0] = this._history[1];
     this._history[1] = startDeg;
 
-    // Generate remaining notes via Markov + constraints
-    for (var i = 1; i < len; i++) {
-      // If motif-seeded and we still have motif degrees, inject them
-      var nextDeg;
-      if (useMotifSeed && i < motifDegrees.length) {
-        nextDeg = motifDegrees[i] % numDegrees;
-      } else {
-        nextDeg = this._selectNextNote(numDegrees, scaleNotes, chordTones, i, len);
-      }
-      phrase.push(scaleNotes[nextDeg]);
+    // Generate remaining notes via Markov + existing constraints
+    for (var i = 1; i < motifLen; i++) {
+      var nextDeg = this._selectNextNote(numDegrees, scaleNotes, chordTones, i, motifLen);
+      degrees.push(nextDeg);
+      // Rhythmic identity: varied base durations (1 or 2)
+      lengths.push(rng() < 0.3 ? 2 : 1);
       this._history[0] = this._history[1];
       this._history[1] = nextDeg;
     }
 
-    // Apply octave offset: melody lives in octave 5 base (above pad's octave 3-4)
+    this._motif = { degrees: degrees, lengths: lengths };
+    return this._motif;
+  },
+
+  // ── Apply variation to motif (SPEC_036 §3.6) ────────────────────────────
+  _applyVariation: function(motif, variationType, numDegrees) {
+    var rng = (typeof _songRng === 'function') ? _songRng : Math.random;
+    var degrees = motif.degrees.slice();
+    var lengths = motif.lengths.slice();
+
+    switch (variationType) {
+      case 'repeat':
+        // Return motif unchanged
+        break;
+
+      case 'transpose':
+        // Shift all degrees by a consonant interval offset
+        var offsets = [2, 3, 4, 5, -2, -3, -4, -5];
+        var offset = offsets[Math.floor(rng() * offsets.length)];
+        for (var t = 0; t < degrees.length; t++) {
+          degrees[t] = ((degrees[t] + offset) % numDegrees + numDegrees) % numDegrees;
+        }
+        break;
+
+      case 'invert':
+        // Flip intervals around the first note
+        var pivot = degrees[0];
+        for (var v = 1; v < degrees.length; v++) {
+          var interval = degrees[v] - pivot;
+          degrees[v] = ((pivot - interval) % numDegrees + numDegrees) % numDegrees;
+        }
+        break;
+
+      case 'diminish':
+        // Halve all durations (same pitches, double speed)
+        for (var dm = 0; dm < lengths.length; dm++) {
+          lengths[dm] = Math.max(1, Math.round(lengths[dm] * 0.5));
+        }
+        break;
+
+      case 'fragment':
+        // Take a random contiguous slice (2–4 notes) and repeat it
+        var fragLen = 2 + Math.floor(rng() * Math.min(3, degrees.length - 1));
+        fragLen = Math.min(fragLen, degrees.length);
+        var fragStart = Math.floor(rng() * (degrees.length - fragLen + 1));
+        var fragDegs = degrees.slice(fragStart, fragStart + fragLen);
+        var fragLens = lengths.slice(fragStart, fragStart + fragLen);
+        // Repeat fragment to fill ~original length
+        degrees = [];
+        lengths = [];
+        while (degrees.length < motif.degrees.length) {
+          for (var fi = 0; fi < fragDegs.length && degrees.length < motif.degrees.length; fi++) {
+            // Add slight variation on repeat: ±1 degree 20% of the time
+            var fd = fragDegs[fi];
+            if (degrees.length >= fragLen && rng() < 0.2) {
+              fd = ((fd + (rng() < 0.5 ? 1 : -1)) % numDegrees + numDegrees) % numDegrees;
+            }
+            degrees.push(fd);
+            lengths.push(fragLens[fi]);
+          }
+        }
+        break;
+    }
+
+    return { degrees: degrees, lengths: lengths };
+  },
+
+  // ── Pick variation type based on phase + palette weights (SPEC_036 §3.5) ──
+  _pickVariationType: function(phase) {
+    var mCfg = (this._palette && this._palette.motif) || {};
+    var weights = (mCfg.variationWeights && mCfg.variationWeights[phase]) || { repeat: 1.0 };
+    var rng = (typeof _songRng === 'function') ? _songRng : Math.random;
+
+    // Bias toward less-used types (multiply weight by 1/(1+useCount))
+    var adjusted = {};
+    var total = 0;
+    for (var vt in weights) {
+      var useCount = (this._variationUseCounts && this._variationUseCounts[vt]) || 0;
+      adjusted[vt] = weights[vt] / (1 + useCount * 0.3);
+      total += adjusted[vt];
+    }
+
+    // Weighted pick
+    var r = rng() * total;
+    var cumulative = 0;
+    for (var vt2 in adjusted) {
+      cumulative += adjusted[vt2];
+      if (r <= cumulative) {
+        if (this._variationUseCounts) this._variationUseCounts[vt2] = (this._variationUseCounts[vt2] || 0) + 1;
+        return vt2;
+      }
+    }
+    return 'repeat'; // fallback
+  },
+
+  // ── Contour bias: direction weighting per phrase position (SPEC_036 §4) ──
+  _contourBias: function(posInPhrase, phraseLen, candidateDeg, prevDeg, numDegrees) {
+    var cCfg = (this._palette && this._palette.contour) || {};
+    var shape = cCfg.shape || 'flat';
+    var strength = cCfg.strength !== undefined ? cCfg.strength : 0.3;
+
+    // Phase-scale contour strength (SPEC_036 §2)
+    var phase = G.phase || 'pulse';
+    var phaseScales = { pulse: 0, swell: 0.80, surge: 0.60, storm: 0.40, maelstrom: 0.20 };
+    strength *= (phaseScales[phase] !== undefined ? phaseScales[phase] : 0.5);
+
+    if (strength < 0.01) return 1.0; // no bias
+
+    // Compute direction bias from contour shape
+    var t = phraseLen > 1 ? posInPhrase / (phraseLen - 1) : 0.5;
+    var bias = 0;
+    switch (shape) {
+      case 'arch':       bias = Math.sin(Math.PI * t); break;
+      case 'ascending':  bias = 1.0 - t; break;
+      case 'descending': bias = -(1.0 - t); break;
+      case 'wave':       bias = Math.sin(2 * Math.PI * t); break;
+      case 'flat':       return 1.0;
+    }
+
+    // Determine if candidate moves in biased direction
+    var move = candidateDeg - prevDeg;
+    if (move === 0) return 1.0; // no movement, neutral
+
+    var movesWithBias = (bias > 0 && move > 0) || (bias < 0 && move < 0);
+    var movesAgainst = (bias > 0 && move < 0) || (bias < 0 && move > 0);
+
+    if (movesWithBias) return 1.0 + Math.abs(bias) * strength;
+    if (movesAgainst) return 1.0 - Math.abs(bias) * strength * 0.5;
+    return 1.0;
+  },
+
+  // ── Phrase generation: motif → variation → contour → pairing (SPEC_036) ───
+  _generatePhrase: function() {
+    var phase = G.phase || 'pulse';
+    var density = this._PHASE_DENSITY[phase] || this._PHASE_DENSITY.pulse;
+    // Scale phrase length by subdivision (SPEC_023 §B2)
+    var subMult = (this._subdivide === '16th') ? 4 : (this._subdivide === '8th') ? 2 : 1;
+    var maxLen = (density.maxPhraseLen + this._phraseLenBonus) * subMult;
+    if (maxLen <= 0) { this._currentPhrase = []; return; }
+
+    // Pick phrase length (weighted: 2=20%, 3=50%, 4=30%, clamped to maxLen)
+    var rng = (typeof _songRng === 'function') ? _songRng : Math.random;
+    var r = rng();
+    var baseLen;
+    if (r < 0.20) baseLen = 2;
+    else if (r < 0.70) baseLen = 3;
+    else baseLen = 4;
+    var len = Math.min((baseLen + this._phraseLenBonus) * subMult, maxLen);
+    len = Math.max(2, len);
+
+    // Get scale notes — per-palette octave (SPEC_032 §3)
+    var melCfg = (this._palette && this._palette.melody) || {};
+    var melodyOctave = (melCfg.octave !== undefined) ? melCfg.octave : 5;
+    var scaleNotes = (typeof HarmonyEngine !== 'undefined') ? HarmonyEngine.getScaleNotes(melodyOctave) : null;
+    var chordTones = (typeof HarmonyEngine !== 'undefined') ? HarmonyEngine.getChordTones(melodyOctave) : null;
+    if (!scaleNotes || scaleNotes.length === 0) { this._currentPhrase = []; return; }
+
+    var numDegrees = scaleNotes.length;
+
+    // ── Step 1: Generate or reuse motif (SPEC_036 §3) ──
+    if (!this._motif) {
+      this._generateMotif(scaleNotes, chordTones);
+    }
+
+    // ── Step 2: Pick variation type based on phase (SPEC_036 §3.5) ──
+    this._motifVariation = this._pickVariationType(phase);
+
+    // ── Step 3: Apply variation to motif → raw degree sequence ──
+    var varied = this._applyVariation(this._motif, this._motifVariation, numDegrees);
+    var degs = varied.degrees.slice(0, len); // truncate to phrase length
+
+    // Pad with Markov fallback if variation is shorter than target length
+    if (degs.length < len) {
+      // Seed history from last motif degrees
+      if (degs.length >= 2) {
+        this._history = [degs[degs.length - 2], degs[degs.length - 1]];
+      }
+      while (degs.length < len) {
+        degs.push(this._selectNextNote(numDegrees, scaleNotes, chordTones, degs.length, len));
+      }
+    }
+
+    // ── Step 4: Antecedent-consequent phrase pairing (SPEC_036 §6) ──
+    var phrCfg = (this._palette && this._palette.phrasing) || {};
+    var pairStyle = phrCfg.pairStyle || 'parallel';
+    var reuseLength = phrCfg.reuseLength || 2;
+    var isAntecedent = (this._phrIdx % 2 === 0);
+
+    if (!isAntecedent && pairStyle === 'parallel' && this._antecedentOpening && this._antecedentOpening.length > 0) {
+      // Consequent: reuse opening degrees from antecedent
+      var reuse = Math.min(reuseLength, this._antecedentOpening.length, degs.length);
+      for (var ri = 0; ri < reuse; ri++) {
+        degs[ri] = this._antecedentOpening[ri];
+      }
+    }
+
+    // ── Step 5: Apply contour bias to Markov-generated notes (SPEC_036 §4) ──
+    // For notes beyond the motif/reuse region, re-select with contour weighting
+    var contourStart = isAntecedent ? 1 : (pairStyle === 'parallel' ? reuseLength : 1);
+    for (var ci = contourStart; ci < degs.length; ci++) {
+      // Use contour-weighted selection: evaluate multiple candidates
+      var prevDeg = degs[ci - 1];
+      this._history = ci >= 2 ? [degs[ci - 2], prevDeg] : [prevDeg, prevDeg];
+      var bestDeg = degs[ci]; // fallback: keep variation's choice
+      var bestScore = 0;
+      var candidates = 5;
+      for (var cand = 0; cand < candidates; cand++) {
+        var candDeg = this._selectNextNote(numDegrees, scaleNotes, chordTones, ci, degs.length);
+        var contourMod = this._contourBias(ci, degs.length, candDeg, prevDeg, numDegrees);
+        var score = contourMod * (0.5 + rng() * 0.5); // stochastic + contour
+        if (score > bestScore) {
+          bestScore = score;
+          bestDeg = candDeg;
+        }
+      }
+      degs[ci] = bestDeg;
+    }
+
+    // ── Step 6: Enforce phrase ending (SPEC_036 §6.2) ──
+    if (isAntecedent) {
+      // Antecedent: force last note to non-root chord tone (3rd, 5th, 7th)
+      var nonRootCTs = [];
+      if (chordTones) {
+        var rootPC = scaleNotes[0] % 12;
+        for (var nrc = 0; nrc < chordTones.length; nrc++) {
+          if ((chordTones[nrc] % 12) !== rootPC) nonRootCTs.push(chordTones[nrc]);
+        }
+      }
+      if (nonRootCTs.length > 0) {
+        var ct = nonRootCTs[Math.floor(rng() * nonRootCTs.length)];
+        var ctPC = ct % 12;
+        for (var sd = 0; sd < numDegrees; sd++) {
+          if ((scaleNotes[sd] % 12) === ctPC) { degs[degs.length - 1] = sd; break; }
+        }
+      }
+      // Cache opening for consequent
+      this._antecedentOpening = degs.slice(0, Math.min(reuseLength + 1, degs.length));
+    } else {
+      // Consequent: force last note to root
+      degs[degs.length - 1] = 0;
+      this._antecedentOpening = null;
+    }
+
+    // ── Convert degrees to MIDI notes ──
+    var phrase = [];
+    for (var pi = 0; pi < degs.length; pi++) {
+      var deg = ((degs[pi] % numDegrees) + numDegrees) % numDegrees;
+      phrase.push(scaleNotes[deg]);
+    }
+
+    // Update history from final phrase
+    if (degs.length >= 2) {
+      this._history = [degs[degs.length - 2], degs[degs.length - 1]];
+    }
+
+    // Apply octave offset
     var octaveShift = this._octaveDrop > 0 ? -12 : 0;
     for (var j = 0; j < phrase.length; j++) {
       phrase[j] = phrase[j] + octaveShift;
     }
 
     this._currentPhrase = phrase;
+    this._phrIdx++;
   },
 
   // ── Markov chain note selection with constraint filtering ─────────────────

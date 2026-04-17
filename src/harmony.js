@@ -208,6 +208,21 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
     // Tension: relentless build with sharp spikes (SPEC_011 §3.4)
     tension: { eventDensity: 0.6, retreatDepth: 0.10, spikeHeight: 0.25, plateauBias: 0.0 },
+
+    // Motif system (SPEC_036 §3.5)
+    motif: {
+      length: 5,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.4, transpose: 0.6 },
+        storm:     { repeat: 0.2, transpose: 0.3, invert: 0.3, diminish: 0.2 },
+        maelstrom: { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
+      },
+    },
+    // Contour bias (SPEC_036 §4.4)
+    contour: { shape: 'flat', strength: 0.3 },
+    // Phrase pairing (SPEC_036 §6.4)
+    phrasing: { pairStyle: 'parallel', reuseLength: 2 },
   },
 
   {
@@ -335,6 +350,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 6, window: 6 },
     // Tension: cruising feel, longer plateaus (SPEC_011 §3.4)
     tension: { eventDensity: 0.7, retreatDepth: 0.15, spikeHeight: 0.20, plateauBias: 0.1 },
+
+    motif: {
+      length: 6,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.3, transpose: 0.7 },
+        storm:     { repeat: 0.2, transpose: 0.3, invert: 0.3, diminish: 0.2 },
+        maelstrom: { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
+      },
+    },
+    contour: { shape: 'arch', strength: 0.7 },
+    phrasing: { pairStyle: 'parallel', reuseLength: 3 },
   },
   {
     name: 'glitch',
@@ -461,6 +488,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 1, texture: 1, melody: 2, window: 2 },
     // Tension: chaotic, frequent events (SPEC_011 §3.4)
     tension: { eventDensity: 0.9, retreatDepth: 0.20, spikeHeight: 0.30, plateauBias: -0.1 },
+
+    motif: {
+      length: 4,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.3, transpose: 0.7 },
+        storm:     { repeat: 0.1, transpose: 0.2, invert: 0.3, diminish: 0.4 },
+        maelstrom: { repeat: 0.05, transpose: 0.1, invert: 0.15, diminish: 0.3, fragment: 0.4 },
+      },
+    },
+    contour: { shape: 'flat', strength: 0.2 },
+    phrasing: { pairStyle: 'contrasting' },
   },
 
   {
@@ -585,6 +624,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 4, texture: 8, melody: 12, window: 12 },
     // Tension: slow burn, heavy plateaus, rare spikes (SPEC_011 §3.4)
     tension: { eventDensity: 0.5, retreatDepth: 0.12, spikeHeight: 0.10, plateauBias: 0.3 },
+
+    motif: {
+      length: 5,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.5, transpose: 0.5 },
+        storm:     { repeat: 0.2, transpose: 0.3, invert: 0.3, diminish: 0.2 },
+        maelstrom: { repeat: 0.1, transpose: 0.2, invert: 0.3, diminish: 0.1, fragment: 0.3 },
+      },
+    },
+    contour: { shape: 'wave', strength: 0.5 },
+    phrasing: { pairStyle: 'contrasting' },
   },
 
   // ── lo-fi_chill (SPEC_019 §1.1) ──────────────────────────────────────────
@@ -716,6 +767,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 2, texture: 6, melody: 8, window: 8 },
     // Tension: relaxed, gentle variation (SPEC_011 §3.4)
     tension: { eventDensity: 0.6, retreatDepth: 0.18, spikeHeight: 0.12, plateauBias: 0.2 },
+
+    motif: {
+      length: 6,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.4, transpose: 0.6 },
+        storm:     { repeat: 0.2, transpose: 0.3, invert: 0.3, diminish: 0.2 },
+        maelstrom: { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
+      },
+    },
+    contour: { shape: 'descending', strength: 0.5 },
+    phrasing: { pairStyle: 'parallel', reuseLength: 2 },
   },
 
   // ── chiptune (SPEC_019 §1.3) ─────────────────────────────────────────────
@@ -844,6 +907,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 1, texture: 1, melody: 2, window: 2 },
     // Tension: energetic, game-like pacing (SPEC_011 §3.4)
     tension: { eventDensity: 0.8, retreatDepth: 0.15, spikeHeight: 0.25, plateauBias: 0.0 },
+
+    motif: {
+      length: 6,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.3, transpose: 0.7 },
+        storm:     { repeat: 0.2, transpose: 0.3, invert: 0.3, diminish: 0.2 },
+        maelstrom: { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
+      },
+    },
+    contour: { shape: 'arch', strength: 0.6 },
+    phrasing: { pairStyle: 'parallel', reuseLength: 3 },
   },
 
   // ── noir_jazz (SPEC_019 §1.4) ──────────────────────────────────────────
@@ -1051,6 +1126,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 4, texture: 6, melody: 8, window: 8 },
     // Tension: dramatic retreats, moody plateaus (SPEC_011 §3.4)
     tension: { eventDensity: 0.7, retreatDepth: 0.20, spikeHeight: 0.15, plateauBias: 0.15 },
+
+    motif: {
+      length: 6,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.3, transpose: 0.7 },
+        storm:     { repeat: 0.15, transpose: 0.25, invert: 0.35, diminish: 0.25 },
+        maelstrom: { repeat: 0.1, transpose: 0.15, invert: 0.25, diminish: 0.2, fragment: 0.3 },
+      },
+    },
+    contour: { shape: 'descending', strength: 0.4 },
+    phrasing: { pairStyle: 'contrasting' },
   },
 
   // ── industrial (SPEC_019 §1.2) ──────────────────────────────────────────
@@ -1292,6 +1379,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 2, texture: 2, melody: 4, window: 4 },
     // Tension: aggressive, spike-heavy (SPEC_011 §3.4)
     tension: { eventDensity: 0.7, retreatDepth: 0.10, spikeHeight: 0.30, plateauBias: -0.1 },
+
+    motif: {
+      length: 5,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.4, transpose: 0.6 },
+        storm:     { repeat: 0.2, transpose: 0.2, invert: 0.3, diminish: 0.3 },
+        maelstrom: { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
+      },
+    },
+    contour: { shape: 'flat', strength: 0.4 },
+    phrasing: { pairStyle: 'parallel', reuseLength: 2 },
   },
 
   // ── vaporwave (SPEC_019 §1.5) ────────────────────────────────────────────
@@ -1420,6 +1519,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 4, texture: 8, melody: 10, window: 10 },
     // Tension: dreamy, long plateaus, minimal spikes (SPEC_011 §3.4)
     tension: { eventDensity: 0.5, retreatDepth: 0.15, spikeHeight: 0.10, plateauBias: 0.25 },
+
+    motif: {
+      length: 6,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.4, transpose: 0.6 },
+        storm:     { repeat: 0.2, transpose: 0.3, invert: 0.3, diminish: 0.2 },
+        maelstrom: { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
+      },
+    },
+    contour: { shape: 'descending', strength: 0.4 },
+    phrasing: { pairStyle: 'parallel', reuseLength: 2 },
   },
 
   // ── breakbeat (SPEC_019 §1.6) ────────────────────────────────────────────
@@ -1551,6 +1662,18 @@ var PALETTES = [
     stagger: { rhythm: 0, harmony: 2, texture: 4, melody: 4, window: 4 },
     // Tension: energetic, sharp contrasts (SPEC_011 §3.4)
     tension: { eventDensity: 0.8, retreatDepth: 0.18, spikeHeight: 0.28, plateauBias: -0.05 },
+
+    motif: {
+      length: 6,
+      variationWeights: {
+        swell:     { repeat: 1.0 },
+        surge:     { repeat: 0.3, transpose: 0.7 },
+        storm:     { repeat: 0.2, transpose: 0.3, invert: 0.2, diminish: 0.3 },
+        maelstrom: { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
+      },
+    },
+    contour: { shape: 'arch', strength: 0.5 },
+    phrasing: { pairStyle: 'parallel', reuseLength: 2 },
   },
 ];
 

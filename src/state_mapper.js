@@ -637,6 +637,11 @@ var StateMapper = {
       HarmonyEngine.onPhaseChange(phase);
     }
 
+    // ChordTrack phase-entry gate (SPEC_032 §4 / #35): respects per-palette entryPhase
+    if (typeof ChordTrack !== 'undefined' && ChordTrack.onPhaseChange) {
+      ChordTrack.onPhaseChange(phase);
+    }
+
     // Storm entry: bass pattern switch + key modulation (SPEC_017 §3)
     if (phase === 'storm') {
       if (typeof Sequencer !== 'undefined') Sequencer.switchBassPattern();

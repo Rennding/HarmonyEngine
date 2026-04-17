@@ -190,7 +190,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #34 awaiting QA. #33 QA in progress. Next: #35 → #36 → #37 → #38 → #30.**
+**Status: #35 + #36 awaiting QA. Next: #37 → #38 → #30.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -220,11 +220,11 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#29** Per-palette Storm/Maelstrom personality — tier caps + gain scalars + phase filters (Opus) — qa-pass
 ✅ **#31** Mute melody engine pending overhaul — applied
 ✅ **#32** Per-palette voice overhaul — plan complete → SPEC_032_PER_PALETTE_VOICE_OVERHAUL.md
-✅ **#33** Melody synth rebuild — per-palette synthesis chain (Opus) — built, QA in progress
-✅ **#34** ChordTrack — rhythmic chord articulation engine (Opus) — built, awaiting QA
-- **#35** ChordTrack stagger + phase tuning (Sonnet) — **next build session**
+✅ **#33** Melody synth rebuild — per-palette synthesis chain (Opus) — qa-pass
+✅ **#34** ChordTrack — rhythmic chord articulation engine (Opus) — qa-pass
+✅ **#35** ChordTrack stagger + phase tuning (Sonnet) — built, awaiting QA
 ✅ Melody evolution — plan complete → SPEC_036_MELODY_EVOLUTION.md
-- **#36** Melody evolution — seed motif + phrase pairing + contour bias (Opus)
+✅ **#36** Melody evolution — seed motif + phrase pairing + contour bias (Opus) — built, awaiting QA
 - **#37** Melody evolution — I-R post-filter + interval affinity (Opus)
 - **#38** Melody evolution — melodic rhythm extensions (Sonnet)
 ✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md

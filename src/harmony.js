@@ -327,6 +327,7 @@ var PALETTES = [
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
       legato: true, legatoTime: 0.08, staccato: false,
       gainScalar: 1.0,
+      narrativeMotif: false, // legato bloom drowns mix on narrative stabs
     },
 
     melodyRhythm: {
@@ -614,6 +615,7 @@ var PALETTES = [
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
       legato: true, legatoTime: 0.12, staccato: false,
       gainScalar: 0.75, // SPEC_039 Fix D: reduced from 0.9 — less aggressive on fresh chain starts
+      narrativeMotif: false, // legato bloom drowns mix on narrative stabs
     },
 
     melodyRhythm: {
@@ -1128,6 +1130,7 @@ var PALETTES = [
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
       legato: true, legatoTime: 0.18, staccato: false,
       gainScalar: 1.0,
+      narrativeMotif: false, // legato bloom drowns mix on narrative stabs
     },
 
     melodyRhythm: {
@@ -1531,6 +1534,7 @@ var PALETTES = [
       detuneSpread: 15, pwmRate: 0, pwmDepth: 0,
       legato: true, legatoTime: 0.10, staccato: false,
       gainScalar: 0.85,
+      narrativeMotif: false, // legato bloom drowns mix on narrative stabs
     },
 
     melodyRhythm: {

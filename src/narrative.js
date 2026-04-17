@@ -264,6 +264,12 @@ var NarrativeConductor = {
     return t; // return end time for chaining
   },
 
+  // ── Narrative motif enabled for current palette ────────────────────────────
+  // Returns false when palette.melody.narrativeMotif === false (legato bloom palettes)
+  _narrativeMotifEnabled: function() {
+    return !(this._palette && this._palette.melody && this._palette.melody.narrativeMotif === false);
+  },
+
   // ── onBeat — called every beat from StateMapper.update ─────────────────────
   onBeat: function(beatTime) {
     if (!this._active) return;
@@ -273,15 +279,19 @@ var NarrativeConductor = {
     // Pulse intro motif: play at beat 4
     if (!this._introPlayed && G.phase === 'pulse' && G.beatCount === 4) {
       this._introPlayed = true;
-      this._refreshMotifMidi();
-      this._playMotifVariation('original', beatTime, { volume: 0.5 });
+      if (this._narrativeMotifEnabled()) {
+        this._refreshMotifMidi();
+        this._playMotifVariation('original', beatTime, { volume: 0.5 });
+      }
     }
 
     // Surge recurring motif: every 32 beats
     if (G.phase === 'surge' && (G.beatCount - this._surgeLastBeat) >= 32) {
       this._surgeLastBeat = G.beatCount;
-      this._refreshMotifMidi();
-      this._playMotifVariation('inverted', beatTime, { volume: 0.7 });
+      if (this._narrativeMotifEnabled()) {
+        this._refreshMotifMidi();
+        this._playMotifVariation('inverted', beatTime, { volume: 0.7 });
+      }
     }
 
     // Silence moments + streak unison check (SPEC_020 §8)
@@ -304,45 +314,54 @@ var NarrativeConductor = {
       this.scheduleMaelstromIntimacy(beatTime);
     }
 
+    var motifEnabled = this._narrativeMotifEnabled();
+
     switch (newPhase) {
       case 'swell':
         if (!this._swellPlayed) {
           this._swellPlayed = true;
-          // Harmonized in 3rds, one octave up
-          var savedOctave = this._motif.octave;
-          this._motif.octave = 6;
-          this._refreshMotifMidi();
-          this._playMotifVariation('harmonized_3rds', beatTime, { volume: 0.6 });
-          this._motif.octave = savedOctave;
-          this._refreshMotifMidi();
+          if (motifEnabled) {
+            // Harmonized in 3rds, one octave up
+            var savedOctave = this._motif.octave;
+            this._motif.octave = 6;
+            this._refreshMotifMidi();
+            this._playMotifVariation('harmonized_3rds', beatTime, { volume: 0.6 });
+            this._motif.octave = savedOctave;
+            this._refreshMotifMidi();
+          }
         }
         break;
 
       case 'surge':
         // First Surge occurrence: inverted motif
         this._surgeLastBeat = G.beatCount;
-        this._refreshMotifMidi();
-        this._playMotifVariation('inverted', beatTime, { volume: 0.7 });
+        if (motifEnabled) {
+          this._refreshMotifMidi();
+          this._playMotifVariation('inverted', beatTime, { volume: 0.7 });
+        }
         break;
 
       case 'storm':
         if (!this._stormPlayed) {
           this._stormPlayed = true;
-          // Transposed to new key (Storm modulation already happened via StateMapper)
-          // Wait 1 beat for modulation to settle, then play
-          var self = this;
-          var delayMs = (60 / G.bpm) * 1000;
-          setTimeout(function() {
-            if (!self._active) return;
-            self._refreshMotifMidi();
-            self._playMotifVariation('transposed', audioCtx.currentTime, { volume: 0.75 });
-          }, delayMs);
+          if (motifEnabled) {
+            // Transposed to new key (Storm modulation already happened via StateMapper)
+            // Wait 1 beat for modulation to settle, then play
+            var self = this;
+            var delayMs = (60 / G.bpm) * 1000;
+            setTimeout(function() {
+              if (!self._active) return;
+              self._refreshMotifMidi();
+              self._playMotifVariation('transposed', audioCtx.currentTime, { volume: 0.75 });
+            }, delayMs);
+          }
         }
         break;
 
       case 'maelstrom':
         if (!this._maelstromPlayed) {
           this._maelstromPlayed = true;
+          if (!motifEnabled) break;
           // Augmented canon: double duration, then 2nd voice 2 beats behind
           this._refreshMotifMidi();
           var endTime = this._playMotifVariation('original', beatTime, {

@@ -11900,53 +11900,77 @@ var DiagnosticPanel = {
     if (!root) return;
     this._root = root;
 
-    // Panel container
+    // Panel + glossary + toggle button
     root.innerHTML =
-      '<div id="diagPanel" style="display:none; position:fixed; right:0; top:0; width:350px; height:100vh; ' +
-      'background:rgba(10,10,15,0.92); border-left:1px solid #1a1a3a; font-family:\'Courier New\',monospace; ' +
-      'font-size:12px; color:#aaaacc; z-index:9999; overflow:hidden; display:flex; flex-direction:column;">' +
-        // Header
+      '<style>' +
+        '#diagPanel, #diagGlossary {' +
+          'position:fixed; right:0; top:0; width:350px; height:100vh;' +
+          'background:rgba(10,10,15,0.94); border-left:1px solid #1a1a3a;' +
+          'font-family:"Courier New",monospace; font-size:12px; color:#aaaacc;' +
+          'z-index:9999;' +
+        '}' +
+        '#diagPanel { display:none; flex-direction:column; overflow:hidden; }' +
+        '#diagPanel.diag-visible { display:flex; }' +
+        '#diagGlossary { display:none; z-index:10000; overflow-y:auto; padding:12px; background:rgba(10,10,15,0.97); }' +
+        '#diagGlossary.diag-visible { display:block; }' +
+        '#diagPanel button, #diagGlossary button {' +
+          'background:none; border:1px solid #1a1a3a; color:#555577;' +
+          'cursor:pointer; padding:4px 10px; margin-left:4px;' +
+          'font-family:inherit; font-size:12px; min-width:32px; min-height:28px;' +
+        '}' +
+        '#diagPanel button:hover, #diagGlossary button:hover { background:#1a1a3a; color:#aaaacc; }' +
+        '#diagToggle {' +
+          'position:fixed; right:12px; top:12px;' +
+          'min-width:44px; height:36px; padding:0 12px;' +
+          'border-radius:18px; background:rgba(10,10,15,0.85);' +
+          'border:1px solid #00ffcc66; color:#00ffcc;' +
+          'font-family:"Courier New",monospace; font-size:11px; font-weight:bold;' +
+          'cursor:pointer; z-index:9998; letter-spacing:1px;' +
+          '-webkit-tap-highlight-color:transparent;' +
+        '}' +
+        '#diagToggle:hover { background:#00ffcc22; }' +
+        '#diagToggle.diag-active { background:#00ffcc; color:#0a0a0f; border-color:#00ffcc; }' +
+        '#diagToggle.diag-error { border-color:#ff3366; color:#ff3366; background:#ff336622; }' +
+        '@media (max-width: 600px) {' +
+          '#diagPanel, #diagGlossary { width:100vw; border-left:none; }' +
+          '#diagPanel { font-size:13px; }' +
+          '#diagPanel button, #diagGlossary button { min-height:40px; min-width:40px; padding:6px 12px; font-size:14px; }' +
+          '#diagHeader { padding:14px 14px; }' +
+          '#diagToggle { height:40px; min-width:52px; border-radius:20px; font-size:12px; }' +
+        '}' +
+      '</style>' +
+      '<div id="diagPanel">' +
         '<div id="diagHeader" style="padding:10px 12px; border-bottom:1px solid #1a1a3a; display:flex; ' +
         'justify-content:space-between; align-items:center; flex-shrink:0;">' +
           '<span style="color:#00ffcc; font-weight:bold;">\uD83D\uDD27 DIAGNOSTIC</span>' +
           '<span>' +
-            '<button id="diagBtnGlossary" style="background:none; border:1px solid #1a1a3a; color:#555577; ' +
-            'cursor:pointer; padding:2px 8px; margin-right:4px; font-family:inherit; font-size:12px;">?</button>' +
-            '<button id="diagBtnCopy" style="background:none; border:1px solid #1a1a3a; color:#555577; ' +
-            'cursor:pointer; padding:2px 8px; margin-right:4px; font-family:inherit; font-size:12px;">' +
-            '\uD83D\uDCCB</button>' +
-            '<button id="diagBtnClose" style="background:none; border:1px solid #1a1a3a; color:#555577; ' +
-            'cursor:pointer; padding:2px 8px; font-family:inherit; font-size:12px;">\u00D7</button>' +
+            '<button id="diagBtnGlossary">?</button>' +
+            '<button id="diagBtnCopy">\uD83D\uDCCB</button>' +
+            '<button id="diagBtnClose">\u00D7</button>' +
           '</span>' +
         '</div>' +
-        // State section
         '<div style="padding:8px 12px; border-bottom:1px solid #1a1a3a; flex-shrink:0;">' +
           '<div style="color:#555577; font-size:11px; margin-bottom:4px;">STATE</div>' +
           '<div id="diagState" style="line-height:1.6;"></div>' +
         '</div>' +
-        // Tracks section
         '<div style="padding:8px 12px; border-bottom:1px solid #1a1a3a; flex-shrink:0;">' +
           '<div style="color:#555577; font-size:11px; margin-bottom:4px;">TRACKS' +
           '<span style="float:right; color:#555577;">gain &nbsp; target &nbsp; state</span></div>' +
           '<div id="diagTracks" style="line-height:1.5;"></div>' +
         '</div>' +
-        // Anomaly log section
         '<div style="padding:8px 12px; flex:1; overflow-y:auto;">' +
           '<div style="color:#555577; font-size:11px; margin-bottom:4px;">ANOMALY LOG (newest first)</div>' +
           '<div id="diagLog"></div>' +
         '</div>' +
       '</div>' +
-      // Glossary popup (hidden)
-      '<div id="diagGlossary" style="display:none; position:fixed; right:0; top:0; width:350px; height:100vh; ' +
-      'background:rgba(10,10,15,0.96); border-left:1px solid #1a1a3a; font-family:\'Courier New\',monospace; ' +
-      'font-size:12px; color:#aaaacc; z-index:10000; overflow-y:auto; padding:12px;">' +
+      '<div id="diagGlossary">' +
         '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">' +
           '<span style="color:#00ffcc; font-weight:bold;">VOCABULARY</span>' +
-          '<button id="diagGlossaryClose" style="background:none; border:1px solid #1a1a3a; color:#555577; ' +
-          'cursor:pointer; padding:2px 8px; font-family:inherit; font-size:12px;">\u00D7</button>' +
+          '<button id="diagGlossaryClose">\u00D7</button>' +
         '</div>' +
         '<div id="diagGlossaryBody"></div>' +
-      '</div>';
+      '</div>' +
+      '<button id="diagToggle" title="Toggle diagnostic panel (D)">DIAG</button>';
 
     // Cache elements
     this._stateEl = document.getElementById('diagState');
@@ -11978,16 +12002,12 @@ var DiagnosticPanel = {
     document.getElementById('diagBtnGlossary').onclick = function() { self._toggleGlossary(); };
     document.getElementById('diagGlossaryClose').onclick = function() { self._toggleGlossary(); };
 
-    // Create badge (shown when panel closed + error detected)
-    var badge = document.createElement('div');
-    badge.id = 'diagBadge';
-    badge.style.cssText = 'display:none; position:fixed; right:12px; top:12px; width:18px; height:18px; ' +
-      'border-radius:50%; background:#ff3366; z-index:9998; cursor:pointer; ' +
-      'font-size:10px; text-align:center; line-height:18px; color:#0a0a0f; font-weight:bold;';
-    badge.textContent = 'D';
-    badge.onclick = function() { self.show(); };
-    document.body.appendChild(badge);
-    this._badgeEl = badge;
+    // Toggle button (always visible — open/close panel, flashes on error)
+    var toggle = document.getElementById('diagToggle');
+    if (toggle) {
+      toggle.onclick = function() { if (self._visible) self.hide(); else self.show(); };
+    }
+    this._badgeEl = toggle;
   },
 
   _bindKeys: function() {
@@ -12013,18 +12033,22 @@ var DiagnosticPanel = {
 
   show: function() {
     var panel = document.getElementById('diagPanel');
-    if (panel) panel.style.display = 'flex';
+    if (panel) panel.classList.add('diag-visible');
     this._visible = true;
     this._hasUnseenError = false;
-    if (this._badgeEl) this._badgeEl.style.display = 'none';
+    if (this._badgeEl) {
+      this._badgeEl.classList.add('diag-active');
+      this._badgeEl.classList.remove('diag-error');
+    }
     this._updateDisplay();
   },
 
   hide: function() {
     var panel = document.getElementById('diagPanel');
-    if (panel) panel.style.display = 'none';
+    if (panel) panel.classList.remove('diag-visible');
     this._visible = false;
-    if (this._glossaryEl) this._glossaryEl.style.display = 'none';
+    if (this._glossaryEl) this._glossaryEl.classList.remove('diag-visible');
+    if (this._badgeEl) this._badgeEl.classList.remove('diag-active');
   },
 
   _flashError: function() {
@@ -12037,10 +12061,10 @@ var DiagnosticPanel = {
         header.style.background = 'transparent';
       }, 200);
     }
-    // Badge when closed
+    // Toggle button turns red when closed + unseen error
     if (!this._visible) {
       this._hasUnseenError = true;
-      if (this._badgeEl) this._badgeEl.style.display = 'block';
+      if (this._badgeEl) this._badgeEl.classList.add('diag-error');
     }
   },
 
@@ -12194,8 +12218,7 @@ var DiagnosticPanel = {
 
   _toggleGlossary: function() {
     if (!this._glossaryEl) return;
-    var shown = this._glossaryEl.style.display !== 'none';
-    this._glossaryEl.style.display = shown ? 'none' : 'block';
+    this._glossaryEl.classList.toggle('diag-visible');
   },
 };
 

@@ -190,7 +190,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: #35 + #36 + #37 awaiting QA. #38 qa-improve → #39 opened. Next: #39 then #30, then #40/#41.**
+**Status: #35 + #36 + #37 + #39 awaiting QA. Next: #30, then #40/#41.**
 
 ### Tier 1 · Foundation (P1)
 ✅ #1 AudioContext lifecycle — qa-pass
@@ -228,7 +228,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 ✅ **#37** Melody evolution — I-R post-filter + interval affinity (Opus) — built, awaiting QA
 ⚠️ **#38** Melody evolution — melodic rhythm extensions (Sonnet) — qa-improve → see #39
 ✅ Melody rhythm palette fix — plan complete → SPEC_039_MELODY_RHYTHM_PALETTE_FIX.md
-- **#39** Melody rhythm palette fix — swing×syncopation + legato guard + attack pop (Opus)
+✅ **#39** Melody rhythm palette fix — swing×syncopation + legato guard + attack pop (Opus) — built, awaiting QA
 ✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
 - **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus)
 ✅ Chord evolution — plan complete → SPEC_040_CHORD_EVOLUTION.md

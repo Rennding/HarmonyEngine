@@ -321,7 +321,7 @@ var PALETTES = [
     // Per-palette melody synth profile (SPEC_032 §3.3)
     melody: {
       octave: 5,
-      attack: 0.04, hold: 0, decay: 0.15, sustainLevel: 1.0, release: 0.2,
+      attack: 0.08, hold: 0, decay: 0.15, sustainLevel: 1.0, release: 0.2, // SPEC_039 Fix C: 0.04→0.08 removes phrase-start pop
       lpfCutoff: 2500, lpfEnvAmount: 400, lpfEnvDecay: 0.3, lpfResonance: 1.0,
       vibratoDepth: 6, vibratoRate: 3, vibratoDelay: 0.3,
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
@@ -613,7 +613,7 @@ var PALETTES = [
       vibratoDepth: 8, vibratoRate: 3.5, vibratoDelay: 0.2,
       detuneSpread: 0, pwmRate: 0, pwmDepth: 0,
       legato: true, legatoTime: 0.12, staccato: false,
-      gainScalar: 0.9,
+      gainScalar: 0.75, // SPEC_039 Fix D: reduced from 0.9 — less aggressive on fresh chain starts
     },
 
     melodyRhythm: {
@@ -1136,7 +1136,7 @@ var PALETTES = [
       humanizeInherit: true,
       holdProbability: 0.40,     // held notes — space and breath
       restStyle: 'rhythmic',     // bar-aligned phrase starts
-      syncopationProbability: 0.70, // heavy syncopation — jazz anticipation, notes push the beat
+      syncopationProbability: 0.40, // jazz anticipation — occasional beat push, not chaotic (SPEC_039 Fix B)
       dottedBias: 0.15,             // dotted feel — jazz long-short phrasing
       rubato: true,                 // human drift — jazz is never fully quantized
     },

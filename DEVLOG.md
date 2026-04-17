@@ -9,6 +9,13 @@
 
 ---
 
+## 2026-04-17 — #39 Melody rhythm palette fix (build)
+Fixed four QA issues from #38: swing×syncopation mutual exclusion (noir_jazz no longer sounds like ambient_dread), noir_jazz syncopation 0.70→0.40, 20ms phrase-boundary gap + wider legato guard (no more pops/plucks in synthwave/noir_jazz/ambient_dread), synthwave attack 0.04→0.08, ambient_dread melody gain 0.9→0.75. Gate passes. Awaiting QA.
+
+**Files changed:** `src/melody.js`, `src/harmony.js`
+
+---
+
 ## 2026-04-17 — Chord Evolution plan → SPEC_040, #40, #41
 
 **What:** Plan session for chord system evolution. Designed four subsystems based on AUDIT_MELODY_CHORDS_RESEARCH.md Part 2 + Part 6 items 9–12:

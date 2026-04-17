@@ -625,7 +625,9 @@ var MelodyEngine = {
 
       // --- Melodic rhythm extensions (SPEC_036 §8) ---
       // Syncopation: shift note early by half a sub-unit
-      if (this._syncopationProbability > 0 && (_songRng || Math.random)() < this._syncopationProbability) {
+      // SPEC_039 Fix A: skip syncopation on swing-displaced odd steps — mutual exclusion
+      var isSwungStep = this._swingInherit && (this._melodyStep % 2 === 1);
+      if (!isSwungStep && this._syncopationProbability > 0 && (_songRng || Math.random)() < this._syncopationProbability) {
         var syncShift = subDurSec * 0.5;
         // Clamp: don't go before the beat boundary
         subTime = Math.max(beatTime, subTime - syncShift);
@@ -1416,7 +1418,7 @@ var MelodyEngine = {
         this._liveFilter.frequency.exponentialRampToValueAtTime(Math.max(lpfBase, 20), time + lpfDecay);
       }
       // Extend stop times
-      this._liveNoteEnd = noteOff + 0.05;
+      this._liveNoteEnd = noteOff + 0.15; // SPEC_039 Fix C: wider guard for legato continuity (was +0.05)
       try { this._liveOsc.stop(this._liveNoteEnd); } catch(e) {}
       if (this._liveOsc2) { try { this._liveOsc2.stop(this._liveNoteEnd); } catch(e) {} }
       if (this._liveVibrato) { try { this._liveVibrato.stop(this._liveNoteEnd); } catch(e) {} }
@@ -1426,8 +1428,10 @@ var MelodyEngine = {
     }
 
     // ── Non-legato (or first legato note): create fresh chain ─────────────
-    // Kill any existing legato voice
-    if (this._liveOsc) this._killLiveVoice(time);
+    // Kill any existing legato voice — SPEC_039 Fix C: 20ms guard gap prevents click
+    var freshKill = !!this._liveOsc;
+    if (freshKill) this._killLiveVoice(time);
+    var chainStart = freshKill ? time + 0.02 : time; // offset new chain after kill ramp
 
     // Oscillator
     var osc = audioCtx.createOscillator();
@@ -1481,8 +1485,8 @@ var MelodyEngine = {
     lpf.Q.value = lpfRes;
     if (lpfEnvAmount > 0) {
       var lpfPeak = Math.min(lpfBase + lpfEnvAmount, 20000);
-      lpf.frequency.setValueAtTime(lpfPeak, time);
-      lpf.frequency.exponentialRampToValueAtTime(Math.max(lpfBase, 20), time + lpfEnvDecay);
+      lpf.frequency.setValueAtTime(lpfPeak, chainStart);
+      lpf.frequency.exponentialRampToValueAtTime(Math.max(lpfBase, 20), chainStart + lpfEnvDecay);
     } else {
       lpf.frequency.value = lpfBase;
     }
@@ -1490,14 +1494,14 @@ var MelodyEngine = {
     // AHDSR gain envelope (SPEC_032 §3.2)
     var env = audioCtx.createGain();
     var sustainGain = finalGain * sustainLevel;
-    env.gain.setValueAtTime(0.0001, time);
-    env.gain.linearRampToValueAtTime(finalGain, time + attack);
+    env.gain.setValueAtTime(0.0001, chainStart);
+    env.gain.linearRampToValueAtTime(finalGain, chainStart + attack);
     if (hold > 0) {
-      env.gain.setValueAtTime(finalGain, time + attack + hold);
+      env.gain.setValueAtTime(finalGain, chainStart + attack + hold);
     }
-    env.gain.linearRampToValueAtTime(Math.max(sustainGain, 0.0001), time + attack + hold + decay);
+    env.gain.linearRampToValueAtTime(Math.max(sustainGain, 0.0001), chainStart + attack + hold + decay);
     // Hold sustain until release
-    var noteOff = time + dur;
+    var noteOff = chainStart + dur;
     env.gain.setValueAtTime(Math.max(sustainGain, 0.0001), noteOff - release);
     env.gain.exponentialRampToValueAtTime(0.0001, noteOff);
 
@@ -1519,15 +1523,15 @@ var MelodyEngine = {
       vibrato.frequency.value = vibratoRate;
       // Delayed vibrato: start at 0, ramp to full depth
       if (vibratoDelay > 0) {
-        vibratoGainNode.gain.setValueAtTime(0, time);
-        vibratoGainNode.gain.linearRampToValueAtTime(vibratoDepth, time + vibratoDelay);
+        vibratoGainNode.gain.setValueAtTime(0, chainStart);
+        vibratoGainNode.gain.linearRampToValueAtTime(vibratoDepth, chainStart + vibratoDelay);
       } else {
         vibratoGainNode.gain.value = vibratoDepth;
       }
       vibrato.connect(vibratoGainNode);
       vibratoGainNode.connect(osc.frequency);
       if (osc2) vibratoGainNode.connect(osc2.frequency);
-      vibrato.start(time);
+      vibrato.start(chainStart);
     }
 
     // ── Routing: osc(+osc2) → lpf → env → track gain ─────────────────────
@@ -1546,10 +1550,10 @@ var MelodyEngine = {
 
     // Schedule start/stop
     var stopTime = noteOff + 0.05;
-    osc.start(time);
+    osc.start(chainStart);
     osc.stop(stopTime);
-    if (osc2) { osc2.start(time); osc2.stop(stopTime); }
-    if (pwmLfo) { pwmLfo.start(time); pwmLfo.stop(stopTime); }
+    if (osc2) { osc2.start(chainStart); osc2.stop(stopTime); }
+    if (pwmLfo) { pwmLfo.start(chainStart); pwmLfo.stop(stopTime); }
     if (vibrato) { vibrato.stop(stopTime); }
 
     // ── Persist refs for legato mode ──────────────────────────────────────
@@ -1562,7 +1566,7 @@ var MelodyEngine = {
       this._liveVibratoGain = vibratoGainNode;
       this._livePwmLfo = pwmLfo;
       this._livePwmGain = pwmGain;
-      this._liveNoteEnd = stopTime;
+      this._liveNoteEnd = noteOff + 0.15; // SPEC_039 Fix C: wider guard for legato continuity (matches re-trigger path)
     }
 
     this._lastNoteMidi = midiNote;

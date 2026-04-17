@@ -9812,6 +9812,8 @@ var MelodyEngine = {
 
   // ── Kill persistent legato voice (SPEC_032 §3.4) ──────────────────────────
   _killLiveVoice: function(time) {
+    var _kBeat = (typeof G !== 'undefined') ? G.beatCount : '?';
+    var _kGv = (this._liveGain) ? this._liveGain.gain.value : 0;
     var t = time || (audioCtx ? audioCtx.currentTime : 0);
     try {
       if (this._liveGain) {
@@ -9873,6 +9875,9 @@ var MelodyEngine = {
     dur = Math.max(dur, attack + hold + 0.02); // floor: at least attack + hold
 
     // ── Legato path: reuse live oscillator ────────────────────────────────
+    var _db = (typeof G !== 'undefined') ? G.beatCount : '?';
+    var _dp = (typeof G !== 'undefined') ? G.phase : '?';
+    var _dtg = (typeof _trackGains !== 'undefined' && _trackGains.melody) ? _trackGains.melody.gain.value.toFixed(3) : '?';
     if (mCfg.legato && this._liveOsc && this._liveGain && this._liveNoteEnd > time) {
       var legatoTime = (mCfg.legatoTime !== undefined) ? mCfg.legatoTime : 0.06;
       // Pitch glide

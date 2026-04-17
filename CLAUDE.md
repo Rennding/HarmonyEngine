@@ -276,6 +276,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | Game state reference in audio | All G.* fields must exist in state.js — grep for G. references after any audio module change |
 | StateMapper expects game objects | StateMapper references PerkEffects* — stub or guard with typeof checks |
 | Standalone synth fns lack palette access | _synthBass/_synthDrum are module-scope functions, not Sequencer methods — they only see _activePaletteName, not the full palette object. When adding per-palette config reads, ensure _activePalette (full object) is set alongside _activePaletteName in Sequencer.initRun(). |
+| Large file truncation by Edit/Write tool | **Never use Edit or Write on files >600 lines.** Use bash+sed/awk for targeted edits: `sed -i 's/old/new/g'` for replacements, heredoc+awk for insertions. Always verify line count after: `wc -l src/file.js` and check tail: `tail -5 src/file.js`. If line count drops unexpectedly, restore from git immediately: `git checkout HEAD -- src/file.js`. Affected files: melody.js (1644), sequencer.js (2719), harmony.js (2492), state_mapper.js (1069), narrative.js (1054). |
 
 ---
 

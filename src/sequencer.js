@@ -1060,11 +1060,14 @@ var PadTrack = {
     // Fade out old voices
     this._fadeOutVoices(beatTime);
 
-    // Build new voices: voiced tones with staggered entry + velocity variation
+    // Build new voices: voiced tones via VoicingEngine (SPEC_040) with staggered entry + velocity variation
     var cfg   = this._palette;
-    var tones = (typeof HarmonyEngine.getVoicedChordTones === 'function')
-      ? HarmonyEngine.getVoicedChordTones(cfg.octave || 3)
-      : HarmonyEngine.getChordTones(cfg.octave || 3);
+    var _phasePT = (typeof G !== 'undefined' && G.phase) ? G.phase : 'pulse';
+    var tones = (typeof VoicingEngine !== 'undefined' && HarmonyEngine._currentChord)
+      ? VoicingEngine.voice(HarmonyEngine._currentChord, this._paletteName, _phasePT, null)
+      : ((typeof HarmonyEngine.getVoicedChordTones === 'function')
+          ? HarmonyEngine.getVoicedChordTones(cfg.octave || 3)
+          : HarmonyEngine.getChordTones(cfg.octave || 3));
     var t     = beatTime;
     var att   = cfg.attack || 0.8;
     var beatDur = 60 / (G.bpm || 120);
@@ -2056,9 +2059,14 @@ var ChordTrack = {
       if ((_songRng || Math.random)() > 0.6) return;
     }
 
-    // Get chord tones at the configured octave
-    if (typeof HarmonyEngine === 'undefined') return;
-    var tones = HarmonyEngine.getChordTones(cfg.octave || 4);
+    // Get voiced chord tones via VoicingEngine (SPEC_040)
+    if (typeof HarmonyEngine === 'undefined' || !HarmonyEngine._currentChord) return;
+    var _phase = (typeof G !== 'undefined' && G.phase) ? G.phase : 'pulse';
+    var _melMidi = (typeof MelodyEngine !== 'undefined' && MelodyEngine.getLastNoteMidi)
+      ? MelodyEngine.getLastNoteMidi() : null;
+    var tones = (typeof VoicingEngine !== 'undefined')
+      ? VoicingEngine.voice(HarmonyEngine._currentChord, this._paletteName, _phase, _melMidi)
+      : HarmonyEngine.getChordTones(cfg.octave || 4);
     if (!tones || tones.length === 0) return;
 
     // Limit to requested voice count

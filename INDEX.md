@@ -69,10 +69,13 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| PALETTES | harmony.js | 84 | 10 genre palette objects (each .bass has tierCap, gainScalar, phaseFilter — SPEC_028) |
-| HarmonyEngine | harmony.js | 1400 | Chord/scale/voice-leading methods |
-| PaletteBlender | harmony.js | 2049 | Maelstrom cross-palette interpolation |
-| _selectPalette() | harmony.js | 2000 | Weighted recency palette picker |
+| PALETTES | harmony.js | 84 | 10 genre palette objects (each .bass has tierCap/gainScalar/phaseFilter — SPEC_028; each has .voicingEngine — SPEC_040) |
+| HarmonyEngine | harmony.js | 1817 | Chord/scale/voice-leading methods |
+| VoicingEngine | harmony.js | 2420 | Voicing style + extension ramp + register + collision avoidance (SPEC_040) |
+| VoicingEngine.voice | harmony.js | ~2430 | Entry point: chord+palette+phase+melodyMidi → MIDI notes |
+| VoicingEngine._applyStyle | harmony.js | ~2495 | Style renderers: power/close/drop2/open/shell/cluster/spread |
+| PaletteBlender | harmony.js | 2709 | Maelstrom cross-palette interpolation |
+| _selectPalette() | harmony.js | 2660 | Weighted recency palette picker |
 | midiToFreq() | harmony.js | 78 | MIDI to Hz conversion |
 
 ---
@@ -89,15 +92,15 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| Sequencer | sequencer.js | 2161 | Main sequencer object |
-| PadTrack | sequencer.js | 1018 | Pad/chord track |
-| WalkingBass | sequencer.js | 1453 | Dynamic bass pitch engine (tierCap from palette — SPEC_028) |
-| _CHORD_PATTERNS | sequencer.js | 1942 | 8 chord rhythm patterns (SPEC_032 §4) |
-| ChordTrack | sequencer.js | 2001 | Rhythmic chord stabs/comps/arps per palette (SPEC_032 §4) |
-| ChordTrack.onPhaseChange | sequencer.js | ~2145 | Harmony-group phase-entry gate: unmute at entryPhase (#35) |
-| ChordTrack.tickStep | sequencer.js | ~2055 | Per-16th-note chord dispatch |
-| ChordTrack._playStab | sequencer.js | ~2083 | Multi-voice chord stab synthesis |
-| ChordTrack._playArpNote | sequencer.js | ~2115 | Single-voice arp note synthesis |
+| Sequencer | sequencer.js | 2180 | Main sequencer object |
+| PadTrack | sequencer.js | 1018 | Pad/chord track (routes tones via VoicingEngine — SPEC_040) |
+| WalkingBass | sequencer.js | 1456 | Dynamic bass pitch engine (tierCap from palette — SPEC_028) |
+| _CHORD_PATTERNS | sequencer.js | 1945 | 8 chord rhythm patterns (SPEC_032 §4) |
+| ChordTrack | sequencer.js | 2005 | Rhythmic chord stabs/comps/arps per palette (SPEC_032 §4) |
+| ChordTrack.onPhaseChange | sequencer.js | ~2150 | Harmony-group phase-entry gate: unmute at entryPhase (#35) |
+| ChordTrack.tickStep | sequencer.js | ~2060 | Per-16th-note chord dispatch (VoicingEngine — SPEC_040) |
+| ChordTrack._playStab | sequencer.js | ~2090 | Multi-voice chord stab synthesis |
+| ChordTrack._playArpNote | sequencer.js | ~2120 | Single-voice arp note synthesis |
 
 ---
 
@@ -144,6 +147,7 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | MelodyEngine._killLiveVoice | melody.js | 1295 | Kill persistent legato oscillator chain (SPEC_032) |
 | MelodyEngine._playMelodyNote | melody.js | 1322 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
 | MelodyEngine._liveOsc/Gain/Filter | melody.js | 30 | Legato state: persistent osc, gain, filter refs (SPEC_032) |
+| MelodyEngine.getLastNoteMidi | melody.js | 1640 | Exposed last-played MIDI note for VoicingEngine collision avoidance (SPEC_040) |
 
 ---
 

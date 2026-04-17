@@ -1880,6 +1880,14 @@ var PALETTES = [
       preferOpen: false,
     },
 
+    // Voicing engine (SPEC_040) — chord realization style + extension ramp + collision
+    voicingEngine: {
+      style: 'power',
+      extensions: { pulse: [], swell: [], surge: [], storm: [], maelstrom: [] },
+      registerFloor: 3, registerCeiling: 4, maxNotesOct3: 2,
+      voiceLeadStrength: 0.3, collisionMode: 'split',
+    },
+
     // Per-palette chord articulation (SPEC_032 §4.4)
     chord: {
       style: 'stab', pattern: 'four_stab', voices: 2,
@@ -2030,6 +2038,14 @@ var PALETTES = [
       preferOpen: true,
     },
 
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'open',
+      extensions: { pulse: [], swell: [], surge: [7], storm: [7], maelstrom: [7] },
+      registerFloor: 3, registerCeiling: 5, maxNotesOct3: 2,
+      voiceLeadStrength: 0.7, collisionMode: 'avoid',
+    },
+
     // Per-palette chord articulation (SPEC_032 §4.4)
     chord: {
       style: 'stab', pattern: 'offbeat_stab', voices: 3,
@@ -2171,6 +2187,14 @@ var PALETTES = [
       allowSus: false,
       allow9th: false,
       preferOpen: false,
+    },
+
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'close',
+      extensions: { pulse: [], swell: [], surge: [7], storm: [7], maelstrom: [7] },
+      registerFloor: 4, registerCeiling: 5, maxNotesOct3: 2,
+      voiceLeadStrength: 0.2, collisionMode: 'none',
     },
 
     // Per-palette chord articulation (SPEC_032 §4.4)
@@ -2318,6 +2342,14 @@ var PALETTES = [
       preferOpen: true,
     },
 
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'cluster',
+      extensions: { pulse: [], swell: [], surge: [], storm: [], maelstrom: [] },
+      registerFloor: 3, registerCeiling: 5, maxNotesOct3: 2,
+      voiceLeadStrength: 0.5, collisionMode: 'none',
+    },
+
     // Per-palette chord articulation (SPEC_032 §4.4) — none: pad wash carries harmony alone
     chord: {
       style: 'none',
@@ -2458,6 +2490,14 @@ var PALETTES = [
       allowSus: true,
       allow9th: true,
       preferOpen: true,
+    },
+
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'spread',
+      extensions: { pulse: [], swell: [], surge: [7], storm: [7, 9], maelstrom: [7, 9] },
+      registerFloor: 3, registerCeiling: 5, maxNotesOct3: 2,
+      voiceLeadStrength: 0.8, collisionMode: 'avoid',
     },
 
     // Special: vinyl crackle texture (continuous quiet noise)
@@ -2606,6 +2646,14 @@ var PALETTES = [
       allowSus: false,
       allow9th: false,
       preferOpen: false,
+    },
+
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'close',
+      extensions: { pulse: [], swell: [], surge: [], storm: [], maelstrom: [] },
+      registerFloor: 4, registerCeiling: 5, maxNotesOct3: 2,
+      voiceLeadStrength: 0.4, collisionMode: 'split',
     },
 
     // Per-palette chord articulation (SPEC_032 §4.4) — classic NES arp cycling
@@ -2831,6 +2879,14 @@ var PALETTES = [
       allowSus: true,
       allow9th: true,
       preferOpen: true,
+    },
+
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'drop2',
+      extensions: { pulse: [], swell: [], surge: [7], storm: [7, 9], maelstrom: [7, 9, 11, 13] },
+      registerFloor: 3, registerCeiling: 5, maxNotesOct3: 2,
+      voiceLeadStrength: 0.95, collisionMode: 'avoid',
     },
 
     // Per-palette chord articulation (SPEC_032 §4.4) — ghosted swung jazz comps
@@ -3091,6 +3147,14 @@ var PALETTES = [
       preferOpen: false,
     },
 
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'power',
+      extensions: { pulse: [], swell: [], surge: [], storm: [], maelstrom: [] },
+      registerFloor: 3, registerCeiling: 4, maxNotesOct3: 2,
+      voiceLeadStrength: 0.3, collisionMode: 'split',
+    },
+
     // Per-palette chord articulation (SPEC_032 §4.4) — aggressive 8th stabs
     chord: {
       style: 'stab', pattern: 'stutter_8th', voices: 2,
@@ -3237,6 +3301,14 @@ var PALETTES = [
       preferOpen: true,
     },
 
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'spread',
+      extensions: { pulse: [], swell: [], surge: [7], storm: [7, 9], maelstrom: [7, 9] },
+      registerFloor: 3, registerCeiling: 5, maxNotesOct3: 2,
+      voiceLeadStrength: 0.7, collisionMode: 'none',
+    },
+
     // Special: pitch wobble — slow LFO ±10 cents on master detune
     special: 'pitch_wobble',
 
@@ -3380,6 +3452,14 @@ var PALETTES = [
       allowSus: false,
       allow9th: false,
       preferOpen: false,
+    },
+
+    // Voicing engine (SPEC_040)
+    voicingEngine: {
+      style: 'close',
+      extensions: { pulse: [], swell: [], surge: [7], storm: [7], maelstrom: [7] },
+      registerFloor: 4, registerCeiling: 5, maxNotesOct3: 2,
+      voiceLeadStrength: 0.5, collisionMode: 'avoid',
     },
 
     // Special: break rewind — reversed pattern every 8 bars for 1 bar
@@ -4011,6 +4091,249 @@ var HarmonyEngine = {
 
   getPalette: function() {
     return this._palette;
+  },
+};
+
+// --- VoicingEngine (SPEC_040) ---------------------------------------------
+// Sits between HarmonyEngine's chord symbols and ChordTrack/PadTrack synthesis.
+// Applies palette voicing style, phase-driven extensions, register rules, and
+// chord-melody collision avoidance. Resets voice-lead state on palette swap.
+var VoicingEngine = {
+  _lastVoicing: null,
+  _lastPaletteName: null,
+
+  // Entry point: returns array of MIDI notes for the given chord.
+  // chord: HarmonyEngine._currentChord snapshot (needs .rootSemitone, .quality)
+  // paletteName: palette.name string
+  // phase: 'pulse' | 'swell' | 'surge' | 'storm' | 'maelstrom'
+  // melodyMidi: MelodyEngine.getLastNoteMidi() or null (used only when collisionMode==='avoid')
+  voice: function(chord, paletteName, phase, melodyMidi) {
+    if (!chord) return [];
+    var palette = this._lookupPalette(paletteName);
+    var cfg = palette && palette.voicingEngine;
+    if (!cfg) return this._fallbackTriad(chord, 4);
+
+    // Reset voice-lead state on palette swap
+    if (this._lastPaletteName !== paletteName) {
+      this._lastVoicing = null;
+      this._lastPaletteName = paletteName;
+    }
+
+    // 1. Base intervals from chord quality (triad)
+    var base = _triadIntervals(chord.quality).slice();
+
+    // 2. Append extensions allowed at current phase
+    var extList = (cfg.extensions && cfg.extensions[phase]) || [];
+    for (var i = 0; i < extList.length; i++) {
+      var iv = this._resolveExtension(extList[i], chord.quality);
+      if (iv != null) base.push(iv);
+    }
+
+    // 3. Apply voicing style → MIDI notes
+    var notes = this._applyStyle(cfg.style, base, chord.rootSemitone, cfg);
+
+    // 4. Voice leading
+    if (this._lastVoicing && this._lastVoicing.length > 0 && cfg.voiceLeadStrength > 0) {
+      notes = this._applyVoiceLeading(this._lastVoicing, notes, cfg.voiceLeadStrength);
+    }
+
+    // 5. Register enforcement (clamp + octave-3 density cap)
+    notes = this._enforceRegister(notes, cfg);
+
+    // 6. Collision avoidance
+    notes = this._avoidCollision(notes, melodyMidi, cfg);
+
+    // 7. Dedupe + sort
+    notes = this._dedupeSort(notes);
+
+    this._lastVoicing = notes.slice();
+    return notes;
+  },
+
+  _lookupPalette: function(name) {
+    if (!name || typeof PALETTES === 'undefined') return null;
+    for (var i = 0; i < PALETTES.length; i++) {
+      if (PALETTES[i].name === name) return PALETTES[i];
+    }
+    return null;
+  },
+
+  _fallbackTriad: function(chord, octave) {
+    var baseMidi = (octave + 1) * 12 + chord.rootSemitone;
+    var iv = _triadIntervals(chord.quality);
+    return iv.map(function(i) { return baseMidi + i; });
+  },
+
+  // Extension number → semitone offset. Applies natural-11 rule for major quality.
+  _resolveExtension: function(extNum, quality) {
+    switch (extNum) {
+      case 7:
+        return (quality === 'minor' || quality === 'diminished') ? 10 : 11;
+      case 9:
+        return 14;
+      case 11:
+        // Natural 11 clashes with major 3rd → #11 for major; natural for minor
+        return (quality === 'minor' || quality === 'diminished') ? 17 : 18;
+      case 13:
+        return 21;
+    }
+    return null;
+  },
+
+  // Render intervals into MIDI notes per voicing style
+  _applyStyle: function(style, intervals, chordRoot, cfg) {
+    var floorOct = cfg.registerFloor || 3;
+    var ceilOct  = cfg.registerCeiling || 5;
+    var baseMidi = (floorOct + 1) * 12 + chordRoot;
+    var out = [];
+
+    switch (style) {
+      case 'power': {
+        // Root + P5. Add octave doubling when extension list non-empty (storm+ gesture).
+        out.push(baseMidi);
+        out.push(baseMidi + 7);
+        if (intervals.length > 3) out.push(baseMidi + 12);
+        break;
+      }
+      case 'close': {
+        // Stack intervals within one octave from floor
+        for (var i = 0; i < intervals.length; i++) out.push(baseMidi + intervals[i]);
+        break;
+      }
+      case 'drop2': {
+        // Close voicing → drop 2nd-from-top down one octave
+        var closed = intervals.map(function(iv) { return baseMidi + iv; });
+        closed.sort(function(a, b) { return a - b; });
+        if (closed.length >= 2) {
+          closed[closed.length - 2] -= 12;
+        }
+        out = closed;
+        break;
+      }
+      case 'open': {
+        // Root at floor, spread remaining across ceiling register
+        out.push(baseMidi);
+        var topBase = (ceilOct) * 12 + chordRoot; // one below ceiling for headroom
+        var rest = intervals.slice(1);
+        for (var j = 0; j < rest.length; j++) out.push(topBase + rest[j]);
+        break;
+      }
+      case 'shell': {
+        // Root + 3rd + 7th only (drop 5th). Pass through 9th if present.
+        out.push(baseMidi); // root
+        for (var k = 0; k < intervals.length; k++) {
+          var iv = intervals[k];
+          if (iv === 3 || iv === 4 || iv === 10 || iv === 11 || iv === 14) {
+            out.push(baseMidi + iv);
+          }
+        }
+        break;
+      }
+      case 'cluster': {
+        // Pack notes within minor-3rd window at register midpoint
+        var midOct = Math.floor((floorOct + ceilOct) / 2);
+        var cBase = (midOct + 1) * 12 + chordRoot;
+        for (var m = 0; m < intervals.length; m++) {
+          out.push(cBase + (intervals[m] % 3));
+        }
+        break;
+      }
+      case 'spread': {
+        // Root low, everything else octave higher → airy add9/sus feel
+        out.push(baseMidi);
+        var high = baseMidi + 12;
+        var rest2 = intervals.slice(1);
+        for (var n = 0; n < rest2.length; n++) out.push(high + rest2[n]);
+        break;
+      }
+      default: {
+        for (var r = 0; r < intervals.length; r++) out.push(baseMidi + intervals[r]);
+      }
+    }
+    return out;
+  },
+
+  // Voice leading: nudge each target toward nearest previous voice (blended by strength)
+  _applyVoiceLeading: function(prev, target, strength) {
+    if (!prev.length || !target.length) return target;
+    var prevSorted = prev.slice().sort(function(a, b) { return a - b; });
+    var out = [];
+    for (var i = 0; i < target.length; i++) {
+      var t = target[i];
+      var cands = [t - 12, t, t + 12];
+      var best = t;
+      var bestDist = Infinity;
+      for (var p = 0; p < prevSorted.length; p++) {
+        for (var c = 0; c < cands.length; c++) {
+          var d = Math.abs(cands[c] - prevSorted[p]);
+          if (d < bestDist) { bestDist = d; best = cands[c]; }
+        }
+      }
+      out.push(Math.round(t + (best - t) * strength));
+    }
+    return out;
+  },
+
+  // Clamp to [floor..ceiling] range, cap density in octave 3
+  _enforceRegister: function(notes, cfg) {
+    var floorMidi = ((cfg.registerFloor || 3) + 1) * 12;
+    var ceilMidi  = ((cfg.registerCeiling || 5) + 1) * 12 + 11;
+    var max3 = cfg.maxNotesOct3 != null ? cfg.maxNotesOct3 : 99;
+
+    var clamped = notes.map(function(n) {
+      while (n < floorMidi) n += 12;
+      while (n > ceilMidi)  n -= 12;
+      return n;
+    });
+
+    // Count notes in MIDI octave 3 (48–59)
+    var oct3Count = 0;
+    for (var i = 0; i < clamped.length; i++) {
+      if (clamped[i] >= 48 && clamped[i] <= 59) oct3Count++;
+    }
+    if (oct3Count > max3) {
+      for (var j = 0; j < clamped.length && oct3Count > max3; j++) {
+        if (clamped[j] >= 48 && clamped[j] <= 59 && clamped[j] + 12 <= ceilMidi) {
+          clamped[j] += 12;
+          oct3Count--;
+        }
+      }
+    }
+    return clamped;
+  },
+
+  // Collision avoidance: avoid same-pitch-class same-octave doubling with melody
+  _avoidCollision: function(notes, melodyMidi, cfg) {
+    var mode = cfg.collisionMode || 'none';
+    if (mode === 'none') return notes;
+    if (mode === 'split') {
+      return notes.map(function(n) { while (n > 71) n -= 12; return n; });
+    }
+    if (mode === 'avoid' && typeof melodyMidi === 'number' && !isNaN(melodyMidi)) {
+      var melPc  = ((melodyMidi % 12) + 12) % 12;
+      var melOct = Math.floor(melodyMidi / 12);
+      return notes.filter(function(n) {
+        var pc = ((n % 12) + 12) % 12;
+        var oct = Math.floor(n / 12);
+        return !(pc === melPc && oct === melOct);
+      });
+    }
+    return notes;
+  },
+
+  _dedupeSort: function(notes) {
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < notes.length; i++) {
+      if (!seen[notes[i]]) { seen[notes[i]] = true; out.push(notes[i]); }
+    }
+    out.sort(function(a, b) { return a - b; });
+    return out;
+  },
+
+  reset: function() {
+    this._lastVoicing = null;
+    this._lastPaletteName = null;
   },
 };
 
@@ -5571,11 +5894,14 @@ var PadTrack = {
     // Fade out old voices
     this._fadeOutVoices(beatTime);
 
-    // Build new voices: voiced tones with staggered entry + velocity variation
+    // Build new voices: voiced tones via VoicingEngine (SPEC_040) with staggered entry + velocity variation
     var cfg   = this._palette;
-    var tones = (typeof HarmonyEngine.getVoicedChordTones === 'function')
-      ? HarmonyEngine.getVoicedChordTones(cfg.octave || 3)
-      : HarmonyEngine.getChordTones(cfg.octave || 3);
+    var _phasePT = (typeof G !== 'undefined' && G.phase) ? G.phase : 'pulse';
+    var tones = (typeof VoicingEngine !== 'undefined' && HarmonyEngine._currentChord)
+      ? VoicingEngine.voice(HarmonyEngine._currentChord, this._paletteName, _phasePT, null)
+      : ((typeof HarmonyEngine.getVoicedChordTones === 'function')
+          ? HarmonyEngine.getVoicedChordTones(cfg.octave || 3)
+          : HarmonyEngine.getChordTones(cfg.octave || 3));
     var t     = beatTime;
     var att   = cfg.attack || 0.8;
     var beatDur = 60 / (G.bpm || 120);
@@ -6567,9 +6893,14 @@ var ChordTrack = {
       if ((_songRng || Math.random)() > 0.6) return;
     }
 
-    // Get chord tones at the configured octave
-    if (typeof HarmonyEngine === 'undefined') return;
-    var tones = HarmonyEngine.getChordTones(cfg.octave || 4);
+    // Get voiced chord tones via VoicingEngine (SPEC_040)
+    if (typeof HarmonyEngine === 'undefined' || !HarmonyEngine._currentChord) return;
+    var _phase = (typeof G !== 'undefined' && G.phase) ? G.phase : 'pulse';
+    var _melMidi = (typeof MelodyEngine !== 'undefined' && MelodyEngine.getLastNoteMidi)
+      ? MelodyEngine.getLastNoteMidi() : null;
+    var tones = (typeof VoicingEngine !== 'undefined')
+      ? VoicingEngine.voice(HarmonyEngine._currentChord, this._paletteName, _phase, _melMidi)
+      : HarmonyEngine.getChordTones(cfg.octave || 4);
     if (!tones || tones.length === 0) return;
 
     // Limit to requested voice count
@@ -10189,6 +10520,11 @@ var MelodyEngine = {
       this._playMelodyNote(graceNote, graceTime, 0.5); // grace notes at half volume
     }
     this._graceQueue = [];
+  },
+
+  // Last played MIDI note — exposed for VoicingEngine collision avoidance (SPEC_040)
+  getLastNoteMidi: function() {
+    return this._lastNoteMidi;
   },
 };
 

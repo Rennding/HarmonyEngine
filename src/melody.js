@@ -1635,4 +1635,9 @@ var MelodyEngine = {
     }
     this._graceQueue = [];
   },
+
+  // Last played MIDI note — exposed for VoicingEngine collision avoidance (SPEC_040)
+  getLastNoteMidi: function() {
+    return this._lastNoteMidi;
+  },
 };

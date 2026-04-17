@@ -69,7 +69,7 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| PALETTES | harmony.js | 84 | 10 genre palette objects (each .bass has tierCap, gainScalar, phaseFilter — SPEC_028) |
+| PALETTES | harmony.js | 84 | 10 genre palette objects (each .bass has tierCap, gainScalar, phaseFilter — SPEC_028; noir_jazz also carries melody.restRange/maxPhraseLen/timbreWeights — #56) |
 | HarmonyEngine | harmony.js | 1400 | Chord/scale/voice-leading methods |
 | PaletteBlender | harmony.js | 2049 | Maelstrom cross-palette interpolation |
 | _selectPalette() | harmony.js | 2000 | Weighted recency palette picker |
@@ -81,7 +81,7 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 | Symbol | File | Line | Description |
 |---|---|---|---|
-| Wavetables | wavetables.js | 10 | 80 palette×role wavetable recipes |
+| Wavetables | wavetables.js | 10 | 80+ palette×role wavetable recipes (noir_jazz adds `melody_violin` + `melody_harmonica` pair — #56) |
 
 ---
 
@@ -144,6 +144,7 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | MelodyEngine._killLiveVoice | melody.js | 1295 | Kill persistent legato oscillator chain (SPEC_032) |
 | MelodyEngine._playMelodyNote | melody.js | 1322 | Per-palette AHDSR + filter env + legato/staccato + PWM (SPEC_032) |
 | MelodyEngine._liveOsc/Gain/Filter | melody.js | 30 | Legato state: persistent osc, gain, filter refs (SPEC_032) |
+| MelodyEngine._currentPhraseTimbre | melody.js | 45 | Per-phrase wavetable role (#56 noir_jazz violin/harmonica) |
 
 ---
 

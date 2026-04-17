@@ -79,10 +79,10 @@ Relabel/close/comment the issue, mirror to DEVLOG, update §7 — all in one pas
 
 **After**
 ```
-6. If local commits are unpushed, summarize them (files + message) and ask Aram for a one-word go/no-go on `git push`. Never auto-push.
+6. Push unpushed commits at session end. Plan approval (ExitPlanMode) covers the follow-through push — no second confirmation. For sessions with no plan-approval step (quick prefixes, audits, ad-hoc edits), summarize unpushed commits and ask for a one-word go/no-go first. Never force-push.
 ```
 
-**Why changed**: Aram retired GitHub Desktop. Claude Code can run `git push` directly, but unsupervised push is a blast-radius action so it's gated on a confirmation per session.
+**Why changed**: Aram retired GitHub Desktop. Claude Code can run `git push` directly. Aram's preference: the ExitPlanMode approval itself is the go-ahead — re-asking at session end is redundant. For sessions without a plan-approval step, a one-word confirmation is still needed because there was no prior scope approval.
 
 ---
 
@@ -90,10 +90,10 @@ Relabel/close/comment the issue, mirror to DEVLOG, update §7 — all in one pas
 
 **Added**
 ```
-| `git push` as blast radius | Never auto-push. At session end, summarize unpushed commits (files + message) and wait for Aram's explicit go-ahead before `git push`. |
+| `git push` scope | Plan approval covers follow-through push — don't re-ask. For no-plan sessions, confirm once before pushing. If Aram says no-go, ask what to improve instead of stopping silently. Never force-push. |
 ```
 
-**Why added**: New affordance (`git push`) needs a guardrail row matching the new session-end step 6.
+**Why added**: New affordance (`git push`) needs a guardrail row matching session-end step 6.
 
 ---
 

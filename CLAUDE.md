@@ -131,7 +131,7 @@ Default: one spec → one build issue → one session. Issues are fine-grained (
 3. Update §7 DO THIS NEXT below (title + model + prompt = atomic unit)
 4. Extract 0–3 learnings → §8 failure modes
 5. State model + next steps directly in chat
-6. If local commits are unpushed, summarize them (files + message) and ask Aram for a one-word go/no-go on `git push`. Never auto-push.
+6. Push unpushed commits at session end. Plan approval (ExitPlanMode) covers the follow-through push — no second confirmation. For sessions with no plan-approval step (quick prefixes, audits, ad-hoc edits), summarize unpushed commits and ask for a one-word go/no-go first. Never force-push.
 
 ---
 
@@ -277,7 +277,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | Game state reference in audio | All G.* fields must exist in state.js — grep for G. references after any audio module change |
 | StateMapper expects game objects | StateMapper references PerkEffects* — stub or guard with typeof checks |
 | Standalone synth fns lack palette access | _synthBass/_synthDrum are module-scope functions, not Sequencer methods — they only see _activePaletteName, not the full palette object. When adding per-palette config reads, ensure _activePalette (full object) is set alongside _activePaletteName in Sequencer.initRun(). |
-| `git push` as blast radius | Never auto-push. At session end, summarize unpushed commits (files + message) and wait for Aram's explicit go-ahead before `git push`. |
+| `git push` scope | Plan approval covers follow-through push — don't re-ask. For no-plan sessions, confirm once before pushing. If Aram says no-go, ask what to improve instead of stopping silently. Never force-push. |
 | Large file truncation by Edit/Write tool | **Never use Edit or Write on files >600 lines.** Use bash+sed/awk for targeted edits: `sed -i 's/old/new/g'` for replacements, heredoc+awk for insertions. Always verify line count after: `wc -l src/file.js` and check tail: `tail -5 src/file.js`. If line count drops unexpectedly, restore from git immediately: `git checkout HEAD -- src/file.js`. Affected files: melody.js (1644), sequencer.js (2719), harmony.js (2492), state_mapper.js (1069), narrative.js (1054). |
 
 ---

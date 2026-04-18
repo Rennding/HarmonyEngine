@@ -240,13 +240,13 @@ pub fn pattern_16(pat: DrumPattern) -> [Step; 16] {
                 out[i] = Step { active: true, vel: 0.4, prob: 0.9 };
             }
         }
-        // jazz_ride: swung 8ths with accent on downbeats.
+        // jazz_ride: swung 8ths — downbeats accented, offbeats delayed by swing.
         DrumPattern::JazzRide => {
             for i in [0, 4, 8, 12] {
-                out[i] = Step { active: true, vel: 0.6, prob: 1.0 };
+                out[i] = Step { active: true, vel: 0.75, prob: 1.0 };
             }
             for i in [2, 6, 10, 14] {
-                out[i] = Step { active: true, vel: 0.4, prob: 0.95 };
+                out[i] = Step { active: true, vel: 0.3, prob: 0.95 };
             }
         }
     }
@@ -437,6 +437,9 @@ pub struct Sequencer {
     sample_rate: f32,
     last_bass_note: i32,
     pub track_gains: TrackGains,
+    swing_offset_samples: u32,
+    hat_swing_pending: Option<(u32, f32, f32, f32)>,
+    hat_is_jazz_ride: bool,
 }
 
 impl Sequencer {
@@ -467,6 +470,9 @@ impl Sequencer {
             sample_rate,
             last_bass_note: 0,
             track_gains: TrackGains::for_phase(Phase::Pulse),
+            swing_offset_samples: (sample_rate * 60.0 / bpm / 4.0 * 0.33) as u32,
+            hat_swing_pending: None,
+            hat_is_jazz_ride: matches!(palette.drums.hat_pattern, DrumPattern::JazzRide),
         }
     }
 
@@ -491,7 +497,13 @@ impl Sequencer {
             self.snare_voice.trigger_snare(snare_freq, snare_decay, s.vel);
         }
         if h.active && self.roll(h.prob) {
-            self.hat_voice.trigger_hat(hat_freq, hat_decay, h.vel);
+            let is_swing_offbeat = self.hat_is_jazz_ride && [2, 6, 10, 14].contains(&(step_in_bar % 16));
+            let vel = (h.vel + (self.rng.next_f64() as f32 - 0.5) * 0.2).clamp(0.05, 1.0);
+            if is_swing_offbeat {
+                self.hat_swing_pending = Some((self.swing_offset_samples, hat_freq, hat_decay, vel));
+            } else {
+                self.hat_voice.trigger_hat(hat_freq, hat_decay, vel);
+            }
         }
 
         // Bass: one note every beat (step % 4 == 0).
@@ -539,6 +551,14 @@ impl Sequencer {
     /// Render one sample of the sequencer's output — sums drums + bass + chord +
     /// pad + melody, scaled by the current per-track gain coefficients.
     pub fn render(&mut self) -> f32 {
+        if let Some((countdown, freq, decay, vel)) = self.hat_swing_pending {
+            if countdown == 0 {
+                self.hat_voice.trigger_hat(freq, decay, vel);
+                self.hat_swing_pending = None;
+            } else {
+                self.hat_swing_pending = Some((countdown - 1, freq, decay, vel));
+            }
+        }
         let g = self.track_gains;
         let mut mix = 0.0;
         mix += self.kick_voice.render() * g.kick;

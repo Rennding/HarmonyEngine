@@ -98,6 +98,7 @@ pub struct PadConfig {
     pub attack: f32,
     pub release: f32,
     pub detune_cents: f32,
+    pub lpf_cutoff: f32,
 }
 
 /// `palette.chord` — SPEC_032 §4.4 per-palette chord articulation. Phase 1
@@ -244,7 +245,7 @@ pub fn dark_techno() -> Palette {
             octave: 4,
             attack: 0.8,
             release: 1.2,
-            detune_cents: 12.0,
+            detune_cents: 12.0, lpf_cutoff: 1200.0,
         },
         chord: ChordConfig {
             style: ChordStyle::Stab,
@@ -361,7 +362,7 @@ pub fn synthwave() -> Palette {
             tier_cap: 3, gain_scalar: 1.1,
             phase_filter: [None, None, None, Some(700.0), Some(800.0)],
         },
-        pad: PadConfig { wave: Wave::Triangle, octave: 4, attack: 1.0, release: 1.5, detune_cents: 10.0 },
+        pad: PadConfig { wave: Wave::Triangle, octave: 4, attack: 1.0, release: 1.5, detune_cents: 10.0, lpf_cutoff: 4500.0 },
         chord: ChordConfig {
             style: ChordStyle::Stab, voices: 3,
             attack: 0.01, decay: 0.18, sustain_level: 0.0, release: 0.06,
@@ -412,7 +413,7 @@ pub fn glitch() -> Palette {
             tier_cap: 2, gain_scalar: 0.85,
             phase_filter: [None, None, None, Some(350.0), Some(400.0)],
         },
-        pad: PadConfig { wave: Wave::Triangle, octave: 3, attack: 0.4, release: 0.6, detune_cents: 12.0 },
+        pad: PadConfig { wave: Wave::Triangle, octave: 3, attack: 0.4, release: 0.6, detune_cents: 12.0, lpf_cutoff: 3500.0 },
         chord: ChordConfig {
             style: ChordStyle::Arp, voices: 3,
             attack: 0.003, decay: 0.06, sustain_level: 0.0, release: 0.03,
@@ -463,7 +464,7 @@ pub fn ambient_dread() -> Palette {
             tier_cap: 1, gain_scalar: 1.2,
             phase_filter: [None, None, None, Some(180.0), Some(200.0)],
         },
-        pad: PadConfig { wave: Wave::Sine, octave: 3, attack: 2.0, release: 2.5, detune_cents: 8.0 },
+        pad: PadConfig { wave: Wave::Sine, octave: 3, attack: 2.0, release: 2.5, detune_cents: 8.0, lpf_cutoff: 650.0 },
         chord: ChordConfig {
             style: ChordStyle::None, voices: 0,
             attack: 0.0, decay: 0.0, sustain_level: 0.0, release: 0.0,
@@ -515,7 +516,7 @@ pub fn lo_fi_chill() -> Palette {
             tier_cap: 2, gain_scalar: 1.1,
             phase_filter: [None, None, None, Some(350.0), Some(400.0)],
         },
-        pad: PadConfig { wave: Wave::Sine, octave: 4, attack: 1.5, release: 2.0, detune_cents: 6.0 },
+        pad: PadConfig { wave: Wave::Sine, octave: 4, attack: 1.5, release: 2.0, detune_cents: 6.0, lpf_cutoff: 1600.0 },
         chord: ChordConfig {
             style: ChordStyle::Comp, voices: 3,
             attack: 0.02, decay: 0.20, sustain_level: 0.15, release: 0.10,
@@ -566,7 +567,7 @@ pub fn chiptune() -> Palette {
             tier_cap: 2, gain_scalar: 0.7,
             phase_filter: [None, None, None, Some(600.0), Some(700.0)],
         },
-        pad: PadConfig { wave: Wave::Square, octave: 4, attack: 0.01, release: 0.1, detune_cents: 0.0 },
+        pad: PadConfig { wave: Wave::Square, octave: 4, attack: 0.01, release: 0.1, detune_cents: 0.0, lpf_cutoff: 5000.0 },
         chord: ChordConfig {
             style: ChordStyle::Arp, voices: 3,
             attack: 0.003, decay: 0.04, sustain_level: 0.0, release: 0.02,
@@ -617,7 +618,7 @@ pub fn noir_jazz() -> Palette {
             tier_cap: 5, gain_scalar: 1.15,
             phase_filter: [None, None, None, Some(800.0), Some(950.0)],
         },
-        pad: PadConfig { wave: Wave::Sine, octave: 3, attack: 0.6, release: 1.5, detune_cents: 4.0 },
+        pad: PadConfig { wave: Wave::Sine, octave: 3, attack: 0.6, release: 1.5, detune_cents: 4.0, lpf_cutoff: 2000.0 },
         chord: ChordConfig {
             style: ChordStyle::Comp, voices: 4,
             attack: 0.015, decay: 0.25, sustain_level: 0.08, release: 0.14,
@@ -668,7 +669,7 @@ pub fn industrial() -> Palette {
             tier_cap: 2, gain_scalar: 0.9,
             phase_filter: [None, None, None, Some(300.0), Some(350.0)],
         },
-        pad: PadConfig { wave: Wave::Sawtooth, octave: 4, attack: 0.3, release: 0.8, detune_cents: 8.0 },
+        pad: PadConfig { wave: Wave::Sawtooth, octave: 4, attack: 0.3, release: 0.8, detune_cents: 8.0, lpf_cutoff: 2500.0 },
         chord: ChordConfig {
             style: ChordStyle::Stab, voices: 2,
             attack: 0.003, decay: 0.08, sustain_level: 0.0, release: 0.03,
@@ -719,7 +720,7 @@ pub fn vaporwave() -> Palette {
             tier_cap: 1, gain_scalar: 1.15,
             phase_filter: [None, None, None, Some(220.0), Some(250.0)],
         },
-        pad: PadConfig { wave: Wave::Sawtooth, octave: 4, attack: 2.5, release: 3.0, detune_cents: 20.0 },
+        pad: PadConfig { wave: Wave::Sawtooth, octave: 4, attack: 2.5, release: 3.0, detune_cents: 20.0, lpf_cutoff: 2200.0 },
         chord: ChordConfig {
             style: ChordStyle::None, voices: 0,
             attack: 0.0, decay: 0.0, sustain_level: 0.0, release: 0.0,
@@ -770,7 +771,7 @@ pub fn breakbeat() -> Palette {
             tier_cap: 3, gain_scalar: 0.95,
             phase_filter: [None, None, None, Some(400.0), Some(500.0)],
         },
-        pad: PadConfig { wave: Wave::Sawtooth, octave: 4, attack: 0.3, release: 0.8, detune_cents: 8.0 },
+        pad: PadConfig { wave: Wave::Sawtooth, octave: 4, attack: 0.3, release: 0.8, detune_cents: 8.0, lpf_cutoff: 2800.0 },
         chord: ChordConfig {
             style: ChordStyle::Stab, voices: 3,
             attack: 0.008, decay: 0.12, sustain_level: 0.0, release: 0.05,

@@ -107,6 +107,18 @@ impl Conductor {
         }
     }
 
+    /// Pre-seed at a specific beat count so QA can skip the Pulse phase.
+    /// Re-computes DC, phase, and track-gain targets immediately.
+    pub fn with_start_beat(mut self, start_beat: u32) -> Self {
+        self.beat_count = start_beat;
+        let base_dc = (start_beat as f64 / config::DC_SCALE).powf(config::DC_EXP);
+        self.dc = base_dc;
+        self.phase = Phase::from_dc(self.dc);
+        self.target_track_gains = TrackGains::for_phase(self.phase);
+        self.sequencer.on_phase_change(self.phase);
+        self
+    }
+
     pub fn bpm(&self) -> f32 {
         self.bpm
     }

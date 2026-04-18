@@ -20,7 +20,6 @@ use crate::wavetables::Wavetable;
 /// Up to 4 chord tones × 3 unison oscillators = 12 voices max.
 const PAD_VOICES_MAX: usize = 16;
 
-const LPF_CUTOFF: f32 = 800.0;
 const LPF_Q: f32 = 0.7;
 
 struct PadVoice {
@@ -39,7 +38,7 @@ impl PadVoice {
             phase: 0.0,
             freq_hz: 0.0,
             env: Envelope::new(sample_rate),
-            filter: BiquadLowpass::new(sample_rate, LPF_CUTOFF, LPF_Q),
+            filter: BiquadLowpass::new(sample_rate, 20_000.0, LPF_Q),
             gain: 0.0,
         }
     }
@@ -140,7 +139,7 @@ impl PadTrack {
             v.phase = 0.0;
             v.freq_hz = freq_hz;
             v.gain = voice_gain;
-            v.filter = BiquadLowpass::new(sr, LPF_CUTOFF, LPF_Q);
+            v.filter = BiquadLowpass::new(sr, cfg.lpf_cutoff, LPF_Q);
             v.env.attack = cfg.attack;
             v.env.hold = 0.0;
             v.env.decay = 0.10;

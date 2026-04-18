@@ -9,9 +9,9 @@
 
 ---
 
-## 2026-04-18 — QA: #69 all-10-palettes — qa-improve → #73 timbre fixes queued
+## 2026-04-18 — QA: #69 all-10-palettes — qa-improve, iterating in-issue per SPEC_071
 
-Three issues found: (1) PadTrack hardcoded 800 Hz LPF makes all pads sound uniformly dark — root cause of synthwave/ambient_dread similarity complaint; (2) JazzRide fires straight 8ths, no swing offset — noir_jazz robotic; (3) 60s test never reaches Surge (beat ~134). SPEC_071 written; #73 build issue opened (Sonnet).
+Three issues found: (1) PadTrack hardcoded 800 Hz LPF makes all pads sound uniformly dark — root cause of synthwave/ambient_dread similarity complaint; (2) JazzRide fires straight 8ths, no swing offset — noir_jazz robotic; (3) 60s test never reaches Surge (beat ~134). SPEC_071_RUST_PALETTE_TIMBRE_FIXES.md written; #69 stays open until qa-pass. Workflow correction: qa-improve/fail iterates in the same issue, no new tracking issue needed.
 
 ---
 

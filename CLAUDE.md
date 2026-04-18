@@ -122,9 +122,10 @@ needs-aram, P1/P2/P3, build/plan/audit-session, qa-pass/qa-improve/qa-fail, bug,
 ### QA workflow
 - `qalist` → list needs-aram issues (P1 first, 2 sentences each)
 - `qa[NN]:` → process verdict immediately:
-  1. Relabel (remove needs-aram, apply verdict), **close always** (pass/improve/fail — QA is done; improve/fail opens a new build issue that supersedes it)
+  1. Relabel (remove needs-aram, apply verdict)
   2. Post structured QA comment — plain English, no dev terms, no file paths
-  3. If improve/fail: write SPEC in same session, open new build issue
+  3. **qa-pass** → close the issue
+  4. **qa-improve/qa-fail** → keep the issue open; post fix direction in comments; write SPEC if scope warrants it. Build iterates in the same issue. No new tracking issue needed.
 
 QA Briefs = user-facing: what changed, how to test (numbered steps), risks (observable symptoms). No function names, no file paths.
 
@@ -220,7 +221,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Rust migration is the road (SPEC_057, #58). Phase 1 complete — #59 (1a foundation, PR #65) and #66 (1b musical layers, PR #67) both qa-pass for dark_techno. Phase 2a split into #68/#69/#70; #68 foundations (Plan/VoiceEvent/voice_ring) landed on `claude/build-60-release-vFbpG`; composer workers + thread wiring continue in the next slice on the same branch. #69 (all 10 palettes) qa-improve — #73 timbre fixes queued. In-flight JS QA (#30/#42/#44/#56) continues; new JS builds paused.**
+**Status: Rust migration is the road (SPEC_057, #58). Phase 1 complete — #59 (1a foundation, PR #65) and #66 (1b musical layers, PR #67) both qa-pass for dark_techno. Phase 2a split into #68/#69/#70; #68 foundations (Plan/VoiceEvent/voice_ring) landed on `claude/build-60-release-vFbpG`; composer workers + thread wiring continue in the next slice on the same branch. #69 (all 10 palettes) qa-improve — iterating in-issue per SPEC_071. In-flight JS QA (#30/#42/#44/#56) continues; new JS builds paused.**
 
 ### Tier 0 · Rust native migration (P1) — SPEC_057_RUST_MIGRATION.md
 ✅ Rust migration plan complete → SPEC_057_RUST_MIGRATION.md
@@ -229,12 +230,10 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 - ✅ **#66** Phase 1b — chord/pad/melody/tension/master chain for dark_techno (Opus) — qa-pass, PR #67 pending merge
 - **#60** Phase 2a umbrella — split into #68/#69/#70 (Opus, depends on #66)
   - **#68** Phase 2a-1 — Shape B threading skeleton (Opus, branch `claude/build-60-release-vFbpG`) — foundations landed: Plan/PlanPublisher (arc-swap), VoiceEvent enums, per-voice SPSC ring wrappers (ringbuf). Next slice: composer workers, audio-side VoiceRack, ConductorThread + thread::spawn, assert_no_alloc guard, golden parity test
-  - ⚠️ **#69** Phase 2a-2 — All 10 palettes ported (Opus) — qa-improve; **#73** timbre fixes (Sonnet) queued
+  - ⚠️ **#69** Phase 2a-2 — All 10 palettes ported (Opus) — qa-improve; fix per SPEC_071_RUST_PALETTE_TIMBRE_FIXES.md (Sonnet)
   - **#70** Phase 2a-3 — Groove + Narrative + Diagnostic subsystems (Sonnet, depends on #68)
 - **#61** Phase 2b — Shape A: per-voice lookahead, VoicingEngine + harmonic rhythm first implementation (Opus, depends on #60)
 - **#62** Phase 3 — Slint UI + cargo-mobile2 + store submission (Sonnet, depends on #61)
-- **#73** Rust palette timbre fixes — per-palette pad LPF + JazzRide swing + `--start-beat` QA flag (Sonnet, SPEC_071_RUST_PALETTE_TIMBRE_FIXES.md) — *unblock this before re-QA of #69*
-
 ### Paused JS backlog (resumes as Rust ports during migration phases)
 ⏸ **#38** Melody rhythm extensions (qa-improve) — ports into Phase 2a melody worker
 ⏸ **#40** VoicingEngine — first implemented in Rust during Phase 2b
@@ -332,7 +331,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | INDEX.md stale after build | After adding/moving/removing functions, update INDEX.md rows + line numbers in same session. |
 | Reading whole src/ files | Use INDEX.md address → Read file:line±20. Never read a whole module to locate a function. |
 | QA Brief only in chat, not GitHub | Build sessions must post QA Brief as a GitHub comment on the issue. Chat is not a substitute. |
-| qa-improve/fail issue left open | Close the QA'd issue regardless of verdict — QA is done, verdict is recorded. The new build issue (#NN) is the live tracker. Never leave a qa-improve/fail issue open. |
+| Opening a new issue for qa-improve fixes | qa-improve/fail iterates in the same issue — no new tracking issue. Only close on qa-pass. |
 | Over-splitting build issues | Default = batch. Split only when: model mismatch, QA gate, scope >40 edits, or true independence. |
 | MCP validation errors | Fix ALL fields from error payload in one pass, propagate to sibling calls. Never use \n in body fields — use real newlines. |
 | onPhaseChange fires before mute clears | Any `_playMelodyNote` call in `onPhaseChange` while `_muted=true` creates a live legato osc — poisoning the first real tick. Always guard with `this._muted` check. |

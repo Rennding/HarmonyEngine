@@ -13,14 +13,22 @@ name = "harmonyengine"
 path = "src/lib.rs"
 
 [dependencies]
-# cpal is the only runtime dependency used by Phase 1. SPEC_057 §3 lists
-# dasp / ringbuf / basedrop / crossbeam-channel for Phase 2a/2b — they
-# are re-introduced when the per-voice thread split lands (#60).
+# cpal drives the audio callback. Phase 2a-1 (#68) layers the Shape B
+# threading stack from SPEC_057 §3 on top: SPSC ring buffers for per-voice
+# event streams, crossbeam channels for beat signalling, arc-swap for the
+# RT-safe Plan publisher (equivalent RT-safety guarantees to basedrop with
+# a simpler API — a fixed-size Collector for basedrop can swap in if we
+# hit audio-thread allocation in 2b), parking_lot for worker-barrier
+# primitives.
 cpal = "0.15"
+ringbuf = "0.4"
+crossbeam-channel = "0.5"
+arc-swap = "1.7"
+parking_lot = "0.12"
 
 [dev-dependencies]
-# Re-enabled alongside the audio-thread RT discipline work in Phase 2a.
-# assert_no_alloc = "1"
+# Enabled alongside the audio-thread RT discipline work in Phase 2a-1.
+assert_no_alloc = "1.1"
 
 [profile.release]
 opt-level = 3

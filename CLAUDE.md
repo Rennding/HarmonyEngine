@@ -220,14 +220,17 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Rust migration is the road (SPEC_057, #58). Phase 1 complete — #59 (1a foundation, PR #65) and #66 (1b musical layers, PR #67) both qa-pass for dark_techno. Next up: Phase 2a (#60) — Shape B per-voice threads + all 10 palettes. In-flight JS QA (#30/#42/#44/#56) continues; new JS builds paused.**
+**Status: Rust migration is the road (SPEC_057, #58). Phase 1 complete — #59 (1a foundation, PR #65) and #66 (1b musical layers, PR #67) both qa-pass for dark_techno. Phase 2a split into #68/#69/#70; #68 foundations (Plan/VoiceEvent/voice_ring) landed on `claude/build-60-release-vFbpG`; composer workers + thread wiring continue in the next slice on the same branch. In-flight JS QA (#30/#42/#44/#56) continues; new JS builds paused.**
 
 ### Tier 0 · Rust native migration (P1) — SPEC_057_RUST_MIGRATION.md
 ✅ Rust migration plan complete → SPEC_057_RUST_MIGRATION.md
 - **#58** Umbrella — B+A cascading, desktop + mobile (plan-session)
 - ✅ **#59** Phase 1a foundation — Rust scaffold + PRNG golden + DSP + drums/bass for dark_techno (Opus) — qa-pass, PR #65 merged
 - ✅ **#66** Phase 1b — chord/pad/melody/tension/master chain for dark_techno (Opus) — qa-pass, PR #67 pending merge
-- **#60** Phase 2a — Shape B: per-voice threads, all 10 palettes, beat-by-beat (Opus, depends on #66)
+- **#60** Phase 2a umbrella — split into #68/#69/#70 (Opus, depends on #66)
+  - **#68** Phase 2a-1 — Shape B threading skeleton (Opus, branch `claude/build-60-release-vFbpG`) — foundations landed: Plan/PlanPublisher (arc-swap), VoiceEvent enums, per-voice SPSC ring wrappers (ringbuf). Next slice: composer workers, audio-side VoiceRack, ConductorThread + thread::spawn, assert_no_alloc guard, golden parity test
+  - **#69** Phase 2a-2 — All 10 palettes ported (Opus, depends on #68)
+  - **#70** Phase 2a-3 — Groove + Narrative + Diagnostic subsystems (Sonnet, depends on #68)
 - **#61** Phase 2b — Shape A: per-voice lookahead, VoicingEngine + harmonic rhythm first implementation (Opus, depends on #60)
 - **#62** Phase 3 — Slint UI + cargo-mobile2 + store submission (Sonnet, depends on #61)
 

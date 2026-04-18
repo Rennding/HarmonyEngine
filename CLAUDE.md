@@ -343,6 +343,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | Orphan branch (no issue, no PR) | All branches named `claude/issue-NN-slug`. Session-start §1 step 4 flags bare `claude/*` branches. Never delete a branch without Aram's OK. |
 | PR merged without `Closes #NN` | PR body must include `Closes #NN` or `Refs #NN`. Session-start check audits last 10 merged PRs; flag misses to Aram. |
 | Commit without issue ref | Commit messages use `[#NN] subject` prefix. `[#infra]` allowed for meta work. Reject vague messages like "edits" — rewrite before push. |
+| Stream idle timeout on large writes | Never generate >150 lines in a single Write/Edit/tool response. For multi-section additions (e.g. 9 palettes), use `bash >> append` in batches of 2–3 sections per operation. |
 
 ---
 

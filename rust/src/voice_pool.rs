@@ -57,6 +57,10 @@ impl Voice {
 pub struct VoicePool {
     voices: Vec<Voice>,
     sample_rate: f32,
+    /// Per-beat voice-steal counter — read by the diagnostic voice-steal
+    /// detector (SPEC_042) and reset at beat boundaries. Incremented when
+    /// `steal_oldest` evicts an active voice.
+    steal_count: usize,
 }
 
 impl VoicePool {
@@ -65,6 +69,7 @@ impl VoicePool {
         Self {
             voices,
             sample_rate,
+            steal_count: 0,
         }
     }
 
@@ -78,6 +83,29 @@ impl VoicePool {
 
     pub fn sample_rate(&self) -> f32 {
         self.sample_rate
+    }
+
+    /// Force-steal the oldest-sounding active voice (fallback when the
+    /// pool is full). Increments the per-beat steal counter so
+    /// `AnomalyDetector::voice_steal_storm` can flag a stream of them.
+    pub fn steal_oldest(&mut self) -> Option<&mut Voice> {
+        // Simple policy: steal the first active voice. A real "oldest"
+        // strategy needs a start-time field on Voice (Phase 3).
+        if let Some(v) = self.voices.iter_mut().find(|v| v.active) {
+            v.active = false;
+            self.steal_count += 1;
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn steal_count(&self) -> usize {
+        self.steal_count
+    }
+
+    pub fn reset_steal_count(&mut self) {
+        self.steal_count = 0;
     }
 
     /// Render and sum all active voices against the given wavetable

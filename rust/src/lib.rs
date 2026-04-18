@@ -4,13 +4,17 @@
 //! JS reference lives in `../src/*.js`.
 
 pub mod audio;
+pub mod chord_track;
 pub mod conductor;
 pub mod config;
 pub mod harmony;
+pub mod melody;
+pub mod pad_track;
 pub mod palette;
 pub mod rng;
 pub mod sequencer;
 pub mod synth;
+pub mod tension;
 pub mod voice_pool;
 pub mod wavetables;
 

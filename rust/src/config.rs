@@ -99,9 +99,94 @@ impl Phase {
             Phase::Swell | Phase::Surge | Phase::Storm | Phase::Maelstrom
         )
     }
+    pub fn floor_pad(self) -> bool {
+        matches!(self, Phase::Storm | Phase::Maelstrom)
+    }
+    pub fn floor_perc(self) -> bool {
+        matches!(self, Phase::Surge | Phase::Storm | Phase::Maelstrom)
+    }
+
+    /// `CFG.PHASE_FX[phase].padVoices` — number of pad voices per phase.
+    pub fn pad_voices(self) -> u32 {
+        match self {
+            Phase::Pulse | Phase::Swell => 3,
+            Phase::Surge | Phase::Storm | Phase::Maelstrom => 4,
+        }
+    }
+}
+
+/// Per-phase melody density (port of JS `_PHASE_DENSITY` in `melody.js`).
+/// `(rest_min, rest_max, max_phrase_len, gain)`.
+pub fn melody_density(phase: Phase) -> (u32, u32, u32, f32) {
+    match phase {
+        Phase::Pulse => (99, 99, 0, 0.0),
+        Phase::Swell => (4, 6, 3, 0.35),
+        Phase::Surge => (3, 5, 3, 0.50),
+        Phase::Storm => (2, 3, 4, 0.75),
+        Phase::Maelstrom => (1, 2, 4, 0.90),
+    }
 }
 
 /// `CFG.DIFFICULTY.CURVES.normal` — dc(beat) = (beat/scale)^exp.
 /// Phase 1 hardcodes "normal" mood; mood selection returns in Phase 2a.
 pub const DC_SCALE: f64 = 200.0;
 pub const DC_EXP: f64 = 1.3;
+
+/// `CFG.TENSION` constants (SPEC_011 §5).
+pub mod tension {
+    pub const WINDOW_MIN: u32 = 32;
+    pub const WINDOW_MAX: u32 = 64;
+    pub const GRACE_BEATS: u32 = 16;
+    pub const GAP_MIN: u32 = 8;
+    pub const PROB_NONE: f64 = 0.40;
+    pub const PROB_PLATEAU: f64 = 0.25;
+    pub const PROB_SPIKE: f64 = 0.15;
+    pub const _PROB_RETREAT: f64 = 0.20;
+    // Cumulative thresholds (used in event-type roll).
+    pub const CUMUL_NONE: f64 = PROB_NONE; // 0.40
+    pub const CUMUL_PLATEAU: f64 = PROB_NONE + PROB_PLATEAU; // 0.65
+    pub const CUMUL_SPIKE: f64 = CUMUL_PLATEAU + PROB_SPIKE; // 0.80
+    // Duration ranges per event type.
+    pub const PLATEAU_MIN: u32 = 16;
+    pub const PLATEAU_MAX: u32 = 32;
+    pub const PLATEAU_EASE_OUT: u32 = 4;
+    pub const SPIKE_MIN: u32 = 8;
+    pub const SPIKE_MAX: u32 = 16;
+    pub const SPIKE_EASE_IN: u32 = 4;
+    pub const SPIKE_EASE_OUT: u32 = 4;
+    pub const RETREAT_MIN: u32 = 12;
+    pub const RETREAT_MAX: u32 = 24;
+    pub const RETREAT_EASE_IN: u32 = 4;
+    pub const RETREAT_EASE_OUT: u32 = 8;
+    /// Maximum cycleBeat the generator walks to. JS uses 800.
+    pub const MAX_BEATS: u32 = 800;
+    /// Spike size base = next-phase gap. With 0.30 phase gaps, 0.30 × spikeHeight.
+    pub const SPIKE_BASE_GAP: f64 = 0.30;
+}
+
+/// Master chain (post-mix) constants — port of JS `audio.js:374–432`.
+/// Phase 1b uses a simplified chain: peak compressor → tanh soft-clip →
+/// final limiter. The full multi-band EQ + convolver reverb + delay sends
+/// land in Phase 2a alongside the per-track EQ chains.
+pub mod master {
+    /// Compressor threshold (linear amplitude) — JS uses -14 dB.
+    pub const COMP_THRESHOLD: f32 = 0.199_526_23; // 10^(-14/20)
+    /// Compressor knee width (linear) — JS uses 30 dB knee.
+    pub const COMP_KNEE: f32 = 0.5;
+    /// Compressor ratio.
+    pub const COMP_RATIO: f32 = 2.5;
+    /// Compressor attack (s).
+    pub const COMP_ATTACK: f32 = 0.003;
+    /// Compressor release (s).
+    pub const COMP_RELEASE: f32 = 0.250;
+    /// Limiter threshold (linear amplitude) — JS uses -2 dB.
+    pub const LIM_THRESHOLD: f32 = 0.794_328_2; // 10^(-2/20)
+    /// Limiter ratio.
+    pub const LIM_RATIO: f32 = 20.0;
+    /// Limiter attack (s).
+    pub const LIM_ATTACK: f32 = 0.001;
+    /// Limiter release (s).
+    pub const LIM_RELEASE: f32 = 0.100;
+    /// Final master make-up gain (post-everything).
+    pub const MASTER_GAIN: f32 = 0.85;
+}

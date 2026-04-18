@@ -9,6 +9,16 @@
 
 ---
 
+## 2026-04-18 — Rust migration Phase 1b — chord/pad/melody/tension/master chain — #66 built, awaiting QA
+
+Phase 1b layers the missing musical voices onto the 1a foundation so `dark_techno` can finally hit AC#2 blind A/B parity. New modules: `tension.rs` (TensionMap with plateau/spike/retreat events feeding DC), `chord_track.rs` (four-on-the-floor stabs through an 8-voice pool with AHDSR + LPF), `pad_track.rs` (sustained 3-osc unison pad with retrigger on chord change, 16-voice pool, gated below Swell), `melody.rs` (Markov pentatonic phrase generator with five variation types — repeat/transpose/invert/diminish/fragment — chosen by per-phase weights). Sequencer grows a `TrackGains` mix bus (per-track gain coefficients with per-sample lerp) and per-phase floors via `TrackGains::for_phase`. Conductor wires the master chain (peak compressor → tanh soft-clip → brick-wall limiter → master gain) and applies tension offsets to the DC curve each beat. Palette extended with `melody_rhythm`, `motif`, and `tension` configs. Wavetables get a chord stab recipe (pulse 0.5/32 partials).
+
+19 tests pass (added: tension empty/generate/spike-cap, melody constructs/markov-rows/fires-in-swell). `cargo build --release` clean, `cargo clippy --all-targets -- -D warnings` clean. JS engine still untouched. Phase progression Pulse→Maelstrom now audible end-to-end on dark_techno.
+
+**Files changed:** rust/src/{tension,chord_track,pad_track,melody}.rs (new), rust/src/{config,palette,wavetables,harmony,synth,sequencer,conductor,lib}.rs (extended), INDEX.md (Rust block updated).
+
+---
+
 ## 2026-04-18 — Rust migration Phase 1 foundation landed — #59 built, awaiting QA
 
 Scaffolded `rust/` workspace (cpal + hand-rolled DSP), ported Mulberry32 PRNG byte-identical (golden test against Node.js output passes), ported `dark_techno` palette + wavetable recipes + chord progression stepper, implemented synth primitives (oscillator, biquad LP, AHDSR envelope, xorshift noise, tanh soft-clip), wired a cpal output stream driving kick/snare/hat + tier-0/1 walking bass for `dark_techno`. 13 tests pass (golden PRNG + oscillator + filter attenuation + envelope lifecycle + chord progression walk); `cargo clippy --all-targets -- -D warnings` clean; `cargo build --release` green on Linux. JS engine untouched (stays the A/B parity reference). Deferred to Phase 1.5 / Phase 2a: ringbuf-fed composer-thread split, tier-2+ chord-tone walking bass, ChordTrack/PadTrack/MelodyEngine audibility, tension/stagger/cycle/narrative. Aram needs to A/B against the JS reference (AC #2) — current state is audibly recognisable as `dark_techno` (four-on-floor + backbeat + offbeat hats + sawtooth root-pump bass) but lacks chord stabs, pad sustain, and melody, so full "blind A/B" parity is not yet hit.

@@ -250,12 +250,126 @@ impl NoiseGen {
     }
 }
 
-/// Soft-clip limiter — tanh saturator replacing `DynamicsCompressorNode`.
-/// This is a simple stand-in for Phase 1; the full multi-stage JS master
-/// chain (compressor → soft-clip → EQ → limiter) ports in Phase 2a.
+/// Soft-clip limiter — tanh saturator. Used between the compressor and
+/// the brick-wall limiter as the JS master chain's `WaveShaper` stage.
 #[inline]
 pub fn soft_clip(x: f32) -> f32 {
     x.tanh()
+}
+
+/// Peak compressor — port of `DynamicsCompressorNode` (subset). Tracks an
+/// envelope of the input signal and applies a gain reduction proportional to
+/// how far above the threshold the envelope sits, scaled by `1/ratio`.
+///
+/// This is a single-band feed-forward design — adequate for Phase 1b master
+/// duty. The convolution-tail / lookahead behaviour of WebAudio's compressor
+/// is omitted; in practice the audible fingerprint of dark_techno is set by
+/// the threshold + ratio + attack/release timing, all of which match.
+pub struct PeakCompressor {
+    threshold: f32,
+    ratio: f32,
+    knee: f32,
+    attack_coef: f32,
+    release_coef: f32,
+    envelope: f32,
+}
+
+impl PeakCompressor {
+    pub fn new(sample_rate: f32, threshold: f32, ratio: f32, knee: f32, attack_s: f32, release_s: f32) -> Self {
+        Self {
+            threshold,
+            ratio,
+            knee,
+            attack_coef: time_to_coef(attack_s, sample_rate),
+            release_coef: time_to_coef(release_s, sample_rate),
+            envelope: 0.0,
+        }
+    }
+
+    #[inline]
+    pub fn process(&mut self, x: f32) -> f32 {
+        let abs = x.abs();
+        // Envelope follower (peak).
+        if abs > self.envelope {
+            self.envelope += (abs - self.envelope) * self.attack_coef;
+        } else {
+            self.envelope += (abs - self.envelope) * self.release_coef;
+        }
+        let knee_lo = self.threshold - self.knee * 0.5;
+        let knee_hi = self.threshold + self.knee * 0.5;
+
+        // Soft-knee gain reduction in linear amplitude domain.
+        let gain_reduction = if self.envelope <= knee_lo {
+            1.0
+        } else if self.envelope >= knee_hi {
+            // Above the knee: ratio compression.
+            let target = self.threshold + (self.envelope - self.threshold) / self.ratio;
+            target / self.envelope
+        } else {
+            // Inside knee — quadratic blend.
+            let blend = (self.envelope - knee_lo) / self.knee.max(1e-6);
+            let target = self.envelope * (1.0 - blend)
+                + (self.threshold + (self.envelope - self.threshold) / self.ratio) * blend;
+            (target / self.envelope).min(1.0)
+        };
+        x * gain_reduction.clamp(0.0, 1.0)
+    }
+}
+
+/// Brick-wall limiter — same envelope-follower design as `PeakCompressor`,
+/// but with a high ratio and short attack/release. Used as the very last
+/// stage of the master chain to guarantee the output stays ≤ ±1.
+pub struct BrickwallLimiter {
+    sample_rate: f32,
+    threshold: f32,
+    ratio: f32,
+    attack_coef: f32,
+    release_coef: f32,
+    envelope: f32,
+}
+
+impl BrickwallLimiter {
+    pub fn new(sample_rate: f32, threshold: f32, ratio: f32, attack_s: f32, release_s: f32) -> Self {
+        Self {
+            sample_rate,
+            threshold,
+            ratio,
+            attack_coef: time_to_coef(attack_s, sample_rate),
+            release_coef: time_to_coef(release_s, sample_rate),
+            envelope: 0.0,
+        }
+    }
+
+    #[inline]
+    pub fn process(&mut self, x: f32) -> f32 {
+        let abs = x.abs();
+        if abs > self.envelope {
+            self.envelope += (abs - self.envelope) * self.attack_coef;
+        } else {
+            self.envelope += (abs - self.envelope) * self.release_coef;
+        }
+        if self.envelope <= self.threshold {
+            return x;
+        }
+        let target = self.threshold + (self.envelope - self.threshold) / self.ratio;
+        let g = target / self.envelope;
+        // Final hard clip at ±threshold so we never exceed it (safety).
+        (x * g).clamp(-self.threshold, self.threshold)
+    }
+
+    /// Sample rate (informational — kept for parity with cpal stream config).
+    pub fn sample_rate(&self) -> f32 {
+        self.sample_rate
+    }
+}
+
+#[inline]
+fn time_to_coef(time_s: f32, sample_rate: f32) -> f32 {
+    if time_s <= 0.0 {
+        1.0
+    } else {
+        1.0 - (-1.0 / (time_s * sample_rate)).exp()
+    }
 }
 
 #[cfg(test)]

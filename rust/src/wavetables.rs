@@ -91,7 +91,8 @@ impl Wavetable {
 }
 
 /// Built set of recipes for `dark_techno` — JS `RECIPES.dark_techno` at
-/// `wavetables.js:84–93`.
+/// `wavetables.js:84–93`. Phase 1b adds an explicit `chord` table (square-ish
+/// for stab style) — pad/melody also have their own.
 pub struct DarkTechnoWavetables {
     pub kick: Wavetable,
     pub bass: Wavetable,
@@ -100,6 +101,7 @@ pub struct DarkTechnoWavetables {
     pub pad: Wavetable,
     pub voice: Wavetable,
     pub melody: Wavetable,
+    pub chord: Wavetable,
 }
 
 impl DarkTechnoWavetables {
@@ -116,9 +118,16 @@ impl DarkTechnoWavetables {
                 (11, 0.4),
             ]),
             perc: Wavetable::from_partials(&[(1, 0.8), (4, 0.6), (7, 0.4), (11, 0.3)]),
+            // JS pad uses `triangle` (oscillator wave) — `hollow(16, 1.2)` is
+            // odd-harmonic series matching the listening-fingerprint of a
+            // soft triangle plus a touch of higher-odd shimmer.
             pad: Wavetable::hollow(16, 1.2),
             voice: Wavetable::thick_saw(12, 0.9),
+            // JS melody uses `square` osc — sin1 + sin3 + sin5 with bright tilt.
             melody: Wavetable::from_partials(&[(1, 1.0), (3, 0.7), (5, 0.4)]),
+            // JS chord uses `square` for stab style — pulse(0.5, 32) gives
+            // canonical odd-only series with controlled brightness.
+            chord: Wavetable::pulse(0.5, 32),
         }
     }
 }

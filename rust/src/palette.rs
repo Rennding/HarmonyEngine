@@ -83,9 +83,7 @@ pub struct ChordConfig {
     pub entry_phase: Phase,
 }
 
-/// `palette.melody` — SPEC_032 §3.3. Phase 1 melody is stubbed; a pad-like
-/// legato line on the minor-pentatonic root is used as placeholder audible
-/// layer. Full MelodyEngine port is Phase 2a.
+/// `palette.melody` — SPEC_032 §3.3 + Phase 1b synth chain.
 #[derive(Clone, Copy, Debug)]
 pub struct MelodyConfig {
     pub octave: i32,
@@ -98,6 +96,44 @@ pub struct MelodyConfig {
     pub lpf_env_decay: f32,
     pub lpf_resonance: f32,
     pub gain_scalar: f32,
+    pub staccato: bool,
+}
+
+/// `palette.melodyRhythm` — note-rhythm controls for MelodyEngine.
+#[derive(Clone, Copy, Debug)]
+pub struct MelodyRhythm {
+    pub hold_probability: f32,
+    pub syncopation_probability: f32,
+}
+
+/// `palette.motif` + `motif.variationWeights` — phrase generation controls.
+/// Each phase weight is a probability mass over (repeat, transpose, invert,
+/// diminish, fragment); zero entries mean "never pick that variation".
+#[derive(Clone, Copy, Debug)]
+pub struct VariationWeights {
+    pub repeat: f32,
+    pub transpose: f32,
+    pub invert: f32,
+    pub diminish: f32,
+    pub fragment: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct MotifConfig {
+    pub length: usize,
+    pub weights_swell: VariationWeights,
+    pub weights_surge: VariationWeights,
+    pub weights_storm: VariationWeights,
+    pub weights_maelstrom: VariationWeights,
+}
+
+/// `palette.tension` — SPEC_011 modulation knobs.
+#[derive(Clone, Copy, Debug)]
+pub struct TensionParams {
+    pub event_density: f32,
+    pub retreat_depth: f32,
+    pub spike_height: f32,
+    pub plateau_bias: f32,
 }
 
 /// `palette.chordProgressions[*]` — three progression sets per dark_techno.
@@ -122,6 +158,9 @@ pub struct Palette {
     pub pad: PadConfig,
     pub chord: ChordConfig,
     pub melody: MelodyConfig,
+    pub melody_rhythm: MelodyRhythm,
+    pub motif: MotifConfig,
+    pub tension: TensionParams,
     pub progressions: Vec<Progression>,
     pub beats_per_chord: u32, // JS `HarmonyEngine._beatsPerChord` default = 4
 }
@@ -196,6 +235,48 @@ pub fn dark_techno() -> Palette {
             lpf_env_decay: 0.12,
             lpf_resonance: 4.0,
             gain_scalar: 1.0,
+            staccato: true,
+        },
+        melody_rhythm: MelodyRhythm {
+            hold_probability: 0.15,
+            syncopation_probability: 0.10,
+        },
+        motif: MotifConfig {
+            length: 5,
+            weights_swell: VariationWeights {
+                repeat: 1.0,
+                transpose: 0.0,
+                invert: 0.0,
+                diminish: 0.0,
+                fragment: 0.0,
+            },
+            weights_surge: VariationWeights {
+                repeat: 0.4,
+                transpose: 0.6,
+                invert: 0.0,
+                diminish: 0.0,
+                fragment: 0.0,
+            },
+            weights_storm: VariationWeights {
+                repeat: 0.2,
+                transpose: 0.3,
+                invert: 0.3,
+                diminish: 0.2,
+                fragment: 0.0,
+            },
+            weights_maelstrom: VariationWeights {
+                repeat: 0.1,
+                transpose: 0.2,
+                invert: 0.2,
+                diminish: 0.2,
+                fragment: 0.3,
+            },
+        },
+        tension: TensionParams {
+            event_density: 0.6,
+            retreat_depth: 0.10,
+            spike_height: 0.25,
+            plateau_bias: 0.0,
         },
         progressions: vec![
             Progression {

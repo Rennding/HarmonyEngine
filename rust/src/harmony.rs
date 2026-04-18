@@ -144,6 +144,70 @@ impl HarmonyEngine {
     pub fn current_chord_symbol(&self) -> (i32, bool) {
         (self.current_root, self.current_is_major)
     }
+
+    /// Number of beats this chord has been held — used by PadTrack to detect
+    /// chord changes (re-trigger sustained voices when this hits 0 again).
+    pub fn beats_in_chord(&self) -> u32 {
+        self.beats_in_chord
+    }
+
+    /// Voiced chord tones for stab/pad/arp use — extends the triad by adding
+    /// the root one octave up (and 5th two octaves up for `count >= 5`).
+    /// Ports the JS default voicing for dark_techno (no 7ths/9ths).
+    pub fn voiced_chord_tones(&self, octave: i32, count: usize) -> Vec<i32> {
+        let triad = self.chord_tones(octave);
+        let mut out: Vec<i32> = triad.to_vec();
+        // Doubling pattern: triad · root+12 · 5th+12 · root+24
+        let extras = [triad[0] + 12, triad[2] + 12, triad[0] + 24];
+        for e in extras {
+            if out.len() >= count {
+                break;
+            }
+            out.push(e);
+        }
+        out.truncate(count.max(1));
+        out
+    }
+
+    /// Pick the melody seed-note's degree inside the minor pentatonic scale
+    /// (0..4) such that it lands on a chord tone — port of JS
+    /// `pickChordToneDegree(scaleNotes, chordTones)`.
+    pub fn chord_tone_pentatonic_degree(&self, rng: &mut Mulberry32) -> usize {
+        let chord_root_abs = (self.root_semitone + self.current_root).rem_euclid(12);
+        let iv = triad_intervals(self.current_is_major);
+        let chord_pcs: [i32; 3] = [
+            chord_root_abs,
+            (chord_root_abs + iv[1]).rem_euclid(12),
+            (chord_root_abs + iv[2]).rem_euclid(12),
+        ];
+        // Find pentatonic indices whose absolute pitch matches a chord tone.
+        let key_offset = self.root_semitone.rem_euclid(12);
+        let mut matches: Vec<usize> = Vec::new();
+        for (i, &deg) in MINOR_PENTATONIC.iter().enumerate() {
+            let pc = (key_offset + deg).rem_euclid(12);
+            if chord_pcs.contains(&pc) {
+                matches.push(i);
+            }
+        }
+        if matches.is_empty() {
+            0
+        } else {
+            let idx = (rng.next_f64() * matches.len() as f64) as usize;
+            matches[idx.min(matches.len() - 1)]
+        }
+    }
+
+    /// Convert a minor-pentatonic scale degree (0..4) into a MIDI note at
+    /// the given octave. Used by MelodyEngine.
+    pub fn pentatonic_degree_to_midi(&self, degree: usize, octave: i32) -> i32 {
+        let key_offset = self.root_semitone.rem_euclid(12);
+        let deg = MINOR_PENTATONIC[degree.min(4)];
+        (octave + 1) * 12 + key_offset + deg
+    }
+
+    pub fn root_semitone(&self) -> i32 {
+        self.root_semitone
+    }
 }
 
 /// MIDI → frequency (Hz). JS `midiToFreq(midi)` at `harmony.js:78`.

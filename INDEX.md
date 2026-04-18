@@ -216,14 +216,18 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Symbol | File | Description |
 |---|---|---|
 | Mulberry32 | rust/src/rng.rs | Byte-identical port of `_createSongRng`; see `golden_seed_12345` test |
-| config::{gain, Phase, DC_*} | rust/src/config.rs | CFG.GAIN, CFG.PHASES, DC curve constants (subset) |
-| palette::dark_techno() | rust/src/palette.rs | PALETTES[0] — drums/bass/pad/chord/melody/progressions |
-| Wavetable, DarkTechnoWavetables | rust/src/wavetables.rs | Fourier recipe builders (from_partials/thick_saw/hollow/pulse/organ) |
-| Oscillator, BiquadLowpass, Envelope, NoiseGen | rust/src/synth.rs | DSP primitives replacing Web Audio nodes |
+| config::{gain, master, tension, Phase, DC_*, melody_density} | rust/src/config.rs | CFG.GAIN + master chain consts + tension consts + phase/DC + per-phase melody density |
+| palette::{dark_techno, MelodyConfig, MelodyRhythm, MotifConfig, VariationWeights, TensionParams} | rust/src/palette.rs | PALETTES[0] — drums/bass/pad/chord/melody/progressions + melody_rhythm/motif/tension |
+| Wavetable, DarkTechnoWavetables | rust/src/wavetables.rs | Fourier recipe builders (from_partials/thick_saw/hollow/pulse/organ) + chord stab |
+| Oscillator, BiquadLowpass, Envelope, NoiseGen, PeakCompressor, BrickwallLimiter, soft_clip | rust/src/synth.rs | DSP primitives replacing Web Audio nodes + master chain |
 | VoicePool, NoteParams, start_voice | rust/src/voice_pool.rs | 16-voice pool |
-| HarmonyEngine, parse_numeral, triad_intervals, midi_to_freq | rust/src/harmony.rs | Chord progression stepper + scale math |
-| Sequencer, DrumVoice, WalkingBass, pattern_16 | rust/src/sequencer.rs | Drum patterns + drum synth + tier-0/1 walking bass |
-| Conductor | rust/src/conductor.rs | Beat clock + phase progression (runs inside audio callback for Phase 1) |
+| HarmonyEngine, parse_numeral, triad_intervals, midi_to_freq, voiced_chord_tones, chord_tone_pentatonic_degree | rust/src/harmony.rs | Chord progression stepper + scale math + voicing helpers |
+| TensionMap, TensionEvent, EventKind, TensionOutput | rust/src/tension.rs | DC plateau/spike/retreat schedule (SPEC_011 port) |
+| ChordTrack | rust/src/chord_track.rs | Four-on-the-floor chord stabs, 8-voice pool, AHDSR + LPF |
+| PadTrack | rust/src/pad_track.rs | Sustained 3-osc unison pad, 16-voice pool, retrigger on chord change |
+| MelodyEngine, MARKOV | rust/src/melody.rs | Markov pentatonic phrase + variation engine (repeat/transpose/invert/diminish/fragment) |
+| Sequencer, TrackGains, DrumVoice, WalkingBass, pattern_16 | rust/src/sequencer.rs | Drums + bass + chord/pad/melody dispatch + per-track gain mix bus |
+| Conductor | rust/src/conductor.rs | Beat clock + phase progression + tension DC + master chain (comp→clip→limiter) |
 | AudioHost | rust/src/audio.rs | cpal output stream |
 
 Phase 2a (#60) extends to per-voice threads + all 10 palettes; Phase 2b (#61) adds lookahead + VoicingEngine + harmonic rhythm.

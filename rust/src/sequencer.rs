@@ -12,13 +12,70 @@
 //!   the output mixer via pool voices (pitched) or one-shot synths (drums).
 //! - A 16-step pattern array matches the JS pattern-builder output.
 
-use crate::config::gain;
+use crate::chord_track::ChordTrack;
+use crate::config::{gain, Phase};
 use crate::harmony::{midi_to_freq, HarmonyEngine};
+use crate::melody::MelodyEngine;
+use crate::pad_track::PadTrack;
 use crate::palette::{BassConfig, DrumKit, DrumPattern, Palette};
 use crate::rng::Mulberry32;
 use crate::synth::{BiquadLowpass, Envelope, NoiseGen};
 use crate::voice_pool::{start_voice, NoteParams, VoicePool};
 use crate::wavetables::DarkTechnoWavetables;
+
+/// Per-track output gain multiplier. Conductor smooths these toward target
+/// values when phases change so we avoid abrupt level jumps.
+#[derive(Clone, Copy, Debug)]
+pub struct TrackGains {
+    pub kick: f32,
+    pub snare: f32,
+    pub hat: f32,
+    pub bass: f32,
+    pub chord: f32,
+    pub pad: f32,
+    pub melody: f32,
+}
+
+impl TrackGains {
+    pub const fn silent() -> Self {
+        Self {
+            kick: 0.0,
+            snare: 0.0,
+            hat: 0.0,
+            bass: 0.0,
+            chord: 0.0,
+            pad: 0.0,
+            melody: 0.0,
+        }
+    }
+
+    /// Target gains for a given phase using `CFG.PHASE_FLOOR`. A track is
+    /// either floored (full audible) or muted in Phase 1b. SPEC_010 stagger
+    /// and intensity-driven layering land in Phase 2a.
+    pub fn for_phase(phase: Phase) -> Self {
+        Self {
+            kick: if phase.floor_kick() { 1.0 } else { 0.0 },
+            snare: if phase.floor_snare() { 1.0 } else { 0.0 },
+            hat: if phase.floor_hat() { 1.0 } else { 0.0 },
+            bass: if phase.floor_bass() { 1.0 } else { 0.0 },
+            chord: if phase.floor_chord() { 1.0 } else { 0.0 },
+            pad: if phase.floor_pad() { 1.0 } else { 0.0 },
+            melody: if phase.floor_melody() { 1.0 } else { 0.0 },
+        }
+    }
+
+    /// Pull each track gain a fraction `alpha` toward the target.
+    pub fn lerp_toward(&mut self, target: &TrackGains, alpha: f32) {
+        let lerp = |a: f32, b: f32| a + (b - a) * alpha;
+        self.kick = lerp(self.kick, target.kick);
+        self.snare = lerp(self.snare, target.snare);
+        self.hat = lerp(self.hat, target.hat);
+        self.bass = lerp(self.bass, target.bass);
+        self.chord = lerp(self.chord, target.chord);
+        self.pad = lerp(self.pad, target.pad);
+        self.melody = lerp(self.melody, target.melody);
+    }
+}
 
 /// A drum step — JS `sequencer.js:35–97` pattern builder output.
 #[derive(Clone, Copy)]
@@ -272,7 +329,9 @@ impl WalkingBass {
     }
 }
 
-/// Top-level Phase 1 sequencer. Owns drum voices + walking bass + pool.
+/// Top-level Phase 1b sequencer. Orchestrates drums, walking bass, chord
+/// stabs, pad layer, and melody — each with its own voice pool / state —
+/// and renders all of them through per-track gain coefficients.
 pub struct Sequencer {
     pub drums: DrumKit,
     kick_pattern: [Step; 16],
@@ -284,14 +343,18 @@ pub struct Sequencer {
     pub bass: WalkingBass,
     pub bass_cfg: BassConfig,
     pub pool: VoicePool,
+    pub chord: ChordTrack,
+    pub pad: PadTrack,
+    pub melody: MelodyEngine,
     wavetables: DarkTechnoWavetables,
     rng: Mulberry32,
     sample_rate: f32,
     last_bass_note: i32,
+    pub track_gains: TrackGains,
 }
 
 impl Sequencer {
-    pub fn new(sample_rate: f32, palette: &Palette, seed: i32) -> Self {
+    pub fn new(sample_rate: f32, palette: &Palette, seed: i32, bpm: f32) -> Self {
         Self {
             drums: palette.drums,
             kick_pattern: pattern_16(palette.drums.kick_pattern),
@@ -303,10 +366,21 @@ impl Sequencer {
             bass: WalkingBass::new(seed),
             bass_cfg: palette.bass,
             pool: VoicePool::new(sample_rate),
+            chord: ChordTrack::new(sample_rate, palette.chord),
+            pad: PadTrack::new(sample_rate, palette.pad),
+            melody: MelodyEngine::new(
+                sample_rate,
+                bpm,
+                palette.melody,
+                palette.melody_rhythm,
+                palette.motif,
+                seed,
+            ),
             wavetables: DarkTechnoWavetables::build(),
             rng: Mulberry32::new(seed.wrapping_add(11)),
             sample_rate,
             last_bass_note: 0,
+            track_gains: TrackGains::for_phase(Phase::Pulse),
         }
     }
 
@@ -353,6 +427,22 @@ impl Sequencer {
                 },
             );
         }
+
+        // Chord stabs (own pool).
+        self.chord.tick_16th(step_in_bar, he);
+    }
+
+    /// Per-beat hook (called from Conductor.on_beat). Updates the chord-change-
+    /// driven pad and the melody engine.
+    pub fn on_beat(&mut self, he: &HarmonyEngine) {
+        self.pad.on_beat(he);
+        self.melody.on_beat(he);
+    }
+
+    pub fn on_phase_change(&mut self, phase: Phase) {
+        self.chord.on_phase_change(phase);
+        self.pad.on_phase_change(phase);
+        self.melody.on_phase_change(phase);
     }
 
     #[inline]
@@ -360,14 +450,18 @@ impl Sequencer {
         self.rng.next_f64() < p as f64
     }
 
-    /// Render one sample of the sequencer's output — sums drums + pool.
+    /// Render one sample of the sequencer's output — sums drums + bass + chord +
+    /// pad + melody, scaled by the current per-track gain coefficients.
     pub fn render(&mut self) -> f32 {
+        let g = self.track_gains;
         let mut mix = 0.0;
-        mix += self.kick_voice.render();
-        mix += self.snare_voice.render();
-        mix += self.hat_voice.render();
-        // Bass voices use the saw wavetable.
-        mix += self.pool.render_sum(&self.wavetables.bass);
+        mix += self.kick_voice.render() * g.kick;
+        mix += self.snare_voice.render() * g.snare;
+        mix += self.hat_voice.render() * g.hat;
+        mix += self.pool.render_sum(&self.wavetables.bass) * g.bass;
+        mix += self.chord.render(&self.wavetables.chord) * g.chord;
+        mix += self.pad.render(&self.wavetables.pad) * g.pad;
+        mix += self.melody.render(&self.wavetables.melody) * g.melody;
         mix
     }
 

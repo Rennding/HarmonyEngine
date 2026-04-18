@@ -14,12 +14,13 @@
 //! into per-voice threads; for the single-palette parity target, a single
 //! audio-thread composer already meets the "no underruns" criterion.
 
-use crate::config::{self, Phase};
+use crate::config::{self, master, Phase};
 use crate::harmony::HarmonyEngine;
 use crate::palette::Palette;
 use crate::rng::Mulberry32;
-use crate::sequencer::Sequencer;
-use crate::synth::soft_clip;
+use crate::sequencer::{Sequencer, TrackGains};
+use crate::synth::{soft_clip, BrickwallLimiter, PeakCompressor};
+use crate::tension::TensionMap;
 
 pub struct Conductor {
     palette: Palette,
@@ -33,6 +34,13 @@ pub struct Conductor {
     beat_count: u32, // whole beats elapsed (updates DC/phase)
     dc: f64,
     phase: Phase,
+    tension: TensionMap,
+    target_track_gains: TrackGains,
+    compressor: PeakCompressor,
+    limiter: BrickwallLimiter,
+    /// Smoothing coefficient applied per audio sample to track-gain lerp.
+    /// At 48 kHz this gives a ~250 ms ramp toward target.
+    gain_smooth: f32,
 }
 
 impl Conductor {
@@ -46,10 +54,29 @@ impl Conductor {
         let bpm = (lo + bpm_roll) as f32;
 
         let harmony = HarmonyEngine::init_run(&palette, &mut song_rng);
-        let sequencer = Sequencer::new(sample_rate, &palette, seed);
+        let tension = TensionMap::generate(&mut song_rng, palette.tension);
+        let sequencer = Sequencer::new(sample_rate, &palette, seed, bpm);
 
         let samples_per_beat = sample_rate as f64 * 60.0 / bpm as f64;
         let samples_per_16th = samples_per_beat / 4.0;
+
+        let compressor = PeakCompressor::new(
+            sample_rate,
+            master::COMP_THRESHOLD,
+            master::COMP_RATIO,
+            master::COMP_KNEE,
+            master::COMP_ATTACK,
+            master::COMP_RELEASE,
+        );
+        let limiter = BrickwallLimiter::new(
+            sample_rate,
+            master::LIM_THRESHOLD,
+            master::LIM_RATIO,
+            master::LIM_ATTACK,
+            master::LIM_RELEASE,
+        );
+        // 250 ms ramp at sample rate.
+        let gain_smooth = 1.0 - (-1.0 / (0.250 * sample_rate)).exp();
 
         Self {
             palette,
@@ -63,6 +90,11 @@ impl Conductor {
             beat_count: 0,
             dc: 0.0,
             phase: Phase::Pulse,
+            tension,
+            target_track_gains: TrackGains::for_phase(Phase::Pulse),
+            compressor,
+            limiter,
+            gain_smooth,
         }
     }
 
@@ -82,20 +114,29 @@ impl Conductor {
         self.palette.name
     }
 
-    /// Render one audio sample — advances the scheduler and mixes the
-    /// sequencer output through the master limiter.
+    /// Render one audio sample — advances the scheduler, mixes the
+    /// sequencer output through the master compressor + soft-clip + limiter,
+    /// and smooths per-track gain coefficients toward their phase targets.
     #[inline]
     pub fn render_sample(&mut self) -> f32 {
+        // Smooth per-sample track-gain ramp.
+        let alpha = self.gain_smooth;
+        let target = self.target_track_gains;
+        self.sequencer.track_gains.lerp_toward(&target, alpha);
+
         self.sample_counter += 1.0;
         if self.sample_counter >= self.samples_per_16th {
             self.sample_counter -= self.samples_per_16th;
             self.on_16th();
         }
         let raw = self.sequencer.render();
-        // Master: gentle master gain + tanh soft-clip — JS's limiter chain
-        // is more elaborate; Phase 2a reintroduces the full DynamicsCompressor
-        // + multi-stage chain.
-        soft_clip(raw * 0.8)
+        // Master chain: peak compressor → tanh soft-clip → brick-wall limiter →
+        // master gain. Phase 2a layers in the multi-band EQ shelves + reverb +
+        // delay buses from `audio.js:374–432`.
+        let comped = self.compressor.process(raw);
+        let clipped = soft_clip(comped);
+        let limited = self.limiter.process(clipped);
+        limited * master::MASTER_GAIN
     }
 
     fn on_16th(&mut self) {
@@ -111,10 +152,23 @@ impl Conductor {
     fn on_beat(&mut self) {
         self.beat_count = self.beat_count.wrapping_add(1);
         self.harmony.advance_beat();
-        // DC update — JS `updateDC` with no tension map for Phase 1.
+        // DC update — natural curve plus TensionMap modulation (SPEC_011).
         let cycle_beat = self.beat_count as f64;
-        self.dc = (cycle_beat / config::DC_SCALE).powf(config::DC_EXP);
+        let base_dc = (cycle_beat / config::DC_SCALE).powf(config::DC_EXP);
+        let t = self.tension.offset_for(self.beat_count, base_dc);
+        self.dc = if t.freeze {
+            // Plateau: hold frozen DC, then ease back to base over freeze_lerp.
+            t.frozen_dc + (base_dc - t.frozen_dc) * t.freeze_lerp
+        } else {
+            (base_dc + t.offset).max(0.0)
+        };
+        let prev_phase = self.phase;
         self.phase = Phase::from_dc(self.dc);
+        if self.phase != prev_phase {
+            self.target_track_gains = TrackGains::for_phase(self.phase);
+            self.sequencer.on_phase_change(self.phase);
+        }
+        self.sequencer.on_beat(&self.harmony);
     }
 
     pub fn sample_rate(&self) -> f32 {

@@ -122,7 +122,7 @@ needs-aram, P1/P2/P3, build/plan/audit-session, qa-pass/qa-improve/qa-fail, bug,
 ### QA workflow
 - `qalist` → list needs-aram issues (P1 first, 2 sentences each)
 - `qa[NN]:` → process verdict immediately:
-  1. Relabel (remove needs-aram, apply verdict), close if pass
+  1. Relabel (remove needs-aram, apply verdict), **close always** (pass/improve/fail — QA is done; improve/fail opens a new build issue that supersedes it)
   2. Post structured QA comment — plain English, no dev terms, no file paths
   3. If improve/fail: write SPEC in same session, open new build issue
 
@@ -332,6 +332,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | INDEX.md stale after build | After adding/moving/removing functions, update INDEX.md rows + line numbers in same session. |
 | Reading whole src/ files | Use INDEX.md address → Read file:line±20. Never read a whole module to locate a function. |
 | QA Brief only in chat, not GitHub | Build sessions must post QA Brief as a GitHub comment on the issue. Chat is not a substitute. |
+| qa-improve/fail issue left open | Close the QA'd issue regardless of verdict — QA is done, verdict is recorded. The new build issue (#NN) is the live tracker. Never leave a qa-improve/fail issue open. |
 | Over-splitting build issues | Default = batch. Split only when: model mismatch, QA gate, scope >40 edits, or true independence. |
 | MCP validation errors | Fix ALL fields from error payload in one pass, propagate to sibling calls. Never use \n in body fields — use real newlines. |
 | onPhaseChange fires before mute clears | Any `_playMelodyNote` call in `onPhaseChange` while `_muted=true` creates a live legato osc — poisoning the first real tick. Always guard with `this._muted` check. |

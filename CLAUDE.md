@@ -8,8 +8,8 @@
 
 1. Read this file. **Nothing else unless routing says so.**
 2. Read `INDEX.md` — symbol-level lookup table. Use it instead of reading whole source files. To find any function/const: find its address → `Read file:line` with ±20 line window.
-3. Sync GitHub: `list_issues` state:open on Rennding/HarmonyEngine (when repo exists)
-4. **Quick sync:** Confirm §7 current issue is open (`issue_read #NN`). If closed, query `list_issues state:OPEN label:P1` for next priority and update §7.
+3. **Quick sync:** `issue_read` on §7 current issue only — confirm it's open. If closed, run `list_issues state:OPEN label:P1` to find next priority and update §7. Skip for `q:`/`quick:`/`decision:`/`code:` prefixes.
+4. Full `list_issues` only during Plan/Audit sessions. Trust §7 otherwise.
 5. Routing:
 
 | Session type | Also read | Skip |
@@ -101,6 +101,7 @@ Every session = one open issue. Every commit = one issue ref. Every PR = one `Cl
 | PR merge | Verify linked issue auto-closed. If not, close manually + comment. |
 | QA verdict | See §3 `qa[NN]:` workflow — unchanged. |
 | Session end | See §4 checklist. |
+| Aram closes issue directly on GitHub | Apply `aram-closed` label before closing. Claude treats any closed issue with this label as owner-approved — no flag at session start. |
 
 **Exemptions:** `q:` / `quick:` / `decision:` / `code:` prefixes skip issue creation, but still require a one-line comment on the most-recent relevant issue if the work touches code.
 
@@ -116,7 +117,7 @@ Every session = one open issue. Every commit = one issue ref. Every PR = one `Cl
 | Infra | Updated files |
 
 ### Labels
-needs-aram, P1/P2/P3, build/plan/audit-session, qa-pass/qa-improve/qa-fail, bug, blocker/dependency
+needs-aram, P1/P2/P3, build/plan/audit-session, qa-pass/qa-improve/qa-fail, bug, blocker/dependency, aram-closed, rust-backlog
 
 ### QA workflow
 - `qalist` → list needs-aram issues (P1 first, 2 sentences each)
@@ -224,13 +225,11 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 | | |
 |---|---|
-| **Re-QA needed** | **#69** all 10 palettes — Aram tests now (#73/PR #74 timbre fix landed) |
-| **Awaiting QA** | **#70** groove + narrative + diagnostic (branch `claude/build-70-8daP2` pushed; PR pending) |
-| **Next build** | **#61** Phase 2a-4: per-voice worker threads + VoiceRack wiring (Opus) — unblocks audible output for groove/narrative/diagnostic |
-| **Awaiting QA (JS)** | #30 · #42 · #44 · #56 |
+| **Next build** | **#61** Phase 2a-4: per-voice worker threads + VoiceRack wiring (Opus) |
+| **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port |
 | **Chain** | #69 → #70 → #61 → #62 |
 
-Paused JS builds: all paused — porting into Rust phases. See [GitHub milestones](https://github.com/Rennding/harmonyengine/milestones) for full backlog.
+JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic migrates into Rust phases per comments on each issue.
 
 ---
 
@@ -246,7 +245,7 @@ Paused JS builds: all paused — porting into Rust phases. See [GitHub milestone
 | Issue body not updated | update_issue must include body=. Title + labels + body = atomic unit. |
 | Build issues not created after spec | Spec confirmed = build issues created same session, no exceptions |
 | §7 stale after QA pass | When processing qa-pass: (1) close GitHub issue, (2) remove from §7 Awaiting QA, (3) advance §7 header, (4) remove closed issues from Backlog — all four in same session |
-| Closed issue lingers in Backlog | Session-start sync: cross-check §7 Backlog against `list_issues state:open`. Remove any entry whose issue is closed. |
+| Closed issue lingers in Backlog | Trust §7. Quick sync only checks current issue. Full `list_issues` in Plan/Audit sessions only — that's when §7 gets reconciled. |
 | INDEX.md stale after build | After adding/moving/removing functions, update INDEX.md rows + line numbers in same session. |
 | Reading whole src/ files | Use INDEX.md address → Read file:line±20. Never read a whole module to locate a function. |
 | QA Brief only in chat, not GitHub | Build sessions must post QA Brief as a GitHub comment on the issue. Chat is not a substitute. |

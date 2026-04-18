@@ -9,11 +9,7 @@
 1. Read this file. **Nothing else unless routing says so.**
 2. Read `INDEX.md` — symbol-level lookup table. Use it instead of reading whole source files. To find any function/const: find its address → `Read file:line` with ±20 line window.
 3. Sync GitHub: `list_issues` state:open on Rennding/HarmonyEngine (when repo exists)
-4. **Desync check:**
-   - Cross-check §7 (Backlog, Awaiting QA, Build queue) against open issues. Remove any entry whose issue is closed.
-   - List local branches — any `claude/*` branch without an open issue or merged PR = orphan; flag to Aram.
-   - Scan last 10 merged PRs — any missing `Closes #NN` = flag to Aram.
-   Advance §7 header if next task is ready. Fix all desync before doing anything else.
+4. **Quick sync:** Confirm §7 current issue is open (`issue_read #NN`). If closed, query `list_issues state:OPEN label:P1` for next priority and update §7.
 5. Routing:
 
 | Session type | Also read | Skip |
@@ -30,7 +26,7 @@ Never read DEVLOG.md at session start — it is human-facing only.
 ## 2 · Protocol
 
 ### Write order
-Relabel/close/comment the issue, mirror to DEVLOG, update §7 — all in one pass before session end.
+Relabel/close/comment the issue, update §7 — all in one pass before session end.
 
 ### Spec references
 Always use full filename when referencing specs in GitHub issues, comments, and PR bodies (e.g. `SPEC_001_FEATURE_NAME.md`, never `SPEC_001`).
@@ -49,6 +45,9 @@ Every session, evaluate: did a new pattern repeat, did a rule fail, did I invent
 ### Validation
 - `npm run validate` — build + syntax check (every session)
 - `npm run gate` — validate + tests (build sessions)
+
+### PR subscription
+After opening a PR, call `subscribe_pr_activity` to receive CI failures and review comments automatically.
 
 ### Roles
 - **Aram** = designer + QA. Never codes. Tests in browser, reports via GitHub issues/comments.
@@ -95,7 +94,7 @@ Every session = one open issue. Every commit = one issue ref. Every PR = one `Cl
 | Event | Required action |
 |---|---|
 | Session start (plan/build/audit/infra) | Issue exists or create one. Post opening comment: `Session started — scope: <one line>, model: <name>`. |
-| Branch create | **Strict:** `claude/issue-NN-slug` (NN = issue number required). Orphan branches forbidden. |
+| Branch create | `claude/NN-short-slug` — e.g. `claude/70-groove-narrative`. Deterministic: one branch per issue, delete on merge. |
 | Commit | Message prefix: `[#NN] <subject>`. Use `[#infra]` only for meta work with no issue. Reject vague messages. |
 | Mid-session pivot | Comment on issue: `Scope change: <what/why>`. Update issue body if permanent. |
 | PR open | Body includes `Closes #NN` (or `Refs #NN` for partial). Title ≤70 chars. |
@@ -112,9 +111,9 @@ Every session = one open issue. Every commit = one issue ref. Every PR = one `Cl
 | Type | Output |
 |---|---|
 | Audit | Issue list P1/P2/P3, GitHub issues |
-| Plan | SPEC file + GitHub issues + DEVLOG entry |
+| Plan | SPEC file + GitHub issues |
 | Build | Updated modules + rebuilt project + QA Brief |
-| Infra | Updated files + DEVLOG entry |
+| Infra | Updated files |
 
 ### Labels
 needs-aram, P1/P2/P3, build/plan/audit-session, qa-pass/qa-improve/qa-fail, bug, blocker/dependency
@@ -126,10 +125,12 @@ needs-aram, P1/P2/P3, build/plan/audit-session, qa-pass/qa-improve/qa-fail, bug,
   2. Post structured QA comment — plain English, no dev terms, no file paths
   3. If improve/fail: write SPEC in same session, open new build issue
 
+**Shortcut:** qa-pass can be applied directly on GitHub (close issue + `qa-pass` label) — no chat needed. Claude posts QA brief on closed issue at next session start. qa-improve and qa-fail always require chat — new SPEC must be confirmed in real time.
+
 QA Briefs = user-facing: what changed, how to test (numbered steps), risks (observable symptoms). No function names, no file paths.
 
 ### Spec flow
-Draft → "Any revisions?" → confirm → fire in one pass: SPEC file + GitHub issues + DEVLOG. Never ask twice. Every SPEC includes a MODEL line (Sonnet=mechanical, Opus=judgment).
+Draft → "Any revisions?" → confirm → fire in one pass: SPEC file + GitHub issues. Never ask twice. Every SPEC includes a MODEL line (Sonnet=mechanical, Opus=judgment).
 
 Every build issue body must include a **Model:** line (e.g. `Model: Sonnet`) near the top, so Aram knows which model to select when starting the session.
 
@@ -155,11 +156,10 @@ Default: one spec → one build issue → one session. Issues are fine-grained (
 1. Update issue body if scope drifted; post closing comment (QA Brief for build sessions).
 2. Relabel and close the issue (or apply `needs-aram` if QA pending).
 3. Update §7 DO THIS NEXT below (title + model + prompt = atomic unit). Advance header.
-4. Mirror 1-line summary to DEVLOG.md (human-facing only).
-5. Extract 0–3 learnings → §8 failure modes.
-6. **If a rule changed or a new pattern appeared twice, update §2/§2a/§3 — not just §8.**
-7. Push unpushed commits. Plan approval (ExitPlanMode) covers the follow-through push — no second confirmation. For sessions with no plan-approval step (quick prefixes, audits, ad-hoc edits), summarize unpushed commits and ask for a one-word go/no-go first. Never force-push.
-8. State model + next steps directly in chat.
+4. Extract 0–3 learnings → §8 failure modes.
+5. **If a rule changed or a new pattern appeared twice, update §2/§2a/§3 — not just §8.**
+6. Push unpushed commits. Plan approval (ExitPlanMode) covers the follow-through push — no second confirmation. For sessions with no plan-approval step (quick prefixes, audits, ad-hoc edits), summarize unpushed commits and ask for a one-word go/no-go first. Never force-push.
+7. State model + next steps directly in chat.
 
 ---
 
@@ -220,99 +220,16 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Rust migration is the road (SPEC_057, #58). Phase 1 complete — #59 (1a foundation, PR #65) and #66 (1b musical layers, PR #67) both qa-pass for dark_techno. Phase 2a split into #68/#69/#70; #68 foundations (Plan/VoiceEvent/voice_ring) landed on `claude/build-60-release-vFbpG`; composer workers + thread wiring continue in the next slice on the same branch. #69 (all 10 palettes) qa-improve — #73 timbre fixes queued. In-flight JS QA (#30/#42/#44/#56) continues; new JS builds paused.**
+**Status: Rust migration — Phase 2a in progress (#60 umbrella, SPEC_057_RUST_MIGRATION.md).**
 
-### Tier 0 · Rust native migration (P1) — SPEC_057_RUST_MIGRATION.md
-✅ Rust migration plan complete → SPEC_057_RUST_MIGRATION.md
-- **#58** Umbrella — B+A cascading, desktop + mobile (plan-session)
-- ✅ **#59** Phase 1a foundation — Rust scaffold + PRNG golden + DSP + drums/bass for dark_techno (Opus) — qa-pass, PR #65 merged
-- ✅ **#66** Phase 1b — chord/pad/melody/tension/master chain for dark_techno (Opus) — qa-pass, PR #67 pending merge
-- **#60** Phase 2a umbrella — split into #68/#69/#70 (Opus, depends on #66)
-  - **#68** Phase 2a-1 — Shape B threading skeleton (Opus, branch `claude/build-60-release-vFbpG`) — foundations landed: Plan/PlanPublisher (arc-swap), VoiceEvent enums, per-voice SPSC ring wrappers (ringbuf). Next slice: composer workers, audio-side VoiceRack, ConductorThread + thread::spawn, assert_no_alloc guard, golden parity test
-  - ⚠️ **#69** Phase 2a-2 — All 10 palettes ported (Opus) — qa-improve; **#73** timbre fixes (Sonnet) queued
-  - **#70** Phase 2a-3 — Groove + Narrative + Diagnostic subsystems (Sonnet, depends on #68)
-- **#61** Phase 2b — Shape A: per-voice lookahead, VoicingEngine + harmonic rhythm first implementation (Opus, depends on #60)
-- **#62** Phase 3 — Slint UI + cargo-mobile2 + store submission (Sonnet, depends on #61)
-- **#73** Rust palette timbre fixes — per-palette pad LPF + JazzRide swing + `--start-beat` QA flag (Sonnet, SPEC_071_RUST_PALETTE_TIMBRE_FIXES.md) — *unblock this before re-QA of #69*
+| | |
+|---|---|
+| **Re-QA needed** | **#69** all 10 palettes — Aram tests now (#73/PR #74 timbre fix landed) |
+| **Next build** | **#70** groove + narrative + diagnostic (Sonnet) — unblocked once #69 qa-pass |
+| **Awaiting QA (JS)** | #30 · #42 · #44 · #56 |
+| **Chain** | #69 → #70 → #61 → #62 |
 
-### Paused JS backlog (resumes as Rust ports during migration phases)
-⏸ **#38** Melody rhythm extensions (qa-improve) — ports into Phase 2a melody worker
-⏸ **#40** VoicingEngine — first implemented in Rust during Phase 2b
-⏸ **#41** Phase-driven harmonic rhythm — first implemented in Rust during Phase 2b
-⏸ **#43** Diagnostic expansion — extended in Rust during Phase 2a
-⏸ **#45/#46/#47** UI overhaul A/B/C — rebuilt in Slint during Phase 3
-⏸ **#11/#12/#13/#18/#19/#28** — re-evaluate for Rust after Phase 2b
-
-### Awaiting QA (JS — in-flight, complete current QA cycle)
-⚠️ **#30** Post-Maelstrom theatrical decrescendo (Opus, P1) — built, awaiting QA
-⚠️ **#42** Diagnostic foundation (Opus) — built, awaiting QA
-⚠️ **#44** Bug: Legato pop (Opus, P1) — built, awaiting QA
-⚠️ **#56** noir_jazz 60s detective overhaul (Opus) — built, awaiting QA
-
----
-
-### Historical backlog (frozen at migration start — kept for reference)
-
-### Tier 1 · Foundation (P1)
-✅ #1 AudioContext lifecycle — qa-pass
-✅ #2 Fix validate/gate script — qa-pass
-
-### Tier 2 · Clean Extraction (P1–P3)
-✅ **#3** Kill dead code — stubs, vestigial G fields, CFG.PERKS (P1, Sonnet) — qa-pass
-✅ **#4** Rename game vocabulary — combo→intensity, hp→energy, bullet→voice (P2) — qa-pass
-✅ **#5** Rename source files — drop numeric prefixes (P3) — qa-pass
-
-### Tier 3 · Core Product (P1–P2)
-✅ **#6** Palette lock — play one palette on repeat (P1) — qa-pass
-✅ **#7** BPM override slider — independent of palette range (P1) — qa-pass
-✅ **#8** Cycle mode — plan-session complete, spec written
-✅ **#22** Bug: Auto BPM always 120 — qa-pass
-✅ **#23** Cycle mode — core engine + state machine (P1, Opus) — qa-pass
-✅ **#24** Cycle mode — track gain choreography (P1, Sonnet) — qa-pass
-✅ **#25** Cycle mode — UI + polish (P1, Sonnet) — qa-pass
-✅ **#9** Song identity — seed display + shareable URL params (P2, Sonnet) — qa-pass
-
-### Tier 4 · Musicality (P2)
-✅ **#10** Staggered phase transitions — plan complete → SPEC_010_STAGGERED_PHASE_TRANSITIONS.md
-✅ **#26** Staggered phase transitions — PhaseStagger scheduler + per-palette profiles (Opus) — qa-pass
-✅ **#11** Tension curve randomization — plan complete → SPEC_011_TENSION_CURVE_RANDOMIZATION.md
-✅ **#27** Tension curve randomization — TensionMap + palette profiles + DC integration (Opus) — qa-pass
-✅ **#28** Per-palette Storm/Maelstrom personality — plan complete → SPEC_028_PALETTE_STORM_PERSONALITY.md
-✅ **#29** Per-palette Storm/Maelstrom personality — tier caps + gain scalars + phase filters (Opus) — qa-pass
-✅ **#31** Mute melody engine pending overhaul — applied
-✅ **#32** Per-palette voice overhaul — plan complete → SPEC_032_PER_PALETTE_VOICE_OVERHAUL.md
-✅ **#33** Melody synth rebuild — per-palette synthesis chain (Opus) — qa-pass
-✅ **#34** ChordTrack — rhythmic chord articulation engine (Opus) — qa-pass
-✅ **#35** ChordTrack stagger + phase tuning (Sonnet) — qa-pass
-✅ Melody evolution — plan complete → SPEC_036_MELODY_EVOLUTION.md
-✅ **#36** Melody evolution — seed motif + phrase pairing + contour bias (Opus) — qa-pass
-✅ **#37** Melody evolution — I-R post-filter + interval affinity (Opus) — qa-pass
-✅ **#38** Melody evolution — melodic rhythm extensions (Sonnet) — qa-pass (follow-up delivered in #39)
-✅ Melody rhythm palette fix — plan complete → SPEC_039_MELODY_RHYTHM_PALETTE_FIX.md
-✅ **#39** Melody rhythm palette fix — swing×syncopation + legato guard + attack pop (Opus) — qa-pass
-⚠️ **#44** Bug: Legato voice expiration causes brittle pops in noir_jazz, vaporwave, synthwave (Opus, P1) — built, awaiting QA
-✅ **#12** Post-Maelstrom decay arc — plan complete → SPEC_012_POST_MAELSTROM_DECAY_ARC.md
-⚠️ **#30** Post-Maelstrom theatrical decrescendo — wind-down behaviors + per-palette decay profiles (Opus) — built, awaiting QA
-⚠️ **#56** noir_jazz 60s detective overhaul — thick crawling bass + sparse violin/harmonica per-phrase timbre dice (Opus) — built, awaiting QA
-✅ Chord evolution — plan complete → SPEC_040_CHORD_EVOLUTION.md
-- **#40** VoicingEngine — per-palette voicing intelligence + extension ramp + collision avoidance (Opus)
-- **#41** Phase-driven harmonic rhythm — per-palette × per-phase chord change rate (Sonnet, depends on #40)
-- **#13** Faster start — skip empty Pulse or add intro phrase (plan)
-
-### Tier 4b · QA Tooling (P2)
-✅ Audio diagnostic system — plan complete → SPEC_042_AUDIO_DIAGNOSTIC_SYSTEM.md
-✅ **#42** Diagnostic foundation — vocab + panel + 9 gain/voice detectors + hooks (Opus) — built, awaiting QA
-- **#43** Diagnostic expansion — 16 spectral + musical + rhythm + envelope detectors (Opus, depends on #42)
-
-### Tier 5 · UI/UX (P2–P3)
-✅ UI overhaul rescope — plan complete → SPEC_014_UI_OVERHAUL.md (supersedes #14, #16, #17)
-- **#45** UI overhaul A — listener UI rebuild + per-palette visualizer colors + dev toggle (P2, Sonnet)
-- **#46** UI overhaul B — keyboard shortcuts + help overlay (P3, Sonnet, depends on #45)
-- **#47** UI overhaul C — responsive / mobile layout (P3, Sonnet, depends on #45)
-
-### Tier 6 · Distribution (P3)
-- **#18** WAV export via OfflineAudioContext (plan)
-- **#19** Distribution polish — PWA manifest + dev watch mode + prod build (P3, Sonnet) [absorbed #20, #21]
+Paused JS builds: all paused — porting into Rust phases. See [GitHub milestones](https://github.com/Rennding/harmonyengine/milestones) for full backlog.
 
 ---
 
@@ -344,6 +261,7 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | Orphan branch (no issue, no PR) | All branches named `claude/issue-NN-slug`. Session-start §1 step 4 flags bare `claude/*` branches. Never delete a branch without Aram's OK. |
 | PR merged without `Closes #NN` | PR body must include `Closes #NN` or `Refs #NN`. Session-start check audits last 10 merged PRs; flag misses to Aram. |
 | Commit without issue ref | Commit messages use `[#NN] subject` prefix. `[#infra]` allowed for meta work. Reject vague messages like "edits" — rewrite before push. |
+| qa-improve via GitHub label only | qa-improve/fail always require chat — Claude must write and confirm new SPEC immediately. Only qa-pass is GitHub-async. |
 
 ---
 

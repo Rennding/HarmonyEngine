@@ -50,6 +50,13 @@ pub struct Conductor {
     /// composes inline — but workers / tests can observe the generation
     /// bump to exercise the flush protocol.
     plan_publisher: PlanPublisher,
+    // --- UI control fields (Build A #90) ---
+    /// Seed used to initialise this run — exposed so UI can bake into presets.
+    seed: i32,
+    /// When Some, hold phase at this level regardless of DC curve.
+    ui_force_phase: Option<Phase>,
+    /// When true, on_16th is a no-op (beat clock frozen).
+    beat_frozen: bool,
 }
 
 impl Conductor {
@@ -118,6 +125,9 @@ impl Conductor {
             limiter,
             gain_smooth,
             plan_publisher,
+            seed,
+            ui_force_phase: None,
+            beat_frozen: false,
         }
     }
 
@@ -192,6 +202,9 @@ impl Conductor {
     }
 
     fn on_16th(&mut self) {
+        if self.beat_frozen {
+            return;
+        }
         let step_in_bar = (self.step_index % 16) as usize;
         // On each downbeat (every 4th 16th-step): run the per-beat hook.
         if step_in_bar.is_multiple_of(4) {
@@ -215,7 +228,7 @@ impl Conductor {
             (base_dc + t.offset).max(0.0)
         };
         let prev_phase = self.phase;
-        self.phase = Phase::from_dc(self.dc);
+        self.phase = self.ui_force_phase.unwrap_or_else(|| Phase::from_dc(self.dc));
         if self.phase != prev_phase {
             self.target_track_gains = TrackGains::for_phase(self.phase);
             self.sequencer.on_phase_change(self.phase);
@@ -239,5 +252,43 @@ impl Conductor {
 
     pub fn dc(&self) -> f64 {
         self.dc
+    }
+
+    // --- UI control API (Build A #90) ---
+
+    pub fn seed(&self) -> i32 {
+        self.seed
+    }
+
+    /// Force the phase to a fixed value. Pass `None` to return to automatic DC-driven progression.
+    pub fn set_force_phase(&mut self, phase: Option<Phase>) {
+        let prev = self.phase;
+        self.ui_force_phase = phase;
+        // If forcing a new phase, apply track-gain targets immediately.
+        let effective = phase.unwrap_or_else(|| Phase::from_dc(self.dc));
+        if effective != prev {
+            self.phase = effective;
+            self.target_track_gains = TrackGains::for_phase(effective);
+            self.sequencer.on_phase_change(effective);
+            self.harmony.update_beats_per_chord(effective);
+            self.force_publish_plan();
+        }
+    }
+
+    /// Update BPM mid-run. Recomputes samples-per-16th immediately.
+    pub fn set_bpm(&mut self, bpm: f32) {
+        let bpm = bpm.clamp(60.0, 200.0);
+        self.bpm = bpm;
+        let samples_per_beat = self.sample_rate as f64 * 60.0 / bpm as f64;
+        self.samples_per_16th = samples_per_beat / 4.0;
+    }
+
+    /// Freeze / unfreeze the beat clock. When frozen, on_16th is a no-op.
+    pub fn set_beat_frozen(&mut self, frozen: bool) {
+        self.beat_frozen = frozen;
+    }
+
+    pub fn beat_frozen(&self) -> bool {
+        self.beat_frozen
     }
 }

@@ -21,7 +21,7 @@ use crate::palette::{BassConfig, DrumKit, DrumPattern, Palette};
 use crate::rng::Mulberry32;
 use crate::synth::{BiquadLowpass, Envelope, NoiseGen};
 use crate::voice_pool::{start_voice, NoteParams, VoicePool};
-use crate::wavetables::DarkTechnoWavetables;
+use crate::wavetables::PaletteWavetables;
 
 /// Per-track output gain multiplier. Conductor smooths these toward target
 /// values when phases change so we avoid abrupt level jumps.
@@ -156,11 +156,97 @@ pub fn pattern_16(pat: DrumPattern) -> [Step; 16] {
         DrumPattern::Euclidean5_8 => {
             for k in 0..5 {
                 let i = (k * 16 / 5) as usize;
-                out[i] = Step {
-                    active: true,
-                    vel: 0.5,
-                    prob: 0.8,
-                };
+                out[i] = Step { active: true, vel: 0.5, prob: 0.8 };
+            }
+        }
+        DrumPattern::Euclidean3_8 => {
+            for k in 0..3 {
+                let i = (k * 16 / 3) as usize;
+                out[i] = Step { active: true, vel: 0.45, prob: 0.85 };
+            }
+        }
+        DrumPattern::Euclidean7_16 => {
+            for k in 0..7 {
+                let i = (k * 16 / 7) as usize;
+                out[i] = Step { active: true, vel: 0.55, prob: 0.9 };
+            }
+        }
+        // half_time: kick on 0 and 8 only — ambient_dread `sparse_kick`, vaporwave.
+        DrumPattern::HalfTime => {
+            out[0] = Step { active: true, vel: 0.95, prob: 1.0 };
+            out[8] = Step { active: true, vel: 0.85, prob: 1.0 };
+        }
+        // laid_back: kick 0, 10 — lo_fi `lo_fi_kick`, noir_jazz `jazz_kick`.
+        DrumPattern::LaidBack => {
+            out[0] = Step { active: true, vel: 0.9, prob: 1.0 };
+            out[10] = Step { active: true, vel: 0.75, prob: 0.9 };
+            out[6] = Step { active: true, vel: 0.35, prob: 0.4 };
+        }
+        // syncopated: glitch `glitch_kick`, industrial `industrial_kick`.
+        DrumPattern::Syncopated => {
+            for i in [0, 3, 7, 11] {
+                out[i] = Step { active: true, vel: 0.85, prob: 0.95 };
+            }
+            out[14] = Step { active: true, vel: 0.45, prob: 0.5 };
+        }
+        // break_kick: breakbeat amen-style (0, 2.5≈3, 10, 12.5≈13).
+        DrumPattern::BreakKick => {
+            out[0] = Step { active: true, vel: 0.95, prob: 1.0 };
+            out[3] = Step { active: true, vel: 0.75, prob: 0.9 };
+            out[10] = Step { active: true, vel: 0.80, prob: 0.95 };
+        }
+        // scattered: glitch/industrial snare — stuttered around backbeats.
+        DrumPattern::Scattered => {
+            out[4] = Step { active: true, vel: 0.85, prob: 1.0 };
+            out[6] = Step { active: true, vel: 0.55, prob: 0.5 };
+            out[12] = Step { active: true, vel: 0.85, prob: 1.0 };
+            out[14] = Step { active: true, vel: 0.55, prob: 0.5 };
+        }
+        // ghost: ambient_dread mostly ghosts + weak 4, 12.
+        DrumPattern::Ghost => {
+            out[4] = Step { active: true, vel: 0.4, prob: 0.7 };
+            out[12] = Step { active: true, vel: 0.4, prob: 0.7 };
+            for i in [2, 6, 10, 14] {
+                out[i] = Step { active: true, vel: 0.15, prob: 0.3 };
+            }
+        }
+        // jazz: noir_jazz brush on 4, 12 with heavy ghosts.
+        DrumPattern::Jazz => {
+            out[4] = Step { active: true, vel: 0.5, prob: 0.9 };
+            out[12] = Step { active: true, vel: 0.5, prob: 0.9 };
+            for i in [2, 6, 10, 14] {
+                out[i] = Step { active: true, vel: 0.2, prob: 0.4 };
+            }
+        }
+        // break_snare: breakbeat (4, 10, 12).
+        DrumPattern::BreakSnare => {
+            out[4] = Step { active: true, vel: 0.9, prob: 1.0 };
+            out[10] = Step { active: true, vel: 0.7, prob: 0.8 };
+            out[12] = Step { active: true, vel: 0.9, prob: 1.0 };
+        }
+        // straight_8th: all 8ths.
+        DrumPattern::Straight8th => {
+            for i in [0, 2, 4, 6, 8, 10, 12, 14] {
+                out[i] = Step { active: true, vel: 0.55, prob: 1.0 };
+            }
+        }
+        // busy_16th: glitch/industrial/breakbeat — all 16ths.
+        DrumPattern::Busy16th => {
+            out.fill(Step { active: true, vel: 0.45, prob: 0.9 });
+        }
+        // slow_quarter: ambient_dread hat — quarters.
+        DrumPattern::SlowQuarter => {
+            for i in [0, 4, 8, 12] {
+                out[i] = Step { active: true, vel: 0.4, prob: 0.9 };
+            }
+        }
+        // jazz_ride: swung 8ths with accent on downbeats.
+        DrumPattern::JazzRide => {
+            for i in [0, 4, 8, 12] {
+                out[i] = Step { active: true, vel: 0.6, prob: 1.0 };
+            }
+            for i in [2, 6, 10, 14] {
+                out[i] = Step { active: true, vel: 0.4, prob: 0.95 };
             }
         }
     }
@@ -346,7 +432,7 @@ pub struct Sequencer {
     pub chord: ChordTrack,
     pub pad: PadTrack,
     pub melody: MelodyEngine,
-    wavetables: DarkTechnoWavetables,
+    wavetables: PaletteWavetables,
     rng: Mulberry32,
     sample_rate: f32,
     last_bass_note: i32,
@@ -376,7 +462,7 @@ impl Sequencer {
                 palette.motif,
                 seed,
             ),
-            wavetables: DarkTechnoWavetables::build(),
+            wavetables: PaletteWavetables::for_palette(palette.name),
             rng: Mulberry32::new(seed.wrapping_add(11)),
             sample_rate,
             last_bass_note: 0,

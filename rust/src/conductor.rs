@@ -45,7 +45,16 @@ pub struct Conductor {
 
 impl Conductor {
     pub fn new(sample_rate: f32, seed: i32) -> Self {
-        let palette = crate::palette::dark_techno();
+        Self::with_palette(sample_rate, seed, crate::palette::dark_techno())
+    }
+
+    pub fn with_palette_name(sample_rate: f32, seed: i32, name: &str) -> Self {
+        let palette = crate::palette::palette_by_name(name)
+            .unwrap_or_else(crate::palette::dark_techno);
+        Self::with_palette(sample_rate, seed, palette)
+    }
+
+    pub fn with_palette(sample_rate: f32, seed: i32, palette: Palette) -> Self {
         let mut song_rng = Mulberry32::new(seed);
 
         // JS `G.bpm = pal.bpmRange[0] + floor(rng() * (range[1]-range[0]+1))`

@@ -217,8 +217,8 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 |---|---|---|
 | Mulberry32 | rust/src/rng.rs | Byte-identical port of `_createSongRng`; see `golden_seed_12345` test |
 | config::{gain, master, tension, Phase, DC_*, melody_density} | rust/src/config.rs | CFG.GAIN + master chain consts + tension consts + phase/DC + per-phase melody density |
-| palette::{dark_techno, MelodyConfig, MelodyRhythm, MotifConfig, VariationWeights, TensionParams} | rust/src/palette.rs | PALETTES[0] — drums/bass/pad/chord/melody/progressions + melody_rhythm/motif/tension |
-| Wavetable, DarkTechnoWavetables | rust/src/wavetables.rs | Fourier recipe builders (from_partials/thick_saw/hollow/pulse/organ) + chord stab |
+| palette::{all_palettes, palette_by_name, select_palette, ChordStyle, DrumPattern, MelodyConfig, MelodyRhythm, MotifConfig, VariationWeights, TensionParams} | rust/src/palette.rs | All 10 PALETTES (dark_techno/synthwave/glitch/ambient_dread/lo_fi_chill/chiptune/noir_jazz/industrial/vaporwave/breakbeat) + 18-variant DrumPattern + weighted-recency picker (#69) |
+| Wavetable, PaletteWavetables (alias DarkTechnoWavetables), PaletteWavetables::for_palette | rust/src/wavetables.rs | Fourier recipe builders (from_partials/thick_saw/hollow/pulse/organ) + per-palette recipe dispatcher for all 10 palettes (#69) |
 | Oscillator, BiquadLowpass, Envelope, NoiseGen, PeakCompressor, BrickwallLimiter, soft_clip | rust/src/synth.rs | DSP primitives replacing Web Audio nodes + master chain |
 | VoicePool, NoteParams, start_voice | rust/src/voice_pool.rs | 16-voice pool |
 | HarmonyEngine, parse_numeral, triad_intervals, midi_to_freq, voiced_chord_tones, chord_tone_pentatonic_degree | rust/src/harmony.rs | Chord progression stepper + scale math + voicing helpers |
@@ -227,8 +227,8 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | PadTrack | rust/src/pad_track.rs | Sustained 3-osc unison pad, 16-voice pool, retrigger on chord change |
 | MelodyEngine, MARKOV | rust/src/melody.rs | Markov pentatonic phrase + variation engine (repeat/transpose/invert/diminish/fragment) |
 | Sequencer, TrackGains, DrumVoice, WalkingBass, pattern_16 | rust/src/sequencer.rs | Drums + bass + chord/pad/melody dispatch + per-track gain mix bus |
-| Conductor | rust/src/conductor.rs | Beat clock + phase progression + tension DC + master chain (comp→clip→limiter) |
-| AudioHost | rust/src/audio.rs | cpal output stream |
+| Conductor, Conductor::with_palette, Conductor::with_palette_name | rust/src/conductor.rs | Beat clock + phase progression + tension DC + master chain (comp→clip→limiter) + palette selection (#69) |
+| AudioHost, AudioHost::start_with_palette | rust/src/audio.rs | cpal output stream + `--palette <name>` override (#69) |
 | Plan, PlanPublisher | rust/src/plan.rs | RT-safe beat snapshot published via arc-swap to voice workers (#68) |
 | RhythmEvent, HarmonyEvent, TextureEvent, MelodyEvent, DrumHit, BassNote, ChordStab, PadRetrigger, MelodyNote | rust/src/voice_event.rs | Copy event enums w/ sample-indexed `time` — SPEC_057 §2 Shape B (#68) |
 | RhythmRing, HarmonyRing, TextureRing, MelodyRing, RING_CAPACITY | rust/src/voice_ring.rs | Typed SPSC HeapRb wrappers, one per voice (#68) |

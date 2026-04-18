@@ -7,6 +7,10 @@
   Format: reverse chronological (newest first).
 -->
 
+> **Frozen 2026-04-18.** GitHub issue comments are the session record going forward. This file is preserved as project history through Phase 1.
+
+---
+
 ---
 
 ## 2026-04-18 — QA: #69 all-10-palettes — qa-improve → #73 timbre fixes queued

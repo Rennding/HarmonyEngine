@@ -178,6 +178,9 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | _doPaletteSwap() | conductor.js | 78 | Palette swap during bridge (§4) |
 | _processCycleBeat() | conductor.js | 100 | Per-beat cycle state machine |
 | _resetCycleState() | conductor.js | 153 | Reset all cycle state vars |
+| Conductor.set_force_phase/set_bpm/set_beat_frozen/seed | rust/src/conductor.rs | ~267 | UI control methods: force phase, BPM update, beat-freeze, seed getter (#90) |
+| AudioBridge / UiCmd / SharedAudioState | rust/src-ui/bridge.rs | 1 | cpal stream + crossbeam UiCmd channel + atomic beat/phase/bpm/FFT state for UI (#90) |
+| HarmonyApp / SimpleState / Preset+PresetStore | rust/src-ui/{app,tabs/simple,presets}.rs | — | eframe App root, Simple tab state, JSON preset load/save/autosave/qa-repro (#90) |
 | Conductor.start() | conductor.js | 161 | Start playback with optional palette |
 | Conductor.stop() | conductor.js | 176 | Stop all audio |
 | Conductor.setCycleMode() | conductor.js | 198 | Toggle cycle mode on/off |

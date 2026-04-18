@@ -17,6 +17,7 @@
 use crate::config::{self, master, Phase};
 use crate::harmony::HarmonyEngine;
 use crate::palette::Palette;
+use crate::plan::{Plan, PlanPublisher};
 use crate::rng::Mulberry32;
 use crate::sequencer::{Sequencer, TrackGains};
 use crate::synth::{soft_clip, BrickwallLimiter, PeakCompressor};
@@ -32,6 +33,7 @@ pub struct Conductor {
     sample_counter: f64,
     step_index: u64, // total 16th steps elapsed
     beat_count: u32, // whole beats elapsed (updates DC/phase)
+    total_samples: u64, // absolute sample index since run-start
     dc: f64,
     phase: Phase,
     tension: TensionMap,
@@ -41,6 +43,13 @@ pub struct Conductor {
     /// Smoothing coefficient applied per audio sample to track-gain lerp.
     /// At 48 kHz this gives a ~250 ms ramp toward target.
     gain_smooth: f32,
+    /// RT-safe plan publisher — Phase 2b-1 (#81). Conductor stamps a fresh
+    /// plan on every beat (`on_beat`) and on immediate-publish events
+    /// (palette swap, forced phase). Voice workers haven't yet been
+    /// rewired to read it for audio output — `render_sample` still
+    /// composes inline — but workers / tests can observe the generation
+    /// bump to exercise the flush protocol.
+    plan_publisher: PlanPublisher,
 }
 
 impl Conductor {
@@ -87,6 +96,9 @@ impl Conductor {
         // 250 ms ramp at sample rate.
         let gain_smooth = 1.0 - (-1.0 / (0.250 * sample_rate)).exp();
 
+        let initial_plan = Plan::initial(palette.name, bpm, samples_per_16th);
+        let plan_publisher = PlanPublisher::new(initial_plan);
+
         Self {
             palette,
             harmony,
@@ -97,6 +109,7 @@ impl Conductor {
             sample_counter: 0.0,
             step_index: 0,
             beat_count: 0,
+            total_samples: 0,
             dc: 0.0,
             phase: Phase::Pulse,
             tension,
@@ -104,7 +117,36 @@ impl Conductor {
             compressor,
             limiter,
             gain_smooth,
+            plan_publisher,
         }
+    }
+
+    /// Handle to the plan publisher so voice workers / tests can subscribe
+    /// to generation bumps without racing the audio callback.
+    pub fn plan_publisher(&self) -> PlanPublisher {
+        self.plan_publisher.clone()
+    }
+
+    /// Current plan generation — convenience for diagnostic consumers.
+    pub fn plan_generation(&self) -> u64 {
+        self.plan_publisher.current_generation()
+    }
+
+    /// Publish a fresh plan out-of-band — palette swap, forced phase,
+    /// tension-spike path. Bumps generation so voice workers flush stale
+    /// lookahead within the next callback. Returns the new generation.
+    pub fn force_publish_plan(&self) -> u64 {
+        self.plan_publisher.publish(self.build_plan())
+    }
+
+    fn build_plan(&self) -> Plan {
+        let mut plan = Plan::initial(self.palette.name, self.bpm, self.samples_per_16th);
+        plan.beat_index = self.beat_count as u64;
+        plan.beat_time_samples = self.total_samples;
+        plan.phase = self.phase;
+        plan.dc = self.dc;
+        plan.pad_voice_count = self.phase.pad_voices();
+        plan
     }
 
     pub fn bpm(&self) -> f32 {
@@ -134,6 +176,7 @@ impl Conductor {
         self.sequencer.track_gains.lerp_toward(&target, alpha);
 
         self.sample_counter += 1.0;
+        self.total_samples = self.total_samples.wrapping_add(1);
         if self.sample_counter >= self.samples_per_16th {
             self.sample_counter -= self.samples_per_16th;
             self.on_16th();
@@ -178,6 +221,13 @@ impl Conductor {
             self.sequencer.on_phase_change(self.phase);
         }
         self.sequencer.on_beat(&self.harmony);
+
+        // Phase 2b-1 (#81): publish a fresh plan so voice workers tag
+        // their next-beat events with the new generation. The audio path
+        // itself is unchanged — Sequencer continues to synthesise inline —
+        // but the publish gives tests / future worker threads a live
+        // generation counter to flush against.
+        self.plan_publisher.publish(self.build_plan());
     }
 
     pub fn sample_rate(&self) -> f32 {

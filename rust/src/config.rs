@@ -194,6 +194,19 @@ pub mod diagnostic {
     /// Plan-publish → plan-pickup latency threshold (nanoseconds).
     /// 2 ms = 2_000_000 ns.
     pub const PLAN_PUBLISH_LATENCY_NS: u64 = 2_000_000;
+
+    // Lookahead detectors (SPEC_057 §4 Phase 2b-1 #81).
+    /// Lookahead fill floor: chronic under-fill (worker falling behind its
+    /// budget) is warned when current fill drops below this fraction of
+    /// the worker's capacity budget. 0.25 = 25 % of the budget.
+    pub const LOOKAHEAD_FILL_LOW: f32 = 0.25;
+    /// Lookahead fill ceiling: chronic over-fill (ring pressure, audio
+    /// thread draining too slowly) is warned when current fill exceeds
+    /// this fraction. 0.95 = within 5 % of capacity.
+    pub const LOOKAHEAD_FILL_HIGH: f32 = 0.95;
+    /// Flush-latency threshold in beats. #81 acceptance: drums + melody
+    /// must drain within 1 bar after a plan-generation bump.
+    pub const FLUSH_LATENCY_MAX_BEATS: f64 = 4.0;
 }
 
 /// Master chain (post-mix) constants — port of JS `audio.js:374–432`.

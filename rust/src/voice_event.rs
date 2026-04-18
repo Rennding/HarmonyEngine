@@ -1,8 +1,11 @@
 //! Voice events emitted by composer workers — SPEC_057 §2 Shape B.
 //!
 //! Every event carries the absolute audio-thread sample index at which it
-//! fires (`time`). The audio thread drains each per-voice SPSC ring
-//! buffer at sample boundaries and applies any events whose `time` is due.
+//! fires (`time`) and the `plan_generation` under which it was composed
+//! (SPEC_057 Phase 2b-1 #81). The audio thread drains each per-voice SPSC
+//! ring buffer at sample boundaries, skips any event whose
+//! `plan_generation` lags the currently-published generation, and applies
+//! the rest when `time` comes due.
 //!
 //! All variants are `Copy` so ring-buffer push/pop never allocates, and
 //! `assert_no_alloc` can guard the audio callback in debug builds.
@@ -20,6 +23,7 @@ pub const MAX_PAD_TONES: usize = 8;
 #[derive(Clone, Copy, Debug)]
 pub struct DrumHit {
     pub time: u64,
+    pub plan_generation: u64,
     pub freq: f32,
     pub decay: f32,
     pub vel: f32,
@@ -29,6 +33,7 @@ pub struct DrumHit {
 #[derive(Clone, Copy, Debug)]
 pub struct BassNote {
     pub time: u64,
+    pub plan_generation: u64,
     pub midi: i32,
     pub cutoff_hz: f32,
     pub resonance: f32,
@@ -39,6 +44,7 @@ pub struct BassNote {
 #[derive(Clone, Copy, Debug)]
 pub struct ChordStab {
     pub time: u64,
+    pub plan_generation: u64,
     pub tones: [i32; MAX_CHORD_TONES],
     pub tone_count: u8,
     pub base_gain: f32,
@@ -49,6 +55,7 @@ pub struct ChordStab {
 #[derive(Clone, Copy, Debug)]
 pub struct PadRetrigger {
     pub time: u64,
+    pub plan_generation: u64,
     pub tones: [i32; MAX_PAD_TONES],
     pub tone_count: u8,
 }
@@ -57,6 +64,7 @@ pub struct PadRetrigger {
 #[derive(Clone, Copy, Debug)]
 pub struct MelodyNote {
     pub time: u64,
+    pub plan_generation: u64,
     pub midi: i32,
     pub phase_gain: f32,
 }
@@ -93,6 +101,13 @@ impl RhythmEvent {
             RhythmEvent::Kick(h) | RhythmEvent::Snare(h) | RhythmEvent::Hat(h) => h.time,
         }
     }
+
+    #[inline]
+    pub fn plan_generation(&self) -> u64 {
+        match self {
+            RhythmEvent::Kick(h) | RhythmEvent::Snare(h) | RhythmEvent::Hat(h) => h.plan_generation,
+        }
+    }
 }
 
 impl HarmonyEvent {
@@ -101,6 +116,14 @@ impl HarmonyEvent {
         match self {
             HarmonyEvent::Bass(b) => b.time,
             HarmonyEvent::Chord(c) => c.time,
+        }
+    }
+
+    #[inline]
+    pub fn plan_generation(&self) -> u64 {
+        match self {
+            HarmonyEvent::Bass(b) => b.plan_generation,
+            HarmonyEvent::Chord(c) => c.plan_generation,
         }
     }
 }
@@ -112,6 +135,13 @@ impl TextureEvent {
             TextureEvent::Pad(p) => p.time,
         }
     }
+
+    #[inline]
+    pub fn plan_generation(&self) -> u64 {
+        match self {
+            TextureEvent::Pad(p) => p.plan_generation,
+        }
+    }
 }
 
 impl MelodyEvent {
@@ -119,6 +149,13 @@ impl MelodyEvent {
     pub fn time(&self) -> u64 {
         match self {
             MelodyEvent::Note(n) => n.time,
+        }
+    }
+
+    #[inline]
+    pub fn plan_generation(&self) -> u64 {
+        match self {
+            MelodyEvent::Note(n) => n.plan_generation,
         }
     }
 }
@@ -143,10 +180,41 @@ mod tests {
     fn event_time_helpers() {
         let k = RhythmEvent::Kick(DrumHit {
             time: 4_800,
+            plan_generation: 7,
             freq: 55.0,
             decay: 0.3,
             vel: 0.9,
         });
         assert_eq!(k.time(), 4_800);
+        assert_eq!(k.plan_generation(), 7);
+    }
+
+    #[test]
+    fn plan_generation_exposed_per_variant() {
+        let bass = HarmonyEvent::Bass(BassNote {
+            time: 100,
+            plan_generation: 3,
+            midi: 36,
+            cutoff_hz: 800.0,
+            resonance: 0.7,
+            gain: 0.2,
+        });
+        assert_eq!(bass.plan_generation(), 3);
+
+        let pad = TextureEvent::Pad(PadRetrigger {
+            time: 200,
+            plan_generation: 5,
+            tones: [0; MAX_PAD_TONES],
+            tone_count: 0,
+        });
+        assert_eq!(pad.plan_generation(), 5);
+
+        let mel = MelodyEvent::Note(MelodyNote {
+            time: 300,
+            plan_generation: 9,
+            midi: 60,
+            phase_gain: 0.5,
+        });
+        assert_eq!(mel.plan_generation(), 9);
     }
 }

@@ -11,11 +11,14 @@ pub mod harmony;
 pub mod melody;
 pub mod pad_track;
 pub mod palette;
+pub mod plan;
 pub mod rng;
 pub mod sequencer;
 pub mod synth;
 pub mod tension;
+pub mod voice_event;
 pub mod voice_pool;
+pub mod voice_ring;
 pub mod wavetables;
 
 pub use conductor::Conductor;

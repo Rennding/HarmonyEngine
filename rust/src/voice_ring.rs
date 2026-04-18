@@ -6,10 +6,15 @@
 //! audio-thread sample index), and the audio thread drains everything due
 //! up to `now + block_size` each callback.
 //!
-//! Capacities are sized for the worst case: up to one event per 16th note
-//! times a generous lookahead window (2 beats of 16ths = 8, × 4 voices of
-//! worst-case ChordStab bursts = 32). 64 gives headroom for bursty runs
-//! without re-allocation.
+//! Capacity sizing for Phase 2b-1 (#81) — lookahead-capable rings:
+//! the melody worker composes up to 4 bars (16 beats × 4 sub-steps = 64
+//! events) ahead; drums compose 1 bar (4 beats × 4 sub-steps × 3 voices =
+//! 48 events worst case for busy_16th). `RING_CAPACITY = 64` covers both
+//! comfortably; `LOOKAHEAD_CAPACITY_BEATS = 4` documents the design
+//! budget that #81 and the Phase 2b-1 diagnostic detectors rely on.
+//! Bass / harmony / texture rings keep the same 64-slot capacity; they
+//! stay beat-by-beat (lookahead budget 0) until #82 upgrades them to
+//! match melody.
 //!
 //! All wrappers are thin aliases around `ringbuf::HeapRb`; the real-time
 //! discipline lives in the push/pop call sites (workers push on their own
@@ -22,6 +27,14 @@ use crate::voice_event::{HarmonyEvent, MelodyEvent, RhythmEvent, TextureEvent};
 /// Capacity per ring. Event enum variants are `Copy` and small, so this is
 /// a tight budget in bytes (≈64 × 32 B ≈ 2 KiB per ring).
 pub const RING_CAPACITY: usize = 64;
+
+/// Design lookahead budget per ring, in beats. Phase 2b-1 (#81): drums
+/// compose up to 4 beats (1 bar) ahead, melody up to 16 beats (4 bars)
+/// ahead; 4-beat capacity is the common floor every ring can satisfy.
+/// Bass / harmony / texture rings currently don't populate lookahead
+/// (budget 0) but share the same capacity so #82 can raise their budgets
+/// without re-sizing buffers.
+pub const LOOKAHEAD_CAPACITY_BEATS: u32 = 4;
 
 /// Rhythm: kick/snare/hat events from the RhythmComposer worker.
 pub struct RhythmRing {
@@ -110,6 +123,7 @@ mod tests {
         let mut ring = RhythmRing::new();
         let hit = DrumHit {
             time: 1_024,
+            plan_generation: 1,
             freq: 55.0,
             decay: 0.25,
             vel: 0.9,
@@ -128,6 +142,7 @@ mod tests {
                 .prod
                 .try_push(MelodyEvent::Note(MelodyNote {
                     time: i as u64,
+                    plan_generation: 1,
                     midi: 60,
                     phase_gain: 1.0,
                 }))
@@ -137,6 +152,7 @@ mod tests {
         // Overfilling returns Err.
         let overflow = ring.prod.try_push(MelodyEvent::Note(MelodyNote {
             time: 0,
+            plan_generation: 1,
             midi: 0,
             phase_gain: 0.0,
         }));

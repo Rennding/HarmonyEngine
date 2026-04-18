@@ -23,6 +23,7 @@ pub mod voice_event;
 pub mod voice_pool;
 pub mod voice_ring;
 pub mod wavetables;
+pub mod workers;
 
 pub use conductor::Conductor;
 pub use palette::Palette;

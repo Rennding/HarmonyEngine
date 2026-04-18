@@ -221,13 +221,13 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Rust migration — Phase 2a complete (#60 qa-pass via #68/#69/#70). Phase 2b split into #81/#82 under umbrella #61.**
+**Status: Rust migration — Phase 2b-1 (#81) built, awaiting QA. Phase 2a complete (#60 qa-pass via #68/#69/#70).**
 
 | | |
 |---|---|
 | **Umbrella** | **#61** Phase 2b (open) — closes qa-pass once #81 + #82 both pass |
-| **Next build** | **#81** Phase 2b-1: plan-flush protocol + per-voice lookahead infra + drums/melody prototype (Opus) |
-| **Queued** | **#82** Phase 2b-2: bass/chord/pad lookahead + VoicingEngine (SPEC_040) + harmonic rhythm (SPEC_041) + cadential planning (Opus) — depends on #81 QA pass |
+| **Awaiting QA** | **#81** Phase 2b-1: plan-flush protocol + per-voice lookahead infra + drums/melody prototype (Opus) — needs-aram |
+| **Next build** | **#82** Phase 2b-2: bass/chord/pad lookahead + VoicingEngine (SPEC_040) + harmonic rhythm (SPEC_041) + cadential planning (Opus) — depends on #81 QA pass |
 | **After 2b** | **#62** Phase 3: UI (Slint) + mobile packaging + store submission (Sonnet) |
 | **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port |
 | **Chain** | #81 → #82 → #62 |

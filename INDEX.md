@@ -229,13 +229,17 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Sequencer, TrackGains, DrumVoice, WalkingBass, pattern_16 | rust/src/sequencer.rs | Drums + bass + chord/pad/melody dispatch + per-track gain mix bus |
 | Conductor, Conductor::with_palette, Conductor::with_palette_name | rust/src/conductor.rs | Beat clock + phase progression + tension DC + master chain (comp→clip→limiter) + palette selection (#69) |
 | AudioHost, AudioHost::start_with_palette | rust/src/audio.rs | cpal output stream + `--palette <name>` override (#69) |
-| Plan, PlanPublisher | rust/src/plan.rs | RT-safe beat snapshot published via arc-swap to voice workers (#68) |
-| RhythmEvent, HarmonyEvent, TextureEvent, MelodyEvent, DrumHit, BassNote, ChordStab, PadRetrigger, MelodyNote | rust/src/voice_event.rs | Copy event enums w/ sample-indexed `time` — SPEC_057 §2 Shape B (#68) |
-| RhythmRing, HarmonyRing, TextureRing, MelodyRing, RING_CAPACITY | rust/src/voice_ring.rs | Typed SPSC HeapRb wrappers, one per voice (#68) |
+| Plan, PlanPublisher | rust/src/plan.rs | RT-safe beat snapshot published via arc-swap + monotonic `generation` counter (#68, gen-counter #81) |
+| RhythmEvent, HarmonyEvent, TextureEvent, MelodyEvent, DrumHit, BassNote, ChordStab, PadRetrigger, MelodyNote | rust/src/voice_event.rs | Copy event enums w/ sample-indexed `time` + `plan_generation` tag for flush-skip (#68, tag #81) |
+| RhythmRing, HarmonyRing, TextureRing, MelodyRing, RING_CAPACITY, LOOKAHEAD_CAPACITY_BEATS | rust/src/voice_ring.rs | Typed SPSC HeapRb wrappers, one per voice; 4-beat lookahead-capable (#68, budget #81) |
+| VoiceKind, LookaheadBudget, FlushDirection, STAGGER_DOWN/UP, stagger_order, FlushReport, drain_rhythm_ring, drain_melody_ring, compose_drums_ahead, compose_melody_ahead | rust/src/workers.rs | Per-voice lookahead budgets + plan-flush protocol + drums/melody prototype composers — SPEC_057 §4 Phase 2b-1 (#81) |
 | GrooveEngine | rust/src/groove.rs | Per-16th swing + humanize jitter + ghost-note prob scaling, phase mults (Pulse/Swell/Surge/Storm/Maelstrom) — port of `src/groove.js` SPEC_018 §1 (#70) |
 | NarrativeConductor, NarrativeCue, CueKind, VariationKind, Motif, generate_motif, render_variation | rust/src/narrative.rs | Abridged port of `src/narrative.js` — 4-note theme motif + variation cues (Pulse intro / Surge recurring / Swell harmonized / Storm transposed / Maelstrom canon) (#70) |
-| AnomalyDetector, DiagnosticLog, DiagnosticEntry, VocabTerm (18-term), Severity, TrackGains, MasterSnapshot, VoiceSnapshot | rust/src/diagnostic.rs | 9 SPEC_042 detectors (clip/spike/silence/pump/voice flood/steal/leak/low-end stack/flat) + 4 SPEC_057 §4 per-voice detectors (jitter/ring underrun/ring overflow/plan-publish latency) + 50-entry ring log (#70) |
+| AnomalyDetector, DiagnosticLog, DiagnosticEntry, VocabTerm (18-term), Severity, TrackGains, MasterSnapshot, VoiceSnapshot | rust/src/diagnostic.rs | 9 SPEC_042 detectors + 4 SPEC_057 §4 per-voice detectors (jitter/ring underrun/ring overflow/plan-publish latency) + 2 Phase 2b-1 detectors (lookahead_fill/flush_latency) + 50-entry ring log (#70, 2b-1 detectors #81) |
+| Conductor::plan_publisher / plan_generation / force_publish_plan | rust/src/conductor.rs | Per-beat plan publish + out-of-band force-publish (palette/phase/tension-spike) — SPEC_057 §4 Phase 2b-1 (#81) |
 
-Phase 2a (#60) extends to per-voice threads + all 10 palettes; Phase 2b (#61) adds lookahead + VoicingEngine + harmonic rhythm.
+Phase 2a (#60) extends to per-voice threads + all 10 palettes; Phase 2b (#61) adds lookahead + VoicingEngine + harmonic rhythm, split across #81 (flush protocol + drums/melody prototype) and #82 (bass/chord/pad + SPEC_040/041).
 
 **#68 status:** foundations landed (Plan/VoiceEvent/voice_ring); composer workers + VoiceRack + thread wiring + golden parity test continue in the next slice on the same branch.
+
+**#81 status:** plan-generation counter + per-event tagging + LookaheadBudget + drain helpers + prototype composers + lookahead/flush detectors + golden_phase2b1 + flush_latency tests landed. Audio path unchanged (byte-identical golden); worker-thread spawn + audio-ring consumption lands in a later slice.

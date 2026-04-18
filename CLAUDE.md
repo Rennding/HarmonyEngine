@@ -262,6 +262,7 @@ Paused JS builds: all paused — porting into Rust phases. See [GitHub milestone
 | PR merged without `Closes #NN` | PR body must include `Closes #NN` or `Refs #NN`. Session-start check audits last 10 merged PRs; flag misses to Aram. |
 | Commit without issue ref | Commit messages use `[#NN] subject` prefix. `[#infra]` allowed for meta work. Reject vague messages like "edits" — rewrite before push. |
 | qa-improve via GitHub label only | qa-improve/fail always require chat — Claude must write and confirm new SPEC immediately. Only qa-pass is GitHub-async. |
+| qa-improve build issue missing parent | Every qa-improve/fail build issue must have a `**qa-improve follow-up to #NN**` line and `Refs #NN` in the body. SPEC branch slug must match the actual branch, not a placeholder. |
 
 ---
 

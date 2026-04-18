@@ -9,7 +9,7 @@
 
 ---
 
-## 2026-04-18 — Rust Phase 2a-1 foundations — Plan + VoiceEvent + voice_ring — #68 (in progress)
+## 2026-04-18 — Rust Phase 2a-1 Shape B threading skeleton — #68 — qa-pass
 
 #60 split into three sub-issues (#68 threading skeleton, #69 palettes, #70 groove/narrative/diagnostic) so each slice is testable and fits in a session budget. This slice lands the typed foundations for the Shape B per-voice split: `Plan` (arc-swap beat snapshot published once per beat by the Conductor and loaded allocation-free by workers), `VoiceEvent` (Copy enums per voice — RhythmEvent/HarmonyEvent/TextureEvent/MelodyEvent with sample-indexed `time`), and `voice_ring` (typed SPSC HeapRb wrappers per voice, capacity 64 events). Cargo pulls in ringbuf 0.4 / crossbeam-channel 0.5 / arc-swap 1.7 / parking_lot 0.12 and dev-dep assert_no_alloc 1.1. 25 lib tests pass; clippy clean.
 

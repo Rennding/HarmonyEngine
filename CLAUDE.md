@@ -225,7 +225,8 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | | |
 |---|---|
 | **Re-QA needed** | **#69** all 10 palettes — Aram tests now (#73/PR #74 timbre fix landed) |
-| **Next build** | **#70** groove + narrative + diagnostic (Sonnet) — unblocked once #69 qa-pass |
+| **Awaiting QA** | **#70** groove + narrative + diagnostic (branch `claude/build-70-8daP2` pushed; PR pending) |
+| **Next build** | **#61** Phase 2a-4: per-voice worker threads + VoiceRack wiring (Opus) — unblocks audible output for groove/narrative/diagnostic |
 | **Awaiting QA (JS)** | #30 · #42 · #44 · #56 |
 | **Chain** | #69 → #70 → #61 → #62 |
 

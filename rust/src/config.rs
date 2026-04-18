@@ -164,6 +164,38 @@ pub mod tension {
     pub const SPIKE_BASE_GAP: f64 = 0.30;
 }
 
+/// `CFG.DIAGNOSTIC` — detector thresholds and per-detector enable flags.
+/// Mirrors `diagnostic.js` + `config.js` tuning constants. All thresholds in
+/// linear gain unless noted.
+pub mod diagnostic {
+    /// `DiagnosticLog` ring-buffer capacity.
+    pub const LOG_MAX: usize = 50;
+
+    // Gain / voice detectors (SPEC_042).
+    pub const CLIP_TRACK_MAX: f32 = 1.0;
+    pub const CLIP_MASTER_MAX: f32 = 0.95;
+    /// dB of limiter gain-reduction that triggers a clip warning.
+    pub const CLIP_LIMITER_DB: f32 = 6.0;
+    pub const GAIN_SPIKE_DELTA: f32 = 0.30;
+    pub const SILENCE_DROP_THRESHOLD: f32 = 0.30;
+    pub const PUMP_WINDOW: usize = 4;
+    pub const PUMP_RANGE: f32 = 0.40;
+    pub const VOICE_FLOOD_THRESHOLD: usize = 14;
+    pub const VOICE_STEAL_MAX: usize = 4;
+    pub const VOICE_LEAK_BEATS: usize = 8;
+    pub const LOW_END_STACK_GAIN: f32 = 0.50;
+    pub const FLAT_DC_BEATS: usize = 16;
+    pub const FLAT_DC_DELTA: f64 = 0.05;
+
+    // Per-voice detectors (SPEC_057 §4 Phase 2a).
+    /// Voice-jitter threshold: actual note-on vs scheduled beat-time (samples).
+    /// 5 ms at 48 kHz ≈ 240 samples.
+    pub const VOICE_JITTER_SAMPLES: i64 = 240;
+    /// Plan-publish → plan-pickup latency threshold (nanoseconds).
+    /// 2 ms = 2_000_000 ns.
+    pub const PLAN_PUBLISH_LATENCY_NS: u64 = 2_000_000;
+}
+
 /// Master chain (post-mix) constants — port of JS `audio.js:374–432`.
 /// Phase 1b uses a simplified chain: peak compressor → tanh soft-clip →
 /// final limiter. The full multi-band EQ + convolver reverb + delay sends

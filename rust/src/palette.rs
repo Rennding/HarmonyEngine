@@ -131,6 +131,10 @@ pub struct MelodyConfig {
     pub lpf_resonance: f32,
     pub gain_scalar: f32,
     pub staccato: bool,
+    /// `palette.melody.narrativeMotif` — when false, `NarrativeConductor`
+    /// skips motif cues for this palette (legato-bloom palettes drown in
+    /// narrative stabs). See `harmony.js:330` etc.
+    pub narrative_motif: bool,
 }
 
 /// `palette.melodyRhythm` — note-rhythm controls for MelodyEngine.
@@ -138,6 +142,17 @@ pub struct MelodyConfig {
 pub struct MelodyRhythm {
     pub hold_probability: f32,
     pub syncopation_probability: f32,
+}
+
+/// `palette.groove` — swing / humanize / ghost probability base values.
+/// Phase multipliers live in `GrooveEngine::onPhaseChange` (see groove.rs).
+/// JS reference: per-palette `groove: { swing, humanize }` in harmony.js.
+#[derive(Clone, Copy, Debug)]
+pub struct GrooveConfig {
+    /// 0.0 = dead straight, 0.5 = triplet shuffle. Applied to odd 16ths.
+    pub swing: f32,
+    /// Per-note random timing deviation window in milliseconds.
+    pub humanize_ms: f32,
 }
 
 /// `palette.motif` + `motif.variationWeights` — phrase generation controls.
@@ -195,6 +210,7 @@ pub struct Palette {
     pub melody_rhythm: MelodyRhythm,
     pub motif: MotifConfig,
     pub tension: TensionParams,
+    pub groove: GrooveConfig,
     pub progressions: Vec<Progression>,
     pub beats_per_chord: u32, // JS `HarmonyEngine._beatsPerChord` default = 4
 }
@@ -271,6 +287,7 @@ pub fn dark_techno() -> Palette {
             lpf_resonance: 4.0,
             gain_scalar: 1.0,
             staccato: true,
+            narrative_motif: true,
         },
         melody_rhythm: MelodyRhythm {
             hold_probability: 0.15,
@@ -313,6 +330,7 @@ pub fn dark_techno() -> Palette {
             spike_height: 0.25,
             plateau_bias: 0.0,
         },
+        groove: GrooveConfig { swing: 0.0, humanize_ms: 3.0 },
         progressions: vec![
             Progression {
                 section_a: vec!["i", "VI", "III", "VII"],
@@ -371,7 +389,7 @@ pub fn synthwave() -> Palette {
         melody: MelodyConfig {
             octave: 5, attack: 0.08, decay: 0.15, sustain_level: 1.0, release: 0.2,
             lpf_cutoff: 2500.0, lpf_env_amount: 400.0, lpf_env_decay: 0.3, lpf_resonance: 1.0,
-            gain_scalar: 1.0, staccato: false,
+            gain_scalar: 1.0, staccato: false, narrative_motif: false,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.25, syncopation_probability: 0.35 },
         motif: MotifConfig {
@@ -382,6 +400,7 @@ pub fn synthwave() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
         },
         tension: TensionParams { event_density: 0.7, retreat_depth: 0.15, spike_height: 0.20, plateau_bias: 0.1 },
+        groove: GrooveConfig { swing: 0.15, humanize_ms: 8.0 },
         progressions: vec![
             Progression { section_a: vec!["I","V","vi","IV"], section_b: vec!["I","IV","ii","V"], section_c: vec!["vi","IV","bVII","I"], form: vec!['A','B','A','C'], phase: "default" },
             Progression { section_a: vec!["I","IV","V","I"], section_b: vec!["vi","ii","V","I"], section_c: vec!["IV","iv","I","V"], form: vec!['A','A','B','C'], phase: "default" },
@@ -422,7 +441,7 @@ pub fn glitch() -> Palette {
         melody: MelodyConfig {
             octave: 5, attack: 0.003, decay: 0.05, sustain_level: 0.0, release: 0.02,
             lpf_cutoff: 5000.0, lpf_env_amount: 0.0, lpf_env_decay: 0.1, lpf_resonance: 0.7,
-            gain_scalar: 1.0, staccato: true,
+            gain_scalar: 1.0, staccato: true, narrative_motif: true,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.10, syncopation_probability: 0.80 },
         motif: MotifConfig {
@@ -433,6 +452,7 @@ pub fn glitch() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.05, transpose: 0.1, invert: 0.15, diminish: 0.3, fragment: 0.4 },
         },
         tension: TensionParams { event_density: 0.9, retreat_depth: 0.20, spike_height: 0.30, plateau_bias: -0.1 },
+        groove: GrooveConfig { swing: 0.0, humanize_ms: 15.0 },
         progressions: vec![
             Progression { section_a: vec!["i","II","iii","IV"], section_b: vec!["V","iii","i","II"], section_c: vec!["IV","bVII","II","i"], form: vec!['A','B','A','C'], phase: "default" },
             Progression { section_a: vec!["i","iii","V","VII"], section_b: vec!["II","IV","i","iii"], section_c: vec!["bVI","V","II","i"], form: vec!['A','A','B','C'], phase: "default" },
@@ -475,6 +495,7 @@ pub fn ambient_dread() -> Palette {
             lpf_cutoff: 1200.0, lpf_env_amount: 0.0, lpf_env_decay: 0.1, lpf_resonance: 0.7,
             gain_scalar: 0.0, // muted per JS — boinging oscillator artifact
             staccato: false,
+            narrative_motif: false,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.50, syncopation_probability: 0.05 },
         motif: MotifConfig {
@@ -485,6 +506,7 @@ pub fn ambient_dread() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.1, transpose: 0.2, invert: 0.3, diminish: 0.1, fragment: 0.3 },
         },
         tension: TensionParams { event_density: 0.5, retreat_depth: 0.12, spike_height: 0.10, plateau_bias: 0.3 },
+        groove: GrooveConfig { swing: 0.25, humanize_ms: 12.0 },
         progressions: vec![
             Progression { section_a: vec!["i","ii","v","i"], section_b: vec!["vi","iii","iv","i"], section_c: vec!["bVI","v","ii","i"], form: vec!['A','B','A','C'], phase: "default" },
             Progression { section_a: vec!["i","vi","iii","v"], section_b: vec!["iv","ii","v","i"], section_c: vec!["bII","v","iv","i"], form: vec!['A','A','B','C'], phase: "default" },
@@ -525,7 +547,7 @@ pub fn lo_fi_chill() -> Palette {
         melody: MelodyConfig {
             octave: 4, attack: 0.04, decay: 0.15, sustain_level: 0.6, release: 0.15,
             lpf_cutoff: 2000.0, lpf_env_amount: 200.0, lpf_env_decay: 0.2, lpf_resonance: 1.0,
-            gain_scalar: 0.9, staccato: false,
+            gain_scalar: 0.9, staccato: false, narrative_motif: true,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.35, syncopation_probability: 0.55 },
         motif: MotifConfig {
@@ -536,6 +558,7 @@ pub fn lo_fi_chill() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
         },
         tension: TensionParams { event_density: 0.6, retreat_depth: 0.18, spike_height: 0.12, plateau_bias: 0.2 },
+        groove: GrooveConfig { swing: 0.3, humanize_ms: 10.0 },
         progressions: vec![
             Progression { section_a: vec!["ii","V","I","vi"], section_b: vec!["IV","iii","vi","V"], section_c: vec!["ii","bVII","I","IV"], form: vec!['A','B','A','C'], phase: "default" },
             Progression { section_a: vec!["I","vi","ii","V"], section_b: vec!["IV","I","ii","vi"], section_c: vec!["I","IV","bVII","I"], form: vec!['A','A','B','C'], phase: "default" },
@@ -576,7 +599,7 @@ pub fn chiptune() -> Palette {
         melody: MelodyConfig {
             octave: 5, attack: 0.005, decay: 0.05, sustain_level: 0.8, release: 0.02,
             lpf_cutoff: 6000.0, lpf_env_amount: 0.0, lpf_env_decay: 0.1, lpf_resonance: 0.7,
-            gain_scalar: 1.0, staccato: true,
+            gain_scalar: 1.0, staccato: true, narrative_motif: true,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.10, syncopation_probability: 0.12 },
         motif: MotifConfig {
@@ -587,6 +610,7 @@ pub fn chiptune() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
         },
         tension: TensionParams { event_density: 0.8, retreat_depth: 0.15, spike_height: 0.25, plateau_bias: 0.0 },
+        groove: GrooveConfig { swing: 0.0, humanize_ms: 0.0 },
         progressions: vec![
             Progression { section_a: vec!["I","IV","V","I"], section_b: vec!["vi","IV","V","I"], section_c: vec!["I","V","vi","IV"], form: vec!['A','B','A','C'], phase: "default" },
             Progression { section_a: vec!["I","V","vi","IV"], section_b: vec!["I","IV","ii","V"], section_c: vec!["vi","V","IV","I"], form: vec!['A','A','B','C'], phase: "default" },
@@ -627,7 +651,7 @@ pub fn noir_jazz() -> Palette {
         melody: MelodyConfig {
             octave: 4, attack: 0.12, decay: 0.22, sustain_level: 1.0, release: 0.30,
             lpf_cutoff: 1900.0, lpf_env_amount: 450.0, lpf_env_decay: 0.28, lpf_resonance: 1.0,
-            gain_scalar: 1.10, staccato: false,
+            gain_scalar: 1.10, staccato: false, narrative_motif: false,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.40, syncopation_probability: 0.40 },
         motif: MotifConfig {
@@ -638,6 +662,7 @@ pub fn noir_jazz() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.1, transpose: 0.15, invert: 0.25, diminish: 0.2, fragment: 0.3 },
         },
         tension: TensionParams { event_density: 0.6, retreat_depth: 0.25, spike_height: 0.18, plateau_bias: 0.30 },
+        groove: GrooveConfig { swing: 0.4, humanize_ms: 12.0 },
         progressions: vec![
             Progression { section_a: vec!["i","iv","v","i"], section_b: vec!["bVI","bII","v","i"], section_c: vec!["ii","v","i","iv"], form: vec!['A','B','A','C'], phase: "default" },
             Progression { section_a: vec!["i","bVI","bII","v"], section_b: vec!["iv","bVII","i","v"], section_c: vec!["ii","v","bVI","i"], form: vec!['A','A','B','C'], phase: "default" },
@@ -678,7 +703,7 @@ pub fn industrial() -> Palette {
         melody: MelodyConfig {
             octave: 4, attack: 0.005, decay: 0.06, sustain_level: 0.1, release: 0.04,
             lpf_cutoff: 4000.0, lpf_env_amount: 1200.0, lpf_env_decay: 0.08, lpf_resonance: 3.0,
-            gain_scalar: 1.1, staccato: true,
+            gain_scalar: 1.1, staccato: true, narrative_motif: true,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.05, syncopation_probability: 0.12 },
         motif: MotifConfig {
@@ -689,6 +714,7 @@ pub fn industrial() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
         },
         tension: TensionParams { event_density: 0.7, retreat_depth: 0.10, spike_height: 0.30, plateau_bias: -0.1 },
+        groove: GrooveConfig { swing: 0.0, humanize_ms: 2.0 },
         progressions: vec![
             Progression { section_a: vec!["i","bII","i","bII"], section_b: vec!["i","v","bVI","bII"], section_c: vec!["i","bII","bVII","v"], form: vec!['A','A','B','C'], phase: "default" },
             Progression { section_a: vec!["i","bVI","bII","i"], section_b: vec!["bVII","bVI","v","i"], section_c: vec!["i","bII","v","bVI"], form: vec!['A','B','A','C'], phase: "default" },
@@ -729,7 +755,7 @@ pub fn vaporwave() -> Palette {
         melody: MelodyConfig {
             octave: 4, attack: 0.08, decay: 0.2, sustain_level: 0.8, release: 0.3,
             lpf_cutoff: 1800.0, lpf_env_amount: 0.0, lpf_env_decay: 0.1, lpf_resonance: 0.7,
-            gain_scalar: 0.85, staccato: false,
+            gain_scalar: 0.85, staccato: false, narrative_motif: false,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.45, syncopation_probability: 0.10 },
         motif: MotifConfig {
@@ -740,6 +766,7 @@ pub fn vaporwave() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
         },
         tension: TensionParams { event_density: 0.5, retreat_depth: 0.15, spike_height: 0.10, plateau_bias: 0.25 },
+        groove: GrooveConfig { swing: 0.15, humanize_ms: 15.0 },
         progressions: vec![
             Progression { section_a: vec!["I","iii","IV","ii"], section_b: vec!["vi","IV","I","V"], section_c: vec!["I","#IV","IV","I"], form: vec!['A','B','A','C'], phase: "default" },
             Progression { section_a: vec!["I","V","vi","iii"], section_b: vec!["IV","ii","I","V"], section_c: vec!["I","#IV","vi","IV"], form: vec!['A','A','B','C'], phase: "default" },
@@ -780,7 +807,7 @@ pub fn breakbeat() -> Palette {
         melody: MelodyConfig {
             octave: 4, attack: 0.01, decay: 0.1, sustain_level: 0.5, release: 0.08,
             lpf_cutoff: 3500.0, lpf_env_amount: 600.0, lpf_env_decay: 0.15, lpf_resonance: 1.5,
-            gain_scalar: 1.0, staccato: false,
+            gain_scalar: 1.0, staccato: false, narrative_motif: true,
         },
         melody_rhythm: MelodyRhythm { hold_probability: 0.15, syncopation_probability: 0.40 },
         motif: MotifConfig {
@@ -791,6 +818,7 @@ pub fn breakbeat() -> Palette {
             weights_maelstrom: VariationWeights { repeat: 0.1, transpose: 0.2, invert: 0.2, diminish: 0.2, fragment: 0.3 },
         },
         tension: TensionParams { event_density: 0.8, retreat_depth: 0.18, spike_height: 0.28, plateau_bias: -0.05 },
+        groove: GrooveConfig { swing: 0.0, humanize_ms: 5.0 },
         progressions: vec![
             Progression { section_a: vec!["i","bVII","bVI","v"], section_b: vec!["i","iv","bVII","i"], section_c: vec!["bVI","bVII","i","i"], form: vec!['A','B','A','C'], phase: "default" },
             Progression { section_a: vec!["i","v","bVI","bVII"], section_b: vec!["iv","bVII","i","v"], section_c: vec!["bVI","iv","bVII","i"], form: vec!['A','A','B','C'], phase: "default" },

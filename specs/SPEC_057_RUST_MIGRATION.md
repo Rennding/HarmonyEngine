@@ -64,7 +64,7 @@ Dispatch boundaries in `state_mapper.js:788–964` are literally the thread spli
 
 Four phases. Each is its own session per §3 issue-to-session mapping — QA-gated, independent, model-appropriate.
 
-### Phase 1 · Parity port (6–8 weeks) — Issue #59, Opus
+### Phase 1 · Parity port (~60 edits) — Issue #59, Opus
 
 Desktop-only Rust binary plays **one palette** audibly identical to current JS. Single-threaded still — no cascading yet. Goal is parity.
 
@@ -80,7 +80,7 @@ Desktop-only Rust binary plays **one palette** audibly identical to current JS. 
 3. No audio thread underruns in a 10-minute session.
 4. Seeded PRNG produces byte-identical note sequences to JS for the same seed (golden-test).
 
-### Phase 2a · Shape B — per-voice threads (4–5 weeks) — Issue #60, Opus
+### Phase 2a · Shape B — per-voice threads (~80 edits) — Issue #60, Opus
 
 Split dispatch groups onto threads. Still composing beat-by-beat, no lookahead yet.
 
@@ -98,7 +98,7 @@ Split dispatch groups onto threads. Still composing beat-by-beat, no lookahead y
 4. 10-minute Storm session: zero audio-thread underruns, zero ring-buffer overflows.
 5. `assert_no_alloc` passes on the audio thread in debug builds.
 
-### Phase 2b · Shape A — per-voice lookahead (3–4 weeks) — Issue #61, Opus
+### Phase 2b · Shape A — per-voice lookahead (~40 edits) — Issue #61, Opus
 
 Each voice thread extends its composition horizon. Smartness comes online.
 
@@ -117,7 +117,7 @@ Each voice thread extends its composition horizon. Smartness comes online.
 3. Cycle mode transitions (SPEC_008) still feel live — no perceptible snap or lag.
 4. Manual phase forcing still staggers (CLAUDE.md §6 decision preserved).
 
-### Phase 3 · UI + mobile (4–8 weeks) — Issue #62, Sonnet
+### Phase 3 · UI + mobile (~50 edits) — Issue #62, Sonnet
 
 Shippable app on both stores.
 
@@ -164,7 +164,7 @@ Shippable app on both stores.
 
 ## 7 · Risks
 
-- **Scope creep.** 12k LOC + cascading + mobile is 4–6 months part-time solo. Biggest risk: building all of B+A before any UI ships = shelfware. **Mitigation:** Phase 1 is already a playable desktop binary with one palette. Ship it, listen, then 2a.
+- **Scope creep.** 12k LOC + cascading + mobile across 4 phases (~230 edits total). Biggest risk: building all of B+A before any UI ships = shelfware. **Mitigation:** Phase 1 is already a playable desktop binary with one palette. Ship it, listen, then 2a.
 - **Plan-flush semantics in 2b.** Lookahead drain under UI changes is the subtle bit. **Mitigation:** prototype with 2 voices (drums + melody) before scaling to all.
 - **cpal on Android.** AAudio vs OpenSL, API-level gotchas. **Mitigation:** budget +1 week on first Android build.
 - **Slint mobile maturity.** Best of Rust options, still behind SwiftUI/Compose. **Mitigation:** fall back to native Swift UI + Rust cdylib if iOS store polish is non-negotiable.

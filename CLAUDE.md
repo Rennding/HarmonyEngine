@@ -266,6 +266,7 @@ JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic
 | PR merged without `Closes #NN` | PR body must include `Closes #NN` or `Refs #NN`. Session-start check audits last 10 merged PRs; flag misses to Aram. |
 | Commit without issue ref | Commit messages use `[#NN] subject` prefix. `[#infra]` allowed for meta work. Reject vague messages like "edits" — rewrite before push. |
 | qa-improve via GitHub label only | qa-improve/fail always require chat — Claude must write and confirm new SPEC immediately. Only qa-pass is GitHub-async. |
+| Sub-issue created without native parent link | Body-text `Parent: #NN` is not enough — GitHub's native sub-issue tree drives the progress bar and issue-list nesting. After `issue_write method:create`, always follow with `sub_issue_write method:add issue_number:<parent> sub_issue_id:<child GraphQL id>`. The `sub_issue_id` comes from the `id` field of the create response, NOT the issue number. |
 
 ---
 

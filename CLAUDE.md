@@ -247,6 +247,7 @@ JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic
 | Build issues not created after spec | Spec confirmed = build issues created same session, no exceptions |
 | §7 stale after QA pass | When processing qa-pass: (1) close GitHub issue, (2) remove from §7 Awaiting QA, (3) advance §7 header, (4) remove closed issues from Backlog — all four in same session |
 | Closed issue lingers in Backlog | Trust §7. Quick sync only checks current issue. Full `list_issues` in Plan/Audit sessions only — that's when §7 gets reconciled. |
+| §7 description written without reading the issue | Never change or write a §7 issue description unless the issue was read in the same session. Restructuring the table (removing rows, reformatting) = preserve existing text exactly, word for word. |
 | INDEX.md stale after build | After adding/moving/removing functions, update INDEX.md rows + line numbers in same session. |
 | Reading whole src/ files | Use INDEX.md address → Read file:line±20. Never read a whole module to locate a function. |
 | QA Brief only in chat, not GitHub | Build sessions must post QA Brief as a GitHub comment on the issue. Chat is not a substitute. |

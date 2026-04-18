@@ -229,5 +229,10 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | Sequencer, TrackGains, DrumVoice, WalkingBass, pattern_16 | rust/src/sequencer.rs | Drums + bass + chord/pad/melody dispatch + per-track gain mix bus |
 | Conductor | rust/src/conductor.rs | Beat clock + phase progression + tension DC + master chain (comp→clip→limiter) |
 | AudioHost | rust/src/audio.rs | cpal output stream |
+| Plan, PlanPublisher | rust/src/plan.rs | RT-safe beat snapshot published via arc-swap to voice workers (#68) |
+| RhythmEvent, HarmonyEvent, TextureEvent, MelodyEvent, DrumHit, BassNote, ChordStab, PadRetrigger, MelodyNote | rust/src/voice_event.rs | Copy event enums w/ sample-indexed `time` — SPEC_057 §2 Shape B (#68) |
+| RhythmRing, HarmonyRing, TextureRing, MelodyRing, RING_CAPACITY | rust/src/voice_ring.rs | Typed SPSC HeapRb wrappers, one per voice (#68) |
 
 Phase 2a (#60) extends to per-voice threads + all 10 palettes; Phase 2b (#61) adds lookahead + VoicingEngine + harmonic rhythm.
+
+**#68 status:** foundations landed (Plan/VoiceEvent/voice_ring); composer workers + VoiceRack + thread wiring + golden parity test continue in the next slice on the same branch.

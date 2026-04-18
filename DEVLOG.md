@@ -9,6 +9,16 @@
 
 ---
 
+## 2026-04-18 — Rust Phase 2a-1 foundations — Plan + VoiceEvent + voice_ring — #68 (in progress)
+
+#60 split into three sub-issues (#68 threading skeleton, #69 palettes, #70 groove/narrative/diagnostic) so each slice is testable and fits in a session budget. This slice lands the typed foundations for the Shape B per-voice split: `Plan` (arc-swap beat snapshot published once per beat by the Conductor and loaded allocation-free by workers), `VoiceEvent` (Copy enums per voice — RhythmEvent/HarmonyEvent/TextureEvent/MelodyEvent with sample-indexed `time`), and `voice_ring` (typed SPSC HeapRb wrappers per voice, capacity 64 events). Cargo pulls in ringbuf 0.4 / crossbeam-channel 0.5 / arc-swap 1.7 / parking_lot 0.12 and dev-dep assert_no_alloc 1.1. 25 lib tests pass; clippy clean.
+
+Next slice on the same branch (`claude/build-60-release-vFbpG`): extract composer workers from `Sequencer`, build the audio-side `VoiceRack` that drains rings and renders samples, wire a `ConductorThread` with thread::spawn workers, add the `assert_no_alloc` guard on the audio callback, and add the byte-identical golden parity test vs Phase 1.
+
+**Files changed:** rust/src/{plan,voice_event,voice_ring}.rs (new), rust/{Cargo.toml,Cargo.lock,src/lib.rs} (extended), INDEX.md (#68 row added), CLAUDE.md §7 (split status).
+
+---
+
 ## 2026-04-18 — Rust migration Phase 1b — chord/pad/melody/tension/master chain — #66 qa-pass, PR #67
 
 Phase 1b layers the missing musical voices onto the 1a foundation so `dark_techno` can finally hit AC#2 blind A/B parity. New modules: `tension.rs` (TensionMap with plateau/spike/retreat events feeding DC), `chord_track.rs` (four-on-the-floor stabs through an 8-voice pool with AHDSR + LPF), `pad_track.rs` (sustained 3-osc unison pad with retrigger on chord change, 16-voice pool, gated below Swell), `melody.rs` (Markov pentatonic phrase generator with five variation types — repeat/transpose/invert/diminish/fragment — chosen by per-phase weights). Sequencer grows a `TrackGains` mix bus (per-track gain coefficients with per-sample lerp) and per-phase floors via `TrackGains::for_phase`. Conductor wires the master chain (peak compressor → tanh soft-clip → brick-wall limiter → master gain) and applies tension offsets to the DC curve each beat. Palette extended with `melody_rhythm`, `motif`, and `tension` configs. Wavetables get a chord stab recipe (pulse 0.5/32 partials).

@@ -228,9 +228,9 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 |---|---|
 | **Umbrella** | **#61** Phase 2b (open) — closes qa-pass once #82 passes (#81 already closed) |
 | **Awaiting QA** | **#82** Phase 2b-2: VoicingEngine (SPEC_040 §3/§5/§6) + harmonic rhythm (SPEC_040 §4) + WalkingBass next-chord + cadential planning + 4-voice lookahead infra, all feature-flagged behind `--enable-2b2` (Opus) — needs-aram |
-| **After 2b** | **#62** Phase 3: UI (Slint) + mobile packaging + store submission (Sonnet) |
-| **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port |
-| **Chain** | #82 → #62 |
+| **After 2b** | **#89** Desktop UI overhaul (egui, Windows v1) [umbrella] — sub-issues **#90** Build A (scaffold + Simple tab + presets + visualizer + shortcuts) → **#91** Build B (Engineer tab + parameter surface + QA tooling) (Sonnet both). Supersedes #62 per SPEC_062_UI_OVERHAUL.md. |
+| **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port<br>**#92** Android APK via eframe + cargo-apk (P3, parked until #89 stable) |
+| **Chain** | #82 → #90 → #91 |
 
 JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic migrates into Rust phases per comments on each issue.
 

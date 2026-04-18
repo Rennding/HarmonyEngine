@@ -82,6 +82,8 @@ Desktop-only Rust binary plays **one palette** audibly identical to current JS. 
 
 ### Phase 2a · Shape B — per-voice threads (~80 edits) — Issue #60, Opus
 
+**Status (2026-04-18):** qa-pass. Split into three sub-sessions per §3 40-edit rule: #68 (threading skeleton, dark_techno, byte-identical golden), #69 (all 10 palettes + wavetables), #70 (groove + narrative + diagnostic + per-voice detectors). #60 closed as umbrella.
+
 Split dispatch groups onto threads. Still composing beat-by-beat, no lookahead yet.
 
 **Scope:**

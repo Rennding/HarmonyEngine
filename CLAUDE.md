@@ -221,14 +221,14 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Rust migration — Phase 2a in progress (#60 umbrella, SPEC_057_RUST_MIGRATION.md).**
+**Status: Rust migration — Phase 2a complete (#60 qa-pass via #68/#69/#70). Phase 2b in progress (#61).**
 
 | | |
 |---|---|
-| **In progress** | **#60** Phase 2a: per-voice threads, all 10 palettes (Opus) |
-| **Next build** | **#61** Phase 2b: per-voice lookahead + VoicingEngine + harmonic rhythm (Opus) — depends on #60 QA pass |
+| **In progress** | **#61** Phase 2b: per-voice lookahead + VoicingEngine + harmonic rhythm (Opus) |
+| **Next build** | **#62** Phase 3: UI (Slint) + mobile packaging + store submission (Sonnet) — depends on #61 QA pass |
 | **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port |
-| **Chain** | #60 → #61 → #62 |
+| **Chain** | #61 → #62 |
 
 JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic migrates into Rust phases per comments on each issue.
 

@@ -211,35 +211,31 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 
 ---
 
-## ⓡ · rust/ — Rust port (SPEC_057 Phase 1, dark_techno only)
+## ⓡ · rust/ — Rust port (SPEC_057)
 
-| Symbol | File | Description |
-|---|---|---|
-| Mulberry32 | rust/src/rng.rs | Byte-identical port of `_createSongRng`; see `golden_seed_12345` test |
-| config::{gain, master, tension, diagnostic, Phase, DC_*, melody_density} | rust/src/config.rs | CFG.GAIN + master chain consts + tension consts + phase/DC + per-phase melody density + 15 diagnostic thresholds (#70) |
-| palette::{all_palettes, palette_by_name, select_palette, ChordStyle, DrumPattern, MelodyConfig, MelodyRhythm, MotifConfig, VariationWeights, TensionParams, GrooveConfig} | rust/src/palette.rs | All 10 PALETTES (dark_techno/synthwave/glitch/ambient_dread/lo_fi_chill/chiptune/noir_jazz/industrial/vaporwave/breakbeat) + 18-variant DrumPattern + weighted-recency picker (#69) + per-palette groove (swing/humanize) + narrative_motif toggle (#70) |
-| Wavetable, PaletteWavetables (alias DarkTechnoWavetables), PaletteWavetables::for_palette | rust/src/wavetables.rs | Fourier recipe builders (from_partials/thick_saw/hollow/pulse/organ) + per-palette recipe dispatcher for all 10 palettes (#69) |
-| Oscillator, BiquadLowpass, Envelope, NoiseGen, PeakCompressor, BrickwallLimiter, soft_clip | rust/src/synth.rs | DSP primitives replacing Web Audio nodes + master chain |
-| VoicePool, NoteParams, start_voice | rust/src/voice_pool.rs | 16-voice pool + steal_oldest/steal_count for diagnostic voice-steal-storm (#70) |
-| HarmonyEngine, parse_numeral, triad_intervals, midi_to_freq, voiced_chord_tones, chord_tone_pentatonic_degree | rust/src/harmony.rs | Chord progression stepper + scale math + voicing helpers |
-| TensionMap, TensionEvent, EventKind, TensionOutput | rust/src/tension.rs | DC plateau/spike/retreat schedule (SPEC_011 port) |
-| ChordTrack | rust/src/chord_track.rs | Four-on-the-floor chord stabs, 8-voice pool, AHDSR + LPF |
-| PadTrack | rust/src/pad_track.rs | Sustained 3-osc unison pad, 16-voice pool, retrigger on chord change |
-| MelodyEngine, MARKOV | rust/src/melody.rs | Markov pentatonic phrase + variation engine (repeat/transpose/invert/diminish/fragment) |
-| Sequencer, TrackGains, DrumVoice, WalkingBass, pattern_16 | rust/src/sequencer.rs | Drums + bass + chord/pad/melody dispatch + per-track gain mix bus |
-| Conductor, Conductor::with_palette, Conductor::with_palette_name | rust/src/conductor.rs | Beat clock + phase progression + tension DC + master chain (comp→clip→limiter) + palette selection (#69) |
-| AudioHost, AudioHost::start_with_palette | rust/src/audio.rs | cpal output stream + `--palette <name>` override (#69) |
-| Plan, PlanPublisher | rust/src/plan.rs | RT-safe beat snapshot published via arc-swap + monotonic `generation` counter (#68, gen-counter #81) |
-| RhythmEvent, HarmonyEvent, TextureEvent, MelodyEvent, DrumHit, BassNote, ChordStab, PadRetrigger, MelodyNote | rust/src/voice_event.rs | Copy event enums w/ sample-indexed `time` + `plan_generation` tag for flush-skip (#68, tag #81) |
-| RhythmRing, HarmonyRing, TextureRing, MelodyRing, RING_CAPACITY, LOOKAHEAD_CAPACITY_BEATS | rust/src/voice_ring.rs | Typed SPSC HeapRb wrappers, one per voice; 4-beat lookahead-capable (#68, budget #81) |
-| VoiceKind, LookaheadBudget, FlushDirection, STAGGER_DOWN/UP, stagger_order, FlushReport, drain_rhythm_ring, drain_melody_ring, compose_drums_ahead, compose_melody_ahead | rust/src/workers.rs | Per-voice lookahead budgets + plan-flush protocol + drums/melody prototype composers — SPEC_057 §4 Phase 2b-1 (#81) |
-| GrooveEngine | rust/src/groove.rs | Per-16th swing + humanize jitter + ghost-note prob scaling, phase mults (Pulse/Swell/Surge/Storm/Maelstrom) — port of `src/groove.js` SPEC_018 §1 (#70) |
-| NarrativeConductor, NarrativeCue, CueKind, VariationKind, Motif, generate_motif, render_variation | rust/src/narrative.rs | Abridged port of `src/narrative.js` — 4-note theme motif + variation cues (Pulse intro / Surge recurring / Swell harmonized / Storm transposed / Maelstrom canon) (#70) |
-| AnomalyDetector, DiagnosticLog, DiagnosticEntry, VocabTerm (18-term), Severity, TrackGains, MasterSnapshot, VoiceSnapshot | rust/src/diagnostic.rs | 9 SPEC_042 detectors + 4 SPEC_057 §4 per-voice detectors (jitter/ring underrun/ring overflow/plan-publish latency) + 2 Phase 2b-1 detectors (lookahead_fill/flush_latency) + 50-entry ring log (#70, 2b-1 detectors #81) |
-| Conductor::plan_publisher / plan_generation / force_publish_plan | rust/src/conductor.rs | Per-beat plan publish + out-of-band force-publish (palette/phase/tension-spike) — SPEC_057 §4 Phase 2b-1 (#81) |
+| Symbol (line) | File | Line | Description |
+|---|---|---|---|
+| Mulberry32 | rust/src/rng.rs | 16 | Byte-identical port of `_createSongRng` |
+| BPM / beat_ms / Phase (41) / melody_density (120) / DC_SCALE (132) | rust/src/config.rs | 7 | Tempo + phase enum + DC constants + per-phase melody density + 15 diagnostic thresholds (#70) |
+| Palette (201) / DrumPattern (28) / all_palettes (833) / palette_by_name (850) / select_palette (870) | rust/src/palette.rs | 28 | All 10 palettes + 18-variant DrumPattern + weighted-recency picker; DrumKit:69 BassConfig:81 MelodyConfig:122 GrooveConfig:151 (#69 #70) |
+| TABLE_LEN (15) / Wavetable (18) / PaletteWavetables (97) | rust/src/wavetables.rs | 15 | Fourier recipe builders + per-palette dispatcher for all 10 palettes (#69) |
+| Oscillator (12) / BiquadLowpass (46) / Envelope (123) / NoiseGen (231) / soft_clip (256) / PeakCompressor (268) / BrickwallLimiter (322) | rust/src/synth.rs | 12 | DSP primitives + master chain |
+| Voice (16) / VoicePool (57) / render_voice (125) / NoteParams (133) / start_voice (146) | rust/src/voice_pool.rs | 16 | 16-voice pool + steal_oldest/steal_count (#70) |
+| MINOR_PENTATONIC (12) / parse_numeral (25) / triad_intervals (56) / HarmonyEngine (64) / midi_to_freq (214) | rust/src/harmony.rs | 12 | Scale constants + chord stepper + voicing helpers |
+| TensionEvent (29) / TensionOutput (45) / TensionMap (52) | rust/src/tension.rs | 29 | DC plateau/spike/retreat schedule (SPEC_011 port) |
+| ChordTrack | rust/src/chord_track.rs | 60 | Four-on-the-floor chord stabs, 8-voice pool, AHDSR + LPF |
+| PadTrack | rust/src/pad_track.rs | 66 | Sustained 3-osc unison pad, 16-voice pool, retrigger on chord change |
+| MARKOV (34) / MelodyEngine (131) | rust/src/melody.rs | 34 | Markov pentatonic phrase + variation engine |
+| TrackGains (29) / pattern_16 (97) / DrumVoice (258) / WalkingBass (389) / Sequencer (421) | rust/src/sequencer.rs | 29 | Drums + bass + chord/pad/melody dispatch + per-track gain mix bus |
+| Conductor (25) | rust/src/conductor.rs | 25 | Beat clock + phase progression + tension DC + master chain (#69) |
+| plan_publisher (126) / plan_generation (131) / force_publish_plan (138) | rust/src/conductor.rs | 126 | Per-beat plan publish + out-of-band force-publish (#81) |
+| AudioHost | rust/src/audio.rs | 19 | cpal output stream + `--palette <name>` override (#69) |
+| Plan (23) / PlanPublisher (86) | rust/src/plan.rs | 23 | RT-safe beat snapshot via arc-swap + monotonic generation counter (#68 #81) |
+| DrumHit (21) / BassNote (30) / ChordStab (40) / PadRetrigger (50) / MelodyNote (58) | rust/src/voice_event.rs | 13 | Copy event enums w/ sample-indexed `time` + plan_generation flush tag (#68 #81) |
+| RING_CAPACITY (24) / LOOKAHEAD_CAPACITY_BEATS (37) / RhythmRing (27) / HarmonyRing (46) / TextureRing (65) / MelodyRing (84) | rust/src/voice_ring.rs | 24 | Typed SPSC HeapRb wrappers, 4-beat lookahead-capable (#68 #81) |
+| VoiceKind (37) / LookaheadBudget (61) / FlushDirection (102) / STAGGER_DOWN (113) / stagger_order (131) / FlushReport (140) / drain_rhythm_ring (175) / drain_melody_ring (198) / compose_drums_ahead (227) / compose_melody_ahead (264) | rust/src/workers.rs | 37 | Per-voice lookahead budgets + plan-flush protocol + drums/melody prototype composers (#81) |
+| GrooveEngine | rust/src/groove.rs | 27 | Per-16th swing + humanize jitter + ghost-note prob, phase mults — port SPEC_018 §1 (#70) |
+| NarrativeCue (65) / Motif (89) / NarrativeConductor (95) / generate_motif (390) / render_variation (436) | rust/src/narrative.rs | 65 | 4-note motif + variation cues per phase (#70) |
+| DiagnosticEntry (96) / DiagnosticLog (114) / MasterSnapshot (209) / VoiceSnapshot (218) / AnomalyDetector (227) | rust/src/diagnostic.rs | 96 | 9+4 SPEC_042/SPEC_057 detectors + 2 Phase 2b-1 detectors (lookahead_fill/flush_latency) + 50-entry ring log (#70 #81) |
 
-Phase 2a (#60) extends to per-voice threads + all 10 palettes; Phase 2b (#61) adds lookahead + VoicingEngine + harmonic rhythm, split across #81 (flush protocol + drums/melody prototype) and #82 (bass/chord/pad + SPEC_040/041).
-
-**#68 status:** foundations landed (Plan/VoiceEvent/voice_ring); composer workers + VoiceRack + thread wiring + golden parity test continue in the next slice on the same branch.
-
-**#81 status:** plan-generation counter + per-event tagging + LookaheadBudget + drain helpers + prototype composers + lookahead/flush detectors + golden_phase2b1 + flush_latency tests landed. Audio path unchanged (byte-identical golden); worker-thread spawn + audio-ring consumption lands in a later slice.
+Phase 2a (#60) complete — per-voice threads + all 10 palettes. Phase 2b (#61): #81 flush protocol + drums/melody prototype done; #82 bass/chord/pad + SPEC_040/041 next.

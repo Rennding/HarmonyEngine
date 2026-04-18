@@ -76,6 +76,7 @@ Signals: Aram knows what he wants, but the *shape* of the solution needs researc
 
 ### Token efficiency
 - **INDEX.md first** — look up address → Read file:line±20. Never read a whole src/ file to find a function.
+- **Rust Build sessions: max 2 file reads before first edit.** If a symbol is missing from INDEX.md or the line window looks wrong, grep for it — never open a whole `.rs` file to orient.
 - Grep before edit — confirm target exists, then edit
 - Batch related edits without commentary
 - If GitHub MCP unavailable, work local-only immediately

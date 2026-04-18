@@ -224,10 +224,10 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 | | |
 |---|---|
-| **Re-QA needed** | **#69** all 10 palettes — Aram tests now (#73/PR #74 timbre fix landed) |
-| **Next build** | **#70** groove + narrative + diagnostic (Sonnet) — unblocked once #69 qa-pass |
+| **Next build** | **#77** Rust timbre fixes — qa-improve follow-up to #69 (Sonnet, SPEC_071_RUST_PALETTE_TIMBRE_FIXES.md) |
+| **Then** | **#70** groove + narrative + diagnostic (Opus) — unblocked once #77 qa-pass |
 | **Awaiting QA (JS)** | #30 · #42 · #44 · #56 |
-| **Chain** | #69 → #70 → #61 → #62 |
+| **Chain** | #77 → #70 → #61 → #62 |
 
 Paused JS builds: all paused — porting into Rust phases. See [GitHub milestones](https://github.com/Rennding/harmonyengine/milestones) for full backlog.
 

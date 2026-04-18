@@ -2,7 +2,7 @@
 
 **Model:** Sonnet
 **Triggered by:** qa-improve verdict on #69
-**Branch:** `claude/issue-71-slug` (assigned at build time)
+**Branch:** `claude/fix-start-beat-flag-oKtkr`
 
 ---
 

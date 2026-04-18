@@ -227,10 +227,10 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 | **Re-QA needed** | **#69** all 10 palettes — Aram tests now (#73/PR #74 timbre fix landed) |
 | **Awaiting QA** | **#70** groove + narrative + diagnostic (branch `claude/build-70-8daP2` pushed; PR pending) |
 | **Next build** | **#61** Phase 2a-4: per-voice worker threads + VoiceRack wiring (Opus) — unblocks audible output for groove/narrative/diagnostic |
-| **Awaiting QA (JS)** | #30 · #42 · #44 · #56 |
+| **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port |
 | **Chain** | #69 → #70 → #61 → #62 |
 
-Paused JS builds: all paused — porting into Rust phases. See [GitHub milestones](https://github.com/Rennding/harmonyengine/milestones) for full backlog.
+JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic migrates into Rust phases per comments on each issue.
 
 ---
 

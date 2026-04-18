@@ -208,3 +208,22 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | StateMapper._lastTargetGains | state_mapper.js | Last target gain per track (written on ramp) |
 | StateMapper._lastStaggerFire | state_mapper.js | { group, beat } after each stagger group fires |
 | CFG.DIAGNOSTIC | config.js | All detector thresholds + per-detector enable flags |
+
+---
+
+## ⓡ · rust/ — Rust port (SPEC_057 Phase 1, dark_techno only)
+
+| Symbol | File | Description |
+|---|---|---|
+| Mulberry32 | rust/src/rng.rs | Byte-identical port of `_createSongRng`; see `golden_seed_12345` test |
+| config::{gain, Phase, DC_*} | rust/src/config.rs | CFG.GAIN, CFG.PHASES, DC curve constants (subset) |
+| palette::dark_techno() | rust/src/palette.rs | PALETTES[0] — drums/bass/pad/chord/melody/progressions |
+| Wavetable, DarkTechnoWavetables | rust/src/wavetables.rs | Fourier recipe builders (from_partials/thick_saw/hollow/pulse/organ) |
+| Oscillator, BiquadLowpass, Envelope, NoiseGen | rust/src/synth.rs | DSP primitives replacing Web Audio nodes |
+| VoicePool, NoteParams, start_voice | rust/src/voice_pool.rs | 16-voice pool |
+| HarmonyEngine, parse_numeral, triad_intervals, midi_to_freq | rust/src/harmony.rs | Chord progression stepper + scale math |
+| Sequencer, DrumVoice, WalkingBass, pattern_16 | rust/src/sequencer.rs | Drum patterns + drum synth + tier-0/1 walking bass |
+| Conductor | rust/src/conductor.rs | Beat clock + phase progression (runs inside audio callback for Phase 1) |
+| AudioHost | rust/src/audio.rs | cpal output stream |
+
+Phase 2a (#60) extends to per-voice threads + all 10 palettes; Phase 2b (#61) adds lookahead + VoicingEngine + harmonic rhythm.

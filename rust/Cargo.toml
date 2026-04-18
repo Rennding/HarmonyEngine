@@ -1,0 +1,28 @@
+[package]
+name = "harmonyengine"
+version = "0.1.0"
+edition = "2021"
+description = "HarmonyEngine — procedural music generator (Rust Phase 1 parity port, SPEC_057)"
+
+[[bin]]
+name = "harmonyengine"
+path = "src/main.rs"
+
+[lib]
+name = "harmonyengine"
+path = "src/lib.rs"
+
+[dependencies]
+# cpal is the only runtime dependency used by Phase 1. SPEC_057 §3 lists
+# dasp / ringbuf / basedrop / crossbeam-channel for Phase 2a/2b — they
+# are re-introduced when the per-voice thread split lands (#60).
+cpal = "0.15"
+
+[dev-dependencies]
+# Re-enabled alongside the audio-thread RT discipline work in Phase 2a.
+# assert_no_alloc = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

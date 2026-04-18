@@ -220,12 +220,12 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Rust migration is the road (SPEC_057, #58). In-flight JS QA (#30/#42/#44/#56) continues; new JS builds paused. Next build: #59 Phase 1 parity port.**
+**Status: Rust migration is the road (SPEC_057, #58). #59 Phase 1 foundation built (drums+bass scaffold, PRNG parity, DSP primitives); awaiting Aram's call on 1a/1b split before chord/pad/melody port. In-flight JS QA (#30/#42/#44/#56) continues; new JS builds paused.**
 
 ### Tier 0 · Rust native migration (P1) — SPEC_057_RUST_MIGRATION.md
 ✅ Rust migration plan complete → SPEC_057_RUST_MIGRATION.md
 - **#58** Umbrella — B+A cascading, desktop + mobile (plan-session)
-- **#59** Phase 1 — Parity port: desktop, one palette (dark_techno), single-threaded (Opus)
+- ⚠️ **#59** Phase 1 foundation — Rust scaffold + PRNG golden + DSP + drums/bass for dark_techno (Opus) — built, awaiting Aram's 1a/1b split decision. Chord/pad/melody port is the remaining Phase 1 scope.
 - **#60** Phase 2a — Shape B: per-voice threads, all 10 palettes, beat-by-beat (Opus, depends on #59)
 - **#61** Phase 2b — Shape A: per-voice lookahead, VoicingEngine + harmonic rhythm first implementation (Opus, depends on #60)
 - **#62** Phase 3 — Slint UI + cargo-mobile2 + store submission (Sonnet, depends on #61)

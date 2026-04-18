@@ -9,6 +9,12 @@
 
 ---
 
+## 2026-04-18 — Rust migration Phase 1 foundation landed — #59 built, awaiting QA
+
+Scaffolded `rust/` workspace (cpal + hand-rolled DSP), ported Mulberry32 PRNG byte-identical (golden test against Node.js output passes), ported `dark_techno` palette + wavetable recipes + chord progression stepper, implemented synth primitives (oscillator, biquad LP, AHDSR envelope, xorshift noise, tanh soft-clip), wired a cpal output stream driving kick/snare/hat + tier-0/1 walking bass for `dark_techno`. 13 tests pass (golden PRNG + oscillator + filter attenuation + envelope lifecycle + chord progression walk); `cargo clippy --all-targets -- -D warnings` clean; `cargo build --release` green on Linux. JS engine untouched (stays the A/B parity reference). Deferred to Phase 1.5 / Phase 2a: ringbuf-fed composer-thread split, tier-2+ chord-tone walking bass, ChordTrack/PadTrack/MelodyEngine audibility, tension/stagger/cycle/narrative. Aram needs to A/B against the JS reference (AC #2) — current state is audibly recognisable as `dark_techno` (four-on-floor + backbeat + offbeat hats + sawtooth root-pump bass) but lacks chord stabs, pad sustain, and melody, so full "blind A/B" parity is not yet hit.
+
+---
+
 ## 2026-04-17 — Rust native migration planned — B+A cascading → SPEC_057, #58/#59/#60/#61/#62
 
 Generational architecture plan. HarmonyEngine migrates off single-thread JS to Rust native (desktop + mobile). Motivation isn't current perf (main-thread cost is 5–15ms/beat, fine) — it's headroom for ambition: #40 VoicingEngine, #41 harmonic rhythm, future counterpoint/strings/brass/symphony work will cap a single thread.

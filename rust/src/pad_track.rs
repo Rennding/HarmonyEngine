@@ -11,10 +11,11 @@
 //! frequency offset in cents at note-start. The "breathing" gain dip from
 //! the JS version is omitted as a Phase 2a refinement.
 
-use crate::config::{gain, Phase};
+use crate::config::{flags, gain, Phase};
 use crate::harmony::{midi_to_freq, HarmonyEngine};
-use crate::palette::PadConfig;
+use crate::palette::{PadConfig, Palette};
 use crate::synth::{BiquadLowpass, Envelope};
+use crate::voicing_engine;
 use crate::wavetables::Wavetable;
 
 /// Up to 4 chord tones × 3 unison oscillators = 12 voices max.
@@ -94,7 +95,12 @@ impl PadTrack {
     /// Pad is gated by the per-phase floor (`floor_pad`) plus a permissive
     /// "swell+" gate so it builds in early as a quiet bed before storm
     /// makes it floor.
-    pub fn on_beat(&mut self, he: &HarmonyEngine) {
+    ///
+    /// When `flags::voicing_engine()` is on, voicing routes through
+    /// `VoicingEngine` (no melody-collision avoidance — pad is a wash).
+    /// Off → use `HarmonyEngine::voiced_chord_tones` for byte-identical
+    /// parity vs #81.
+    pub fn on_beat(&mut self, he: &HarmonyEngine, palette: &Palette) {
         // Pad is too quiet for pulse — match JS: enabled at swell+.
         if matches!(self.current_phase, Phase::Pulse) {
             return;
@@ -116,8 +122,28 @@ impl PadTrack {
 
         // Allocate fresh voices.
         let voice_count = self.current_phase.pad_voices() as usize;
-        let tones = he.voiced_chord_tones(self.cfg.octave, voice_count);
         let voice_gain = gain::PAD;
+
+        let tone_buf: Vec<i32>;
+        let tones: &[i32] = if flags::voicing_engine() {
+            let chord_root_pc =
+                (he.root_semitone() + root).rem_euclid(12);
+            let v = voicing_engine::voice(
+                palette,
+                chord_root_pc,
+                quality,
+                self.current_phase,
+                self.cfg.octave,
+                None,
+                None,
+            );
+            let cap = voice_count.min(v.count);
+            tone_buf = v.notes[..cap].to_vec();
+            &tone_buf
+        } else {
+            tone_buf = he.voiced_chord_tones(self.cfg.octave, voice_count);
+            &tone_buf
+        };
 
         for (i, tone) in tones.iter().enumerate() {
             let base_freq = midi_to_freq(*tone);

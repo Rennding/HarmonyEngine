@@ -209,6 +209,83 @@ pub mod diagnostic {
     pub const FLUSH_LATENCY_MAX_BEATS: f64 = 4.0;
 }
 
+/// Phase 2b-2 (#82) feature flags. Each algorithm upgrade lives behind a
+/// flag so the golden-parity test vs #81 stays byte-identical when flags
+/// are off. Flip per-flag at runtime (`flags::enable_voicing_engine`) or
+/// use `flags::enable_all_2b2` to turn everything on (production listen
+/// mode). `main.rs --enable-2b2` maps to `enable_all_2b2`.
+///
+/// Defaults: all flags OFF. Read via the public getters — never touch the
+/// atomics directly from call sites. The atomics are `Relaxed` on read
+/// (hot path) + `Release`/`Acquire` on write so a thread that observes a
+/// flipped flag also sees whatever plan edits preceded the flip.
+pub mod flags {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    static VOICING_ENGINE: AtomicBool = AtomicBool::new(false);
+    static HARMONIC_RHYTHM: AtomicBool = AtomicBool::new(false);
+    static WALKING_BASS_NEXT_CHORD: AtomicBool = AtomicBool::new(false);
+    static CADENTIAL_PLANNING: AtomicBool = AtomicBool::new(false);
+    static LOOKAHEAD_ALL_VOICES: AtomicBool = AtomicBool::new(false);
+
+    #[inline]
+    pub fn voicing_engine() -> bool {
+        VOICING_ENGINE.load(Ordering::Relaxed)
+    }
+    #[inline]
+    pub fn harmonic_rhythm() -> bool {
+        HARMONIC_RHYTHM.load(Ordering::Relaxed)
+    }
+    #[inline]
+    pub fn walking_bass_next_chord() -> bool {
+        WALKING_BASS_NEXT_CHORD.load(Ordering::Relaxed)
+    }
+    #[inline]
+    pub fn cadential_planning() -> bool {
+        CADENTIAL_PLANNING.load(Ordering::Relaxed)
+    }
+    #[inline]
+    pub fn lookahead_all_voices() -> bool {
+        LOOKAHEAD_ALL_VOICES.load(Ordering::Relaxed)
+    }
+
+    pub fn set_voicing_engine(v: bool) {
+        VOICING_ENGINE.store(v, Ordering::Release);
+    }
+    pub fn set_harmonic_rhythm(v: bool) {
+        HARMONIC_RHYTHM.store(v, Ordering::Release);
+    }
+    pub fn set_walking_bass_next_chord(v: bool) {
+        WALKING_BASS_NEXT_CHORD.store(v, Ordering::Release);
+    }
+    pub fn set_cadential_planning(v: bool) {
+        CADENTIAL_PLANNING.store(v, Ordering::Release);
+    }
+    pub fn set_lookahead_all_voices(v: bool) {
+        LOOKAHEAD_ALL_VOICES.store(v, Ordering::Release);
+    }
+
+    /// Turn on every Phase 2b-2 upgrade. Production listen mode.
+    pub fn enable_all_2b2() {
+        set_voicing_engine(true);
+        set_harmonic_rhythm(true);
+        set_walking_bass_next_chord(true);
+        set_cadential_planning(true);
+        set_lookahead_all_voices(true);
+    }
+
+    /// Reset every flag to its default (off). Used by tests that need to
+    /// restore isolation after flipping — always pair with a `Drop` guard
+    /// if flags are flipped inside a `#[test]`.
+    pub fn disable_all_2b2() {
+        set_voicing_engine(false);
+        set_harmonic_rhythm(false);
+        set_walking_bass_next_chord(false);
+        set_cadential_planning(false);
+        set_lookahead_all_voices(false);
+    }
+}
+
 /// Master chain (post-mix) constants — port of JS `audio.js:374–432`.
 /// Phase 1b uses a simplified chain: peak compressor → tanh soft-clip →
 /// final limiter. The full multi-band EQ + convolver reverb + delay sends

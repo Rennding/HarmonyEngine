@@ -28,8 +28,11 @@
 use ringbuf::traits::{Consumer, Producer};
 
 use crate::plan::Plan;
-use crate::voice_event::{DrumHit, MelodyEvent, MelodyNote, RhythmEvent};
-use crate::voice_ring::{MelodyRing, RhythmRing};
+use crate::voice_event::{
+    BassNote, ChordStab, DrumHit, HarmonyEvent, MelodyEvent, MelodyNote, PadRetrigger, RhythmEvent,
+    TextureEvent, MAX_CHORD_TONES, MAX_PAD_TONES,
+};
+use crate::voice_ring::{HarmonyRing, MelodyRing, RhythmRing, TextureRing};
 
 /// Identity of a voice worker. Used by the flush order tables +
 /// diagnostic labels.
@@ -76,6 +79,22 @@ impl LookaheadBudget {
             bass_beats: 0,
             chord_beats: 0,
             pad_beats: 0,
+        }
+    }
+
+    /// Phase 2b-2 defaults (#82) — all four voices composing ahead. Bass +
+    /// chord + pad budget = 8 beats (2 bars) per issue #82 key-design;
+    /// melody stays at 16 beats from #81 so the cadential / motivic
+    /// algorithms in MelodyEngine have a full 4-bar phrase window to
+    /// re-plan over. Drums keep their 1-bar budget — four-on-the-floor
+    /// doesn't benefit from more runway.
+    pub const fn phase_2b_2() -> Self {
+        Self {
+            drums_beats: 4,
+            bass_beats: 8,
+            chord_beats: 8,
+            pad_beats: 8,
+            melody_beats: 16,
         }
     }
 
@@ -216,6 +235,54 @@ pub fn drain_melody_ring(
     report
 }
 
+/// Drain helper for the harmony ring (bass + chord events) — same flush
+/// protocol as [`drain_rhythm_ring`], specialised to `HarmonyEvent`. #82
+/// adds this so bass + chord workers can flush to the same 1-bar budget
+/// the drums + melody workers already meet.
+pub fn drain_harmony_ring(
+    ring: &mut HarmonyRing,
+    current_generation: u64,
+    out: &mut Vec<HarmonyEvent>,
+) -> FlushReport {
+    let mut report = FlushReport::default();
+    while let Some(ev) = ring.cons.try_pop() {
+        if ev.plan_generation() < current_generation {
+            report.skipped = report.skipped.saturating_add(1);
+            report.last_skipped_time = Some(ev.time());
+        } else {
+            report.applied = report.applied.saturating_add(1);
+            if report.first_applied_time.is_none() {
+                report.first_applied_time = Some(ev.time());
+            }
+            out.push(ev);
+        }
+    }
+    report
+}
+
+/// Drain helper for the texture ring (pad retriggers) — same flush
+/// protocol as [`drain_rhythm_ring`], specialised to `TextureEvent`.
+pub fn drain_texture_ring(
+    ring: &mut TextureRing,
+    current_generation: u64,
+    out: &mut Vec<TextureEvent>,
+) -> FlushReport {
+    let mut report = FlushReport::default();
+    while let Some(ev) = ring.cons.try_pop() {
+        if ev.plan_generation() < current_generation {
+            report.skipped = report.skipped.saturating_add(1);
+            report.last_skipped_time = Some(ev.time());
+        } else {
+            report.applied = report.applied.saturating_add(1);
+            if report.first_applied_time.is_none() {
+                report.first_applied_time = Some(ev.time());
+            }
+            out.push(ev);
+        }
+    }
+    report
+}
+
 /// Prototype drums composer — pushes a four-on-the-floor kick pattern
 /// covering `budget.drums_beats` beats starting at `plan.beat_time_samples`.
 /// Each event is tagged with the plan generation. Returns the number of
@@ -289,6 +356,123 @@ pub fn compose_melody_ahead(plan: &Plan, ring: &mut MelodyRing, budget: &Lookahe
     pushed
 }
 
+/// Prototype bass composer — pushes a one-note-per-beat root-walker line
+/// across `budget.bass_beats`. Like `compose_drums_ahead`, this is the
+/// producer side of the flush protocol for bass; the actual per-palette
+/// `WalkingBass` logic lives in `sequencer.rs`. The ring-consumption
+/// slice that migrates WalkingBass into the worker thread will call the
+/// same shape: "look up chord at beat N, emit a bass event with
+/// `plan_generation`". #82 keeps the prototype minimal so golden parity
+/// tests can assert flush behaviour without auditioning a real bass line.
+pub fn compose_bass_ahead(plan: &Plan, ring: &mut HarmonyRing, budget: &LookaheadBudget) -> u32 {
+    let budget_beats = budget.bass_beats;
+    if budget_beats == 0 {
+        return 0;
+    }
+    let samples_per_beat = plan.samples_per_16th * 4.0;
+    let base_midi = 36 + plan.key_root_semitone + plan.chord_root;
+    let mut pushed = 0;
+    for beat in 0..budget_beats {
+        let time = plan
+            .beat_time_samples
+            .saturating_add((beat as f64 * samples_per_beat) as u64);
+        let ev = HarmonyEvent::Bass(BassNote {
+            time,
+            plan_generation: plan.generation,
+            midi: base_midi,
+            cutoff_hz: 900.0,
+            resonance: 0.9,
+            gain: 0.20,
+        });
+        if ring.prod.try_push(ev).is_err() {
+            break;
+        }
+        pushed += 1;
+    }
+    pushed
+}
+
+/// Prototype chord composer — pushes one `ChordStab` per beat across
+/// `budget.chord_beats` using the plan's current chord root + quality.
+/// Tones are a raw triad + doubled root; #82's `VoicingEngine` (see
+/// `voicing_engine.rs`) is what the production composer will call once
+/// the ring-consumption slice migrates `ChordTrack::tick_16th` into the
+/// worker.
+pub fn compose_chord_ahead(plan: &Plan, ring: &mut HarmonyRing, budget: &LookaheadBudget) -> u32 {
+    let budget_beats = budget.chord_beats;
+    if budget_beats == 0 {
+        return 0;
+    }
+    let samples_per_beat = plan.samples_per_16th * 4.0;
+    let root = 60 + plan.key_root_semitone + plan.chord_root;
+    let third = root + if plan.chord_is_major { 4 } else { 3 };
+    let fifth = root + 7;
+    let mut tones = [0_i32; MAX_CHORD_TONES];
+    tones[0] = root;
+    tones[1] = third;
+    tones[2] = fifth;
+    tones[3] = root + 12;
+    let tone_count = 4;
+    let mut pushed = 0;
+    for beat in 0..budget_beats {
+        let time = plan
+            .beat_time_samples
+            .saturating_add((beat as f64 * samples_per_beat) as u64);
+        let ev = HarmonyEvent::Chord(ChordStab {
+            time,
+            plan_generation: plan.generation,
+            tones,
+            tone_count,
+            base_gain: 0.10,
+        });
+        if ring.prod.try_push(ev).is_err() {
+            break;
+        }
+        pushed += 1;
+    }
+    pushed
+}
+
+/// Prototype pad composer — pushes one `PadRetrigger` per 4-beat bar
+/// across `budget.pad_beats` (2 retriggers for a 2-bar lookahead). The
+/// production composer will only retrigger on chord changes (PadTrack
+/// semantics); the prototype keeps it simple so flush-latency tests can
+/// exercise a predictable number of events.
+pub fn compose_pad_ahead(plan: &Plan, ring: &mut TextureRing, budget: &LookaheadBudget) -> u32 {
+    let budget_beats = budget.pad_beats;
+    if budget_beats == 0 {
+        return 0;
+    }
+    let samples_per_beat = plan.samples_per_16th * 4.0;
+    let root = 60 + plan.key_root_semitone + plan.chord_root;
+    let third = root + if plan.chord_is_major { 4 } else { 3 };
+    let fifth = root + 7;
+    let mut tones = [0_i32; MAX_PAD_TONES];
+    tones[0] = root;
+    tones[1] = third;
+    tones[2] = fifth;
+    let tone_count = 3;
+    // One retrigger per bar (every 4 beats).
+    let retriggers = budget_beats.div_ceil(4);
+    let mut pushed = 0;
+    for bar in 0..retriggers {
+        let time = plan
+            .beat_time_samples
+            .saturating_add((bar as f64 * 4.0 * samples_per_beat) as u64);
+        let ev = TextureEvent::Pad(PadRetrigger {
+            time,
+            plan_generation: plan.generation,
+            tones,
+            tone_count,
+        });
+        if ring.prod.try_push(ev).is_err() {
+            break;
+        }
+        pushed += 1;
+    }
+    pushed
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -309,6 +493,16 @@ mod tests {
         assert_eq!(b.beats_for(VoiceKind::Bass), 0);
         assert_eq!(b.beats_for(VoiceKind::Chord), 0);
         assert_eq!(b.beats_for(VoiceKind::Pad), 0);
+    }
+
+    #[test]
+    fn budget_phase_2b_2_lights_up_all_four_voices() {
+        let b = LookaheadBudget::phase_2b_2();
+        assert_eq!(b.beats_for(VoiceKind::Drums), 4);
+        assert_eq!(b.beats_for(VoiceKind::Bass), 8);
+        assert_eq!(b.beats_for(VoiceKind::Chord), 8);
+        assert_eq!(b.beats_for(VoiceKind::Pad), 8);
+        assert_eq!(b.beats_for(VoiceKind::Melody), 16);
     }
 
     #[test]
@@ -387,6 +581,73 @@ mod tests {
         // melody budget is 16 beats — ring capacity is 64, fits fine.
         let pushed = compose_melody_ahead(&plan, &mut ring, &LookaheadBudget::phase_2b_1());
         assert_eq!(pushed, 16);
+    }
+
+    #[test]
+    fn compose_bass_ahead_respects_budget() {
+        let plan = initial_plan();
+        let mut ring = HarmonyRing::new();
+        let pushed = compose_bass_ahead(&plan, &mut ring, &LookaheadBudget::phase_2b_2());
+        assert_eq!(pushed, 8);
+    }
+
+    #[test]
+    fn compose_chord_ahead_respects_budget() {
+        let plan = initial_plan();
+        let mut ring = HarmonyRing::new();
+        let pushed = compose_chord_ahead(&plan, &mut ring, &LookaheadBudget::phase_2b_2());
+        assert_eq!(pushed, 8);
+    }
+
+    #[test]
+    fn compose_pad_ahead_emits_one_retrigger_per_bar() {
+        let plan = initial_plan();
+        let mut ring = TextureRing::new();
+        let pushed = compose_pad_ahead(&plan, &mut ring, &LookaheadBudget::phase_2b_2());
+        // 8 beats ÷ 4 beats/bar = 2 retriggers.
+        assert_eq!(pushed, 2);
+    }
+
+    #[test]
+    fn harmony_ring_drain_skips_stale() {
+        let mut ring = HarmonyRing::new();
+        for (gen, time) in [(0_u64, 100_u64), (0, 200), (1, 300)] {
+            ring.prod
+                .try_push(HarmonyEvent::Bass(BassNote {
+                    time,
+                    plan_generation: gen,
+                    midi: 36,
+                    cutoff_hz: 800.0,
+                    resonance: 0.7,
+                    gain: 0.2,
+                }))
+                .unwrap();
+        }
+        let mut kept = Vec::new();
+        let report = drain_harmony_ring(&mut ring, 1, &mut kept);
+        assert_eq!(report.skipped, 2);
+        assert_eq!(report.applied, 1);
+        assert_eq!(kept.len(), 1);
+    }
+
+    #[test]
+    fn texture_ring_drain_skips_stale() {
+        let mut ring = TextureRing::new();
+        for (gen, time) in [(0_u64, 100_u64), (0, 200), (1, 300)] {
+            ring.prod
+                .try_push(TextureEvent::Pad(PadRetrigger {
+                    time,
+                    plan_generation: gen,
+                    tones: [0; MAX_PAD_TONES],
+                    tone_count: 3,
+                }))
+                .unwrap();
+        }
+        let mut kept = Vec::new();
+        let report = drain_texture_ring(&mut ring, 1, &mut kept);
+        assert_eq!(report.skipped, 2);
+        assert_eq!(report.applied, 1);
+        assert_eq!(kept.len(), 1);
     }
 
     #[test]

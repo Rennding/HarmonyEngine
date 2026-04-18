@@ -197,6 +197,85 @@ pub struct Progression {
     pub phase: &'static str,
 }
 
+/// SPEC_040 §3.2 — voicing style vocabulary. Each palette declares one;
+/// `VoicingEngine::voice` uses it to arrange chord tones.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VoicingStyle {
+    /// Root + P5. No 3rd. dark_techno, industrial.
+    Power,
+    /// Close-voiced root-position triad. chiptune, breakbeat, glitch.
+    Close,
+    /// Drop-2 voicing (second-from-top dropped an octave). noir_jazz.
+    Drop2,
+    /// Wide spread: root low, 3rd/5th/7th higher. synthwave, vaporwave.
+    Open,
+    /// Root + 3rd + 7th only — skeletal jazz harmony.
+    Shell,
+    /// Notes packed within a minor 3rd — dissonant stack. ambient_dread.
+    Cluster,
+    /// add9/sus voicings — root, 5th, 9th spread wide. lo_fi_chill.
+    Spread,
+}
+
+/// SPEC_040 §3.3 — collision-avoidance mode between chord and melody.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CollisionMode {
+    /// Drop chord voices that match the melody pitch class in the same
+    /// octave. Preferred default for active-melody palettes.
+    Avoid,
+    /// Hard register split — clamp chord voices to ≤ MIDI 71 (B4).
+    Split,
+    /// No collision logic (sparse / ambient palettes).
+    None,
+}
+
+/// SPEC_040 §3.3 — per-palette `voicing_profile`. `'static` slices in
+/// `extensions_*` keep the struct `Copy` and let palette builders return
+/// constants without alloc.
+#[derive(Clone, Copy, Debug)]
+pub struct VoicingProfile {
+    pub style: VoicingStyle,
+    pub extensions_pulse: &'static [u8],
+    pub extensions_swell: &'static [u8],
+    pub extensions_surge: &'static [u8],
+    pub extensions_storm: &'static [u8],
+    pub extensions_maelstrom: &'static [u8],
+    /// Lowest octave for chord voices (e.g. 3 → C3 = MIDI 36).
+    pub register_floor: i32,
+    /// Highest octave for chord voices.
+    pub register_ceiling: i32,
+    /// Max simultaneous notes allowed in octave 3 (critical-band rule).
+    pub max_notes_oct3: u32,
+    /// Voice-leading strength — 0 = no smoothing, 1 = always pick the
+    /// closest octave to the previous voicing.
+    pub voice_lead_strength: f32,
+    pub collision: CollisionMode,
+}
+
+/// SPEC_040 §4 — phase-driven harmonic rhythm. Beats per chord change at
+/// each phase. Sub-beat values (< 1.0) only used by noir_jazz Maelstrom;
+/// every other palette has a 1-beat floor.
+#[derive(Clone, Copy, Debug)]
+pub struct HarmonicRhythm {
+    pub pulse_beats: f32,
+    pub swell_beats: f32,
+    pub surge_beats: f32,
+    pub storm_beats: f32,
+    pub maelstrom_beats: f32,
+}
+
+impl HarmonicRhythm {
+    pub fn beats_for(&self, phase: Phase) -> f32 {
+        match phase {
+            Phase::Pulse => self.pulse_beats,
+            Phase::Swell => self.swell_beats,
+            Phase::Surge => self.surge_beats,
+            Phase::Storm => self.storm_beats,
+            Phase::Maelstrom => self.maelstrom_beats,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Palette {
     pub name: &'static str,
@@ -213,6 +292,14 @@ pub struct Palette {
     pub groove: GrooveConfig,
     pub progressions: Vec<Progression>,
     pub beats_per_chord: u32, // JS `HarmonyEngine._beatsPerChord` default = 4
+    /// SPEC_040 §3 — voicing profile used by `VoicingEngine::voice` when
+    /// `config::flags::voicing_engine()` is on. Off → ChordTrack/PadTrack
+    /// fall back to `HarmonyEngine::voiced_chord_tones`.
+    pub voicing: VoicingProfile,
+    /// SPEC_040 §4 — per-phase chord-change rate, read by HarmonyEngine
+    /// when `config::flags::harmonic_rhythm()` is on. Off → the flat
+    /// `beats_per_chord` above is used.
+    pub harmonic_rhythm: HarmonicRhythm,
 }
 
 /// JS `harmony.js:84` — dark_techno.
@@ -355,6 +442,26 @@ pub fn dark_techno() -> Palette {
             },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Power,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[],
+            extensions_storm: &[],
+            extensions_maelstrom: &[],
+            register_floor: 3,
+            register_ceiling: 4,
+            max_notes_oct3: 2,
+            voice_lead_strength: 0.3,
+            collision: CollisionMode::Split,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 32.0,
+            swell_beats: 24.0,
+            surge_beats: 16.0,
+            storm_beats: 8.0,
+            maelstrom_beats: 4.0,
+        },
     }
 }
 
@@ -407,6 +514,26 @@ pub fn synthwave() -> Palette {
             Progression { section_a: vec!["vi","IV","I","V"], section_b: vec!["ii","V","vi","IV"], section_c: vec!["bVI","bVII","I","V"], form: vec!['A','B','A','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Open,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[7],
+            extensions_storm: &[7],
+            extensions_maelstrom: &[7],
+            register_floor: 3,
+            register_ceiling: 5,
+            max_notes_oct3: 3,
+            voice_lead_strength: 0.7,
+            collision: CollisionMode::Avoid,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 8.0,
+            swell_beats: 8.0,
+            surge_beats: 6.0,
+            storm_beats: 4.0,
+            maelstrom_beats: 4.0,
+        },
     }
 }
 
@@ -459,6 +586,26 @@ pub fn glitch() -> Palette {
             Progression { section_a: vec!["i","II","V","i"], section_b: vec!["iii","VII","IV","II"], section_c: vec!["bVII","bVI","V","i"], form: vec!['A','B','B','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Close,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[7],
+            extensions_storm: &[7],
+            extensions_maelstrom: &[7],
+            register_floor: 4,
+            register_ceiling: 5,
+            max_notes_oct3: 4,
+            voice_lead_strength: 0.2,
+            collision: CollisionMode::None,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 16.0,
+            swell_beats: 8.0,
+            surge_beats: 4.0,
+            storm_beats: 2.0,
+            maelstrom_beats: 1.0,
+        },
     }
 }
 
@@ -513,6 +660,26 @@ pub fn ambient_dread() -> Palette {
             Progression { section_a: vec!["i","iv","vii","i"], section_b: vec!["ii","v","vi","iii"], section_c: vec!["bVI","bVII","v","i"], form: vec!['A','B','A','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Cluster,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[],
+            extensions_storm: &[],
+            extensions_maelstrom: &[],
+            register_floor: 3,
+            register_ceiling: 5,
+            max_notes_oct3: 3,
+            voice_lead_strength: 0.5,
+            collision: CollisionMode::None,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 64.0,
+            swell_beats: 48.0,
+            surge_beats: 32.0,
+            storm_beats: 16.0,
+            maelstrom_beats: 8.0,
+        },
     }
 }
 
@@ -565,6 +732,26 @@ pub fn lo_fi_chill() -> Palette {
             Progression { section_a: vec!["ii","V","vi","IV"], section_b: vec!["I","bVII","IV","V"], section_c: vec!["ii","IV","I","vi"], form: vec!['A','B','A','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Spread,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[7],
+            extensions_storm: &[7, 9],
+            extensions_maelstrom: &[7, 9],
+            register_floor: 3,
+            register_ceiling: 5,
+            max_notes_oct3: 3,
+            voice_lead_strength: 0.8,
+            collision: CollisionMode::Avoid,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 16.0,
+            swell_beats: 12.0,
+            surge_beats: 8.0,
+            storm_beats: 6.0,
+            maelstrom_beats: 4.0,
+        },
     }
 }
 
@@ -617,6 +804,26 @@ pub fn chiptune() -> Palette {
             Progression { section_a: vec!["I","vi","IV","V"], section_b: vec!["IV","V","I","vi"], section_c: vec!["bVI","bVII","I","V"], form: vec!['A','B','A','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Close,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[],
+            extensions_storm: &[],
+            extensions_maelstrom: &[],
+            register_floor: 4,
+            register_ceiling: 5,
+            max_notes_oct3: 4,
+            voice_lead_strength: 0.4,
+            collision: CollisionMode::Split,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 8.0,
+            swell_beats: 8.0,
+            surge_beats: 8.0,
+            storm_beats: 4.0,
+            maelstrom_beats: 4.0,
+        },
     }
 }
 
@@ -669,6 +876,26 @@ pub fn noir_jazz() -> Palette {
             Progression { section_a: vec!["i","iv","bII","v"], section_b: vec!["bVI","v","i","bII"], section_c: vec!["ii","bVI","v","i"], form: vec!['A','B','A','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Drop2,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[7],
+            extensions_storm: &[7, 9],
+            extensions_maelstrom: &[7, 9, 11, 13],
+            register_floor: 3,
+            register_ceiling: 5,
+            max_notes_oct3: 3,
+            voice_lead_strength: 0.95,
+            collision: CollisionMode::Avoid,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 2.0,
+            swell_beats: 2.0,
+            surge_beats: 1.0,
+            storm_beats: 1.0,
+            maelstrom_beats: 0.5,
+        },
     }
 }
 
@@ -721,6 +948,26 @@ pub fn industrial() -> Palette {
             Progression { section_a: vec!["i","bII","bVII","bVI"], section_b: vec!["v","bVI","bII","i"], section_c: vec!["bVII","i","bII","v"], form: vec!['A','A','B','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Power,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[],
+            extensions_storm: &[],
+            extensions_maelstrom: &[],
+            register_floor: 3,
+            register_ceiling: 4,
+            max_notes_oct3: 2,
+            voice_lead_strength: 0.3,
+            collision: CollisionMode::Split,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 32.0,
+            swell_beats: 24.0,
+            surge_beats: 16.0,
+            storm_beats: 8.0,
+            maelstrom_beats: 2.0,
+        },
     }
 }
 
@@ -773,6 +1020,26 @@ pub fn vaporwave() -> Palette {
             Progression { section_a: vec!["I","iii","#IV","ii"], section_b: vec!["vi","I","IV","V"], section_c: vec!["I","#IV","V","I"], form: vec!['A','B','A','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Spread,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[7],
+            extensions_storm: &[7, 9],
+            extensions_maelstrom: &[7, 9],
+            register_floor: 3,
+            register_ceiling: 5,
+            max_notes_oct3: 3,
+            voice_lead_strength: 0.7,
+            collision: CollisionMode::None,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 16.0,
+            swell_beats: 16.0,
+            surge_beats: 8.0,
+            storm_beats: 8.0,
+            maelstrom_beats: 4.0,
+        },
     }
 }
 
@@ -825,6 +1092,26 @@ pub fn breakbeat() -> Palette {
             Progression { section_a: vec!["i","bVII","iv","bVI"], section_b: vec!["v","bVII","i","bVI"], section_c: vec!["iv","v","bVII","i"], form: vec!['A','B','A','C'], phase: "storm" },
         ],
         beats_per_chord: 4,
+        voicing: VoicingProfile {
+            style: VoicingStyle::Close,
+            extensions_pulse: &[],
+            extensions_swell: &[],
+            extensions_surge: &[7],
+            extensions_storm: &[7],
+            extensions_maelstrom: &[7],
+            register_floor: 4,
+            register_ceiling: 5,
+            max_notes_oct3: 4,
+            voice_lead_strength: 0.5,
+            collision: CollisionMode::Avoid,
+        },
+        harmonic_rhythm: HarmonicRhythm {
+            pulse_beats: 8.0,
+            swell_beats: 8.0,
+            surge_beats: 4.0,
+            storm_beats: 4.0,
+            maelstrom_beats: 2.0,
+        },
     }
 }
 

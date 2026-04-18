@@ -17,7 +17,7 @@
 //! Voice allocation uses a small private 4-voice pool — one note at a time
 //! for staccato, but the pool covers overlapping releases.
 
-use crate::config::{gain, melody_density, Phase};
+use crate::config::{flags, gain, melody_density, Phase};
 use crate::harmony::{midi_to_freq, HarmonyEngine, MINOR_PENTATONIC};
 use crate::palette::{MelodyConfig, MelodyRhythm, MotifConfig, VariationWeights};
 use crate::rng::Mulberry32;
@@ -144,6 +144,10 @@ pub struct MelodyEngine {
     in_phrase: bool,
     history: [u8; 2],           // last two pentatonic degrees (Markov state)
 
+    /// Last MIDI note actually fired by `fire_note`. Read by VoicingEngine
+    /// (collision avoidance). `None` until the engine emits its first note.
+    last_note_midi: Option<i32>,
+
     current_phase: Phase,
 }
 
@@ -169,8 +173,16 @@ impl MelodyEngine {
             rest_remaining: 0,
             in_phrase: false,
             history: [0, 0],
+            last_note_midi: None,
             current_phase: Phase::Pulse,
         }
+    }
+
+    /// Last MIDI note fired (after `fire_note`). Read by `VoicingEngine`'s
+    /// collision-avoidance pass. `None` until the engine emits its first
+    /// note in this run.
+    pub fn last_note_midi(&self) -> Option<i32> {
+        self.last_note_midi
     }
 
     pub fn on_phase_change(&mut self, phase: Phase) {
@@ -206,6 +218,12 @@ impl MelodyEngine {
         if self.current_phrase.is_empty() {
             return;
         }
+
+        // Cadential planning (#82, feature-gated): re-bias the tail of
+        // the phrase toward a chord-tone resolution before we read the
+        // next degree. Idempotent within a phrase — re-entering with
+        // remaining > window early-exits.
+        self.apply_cadential_bias(he);
 
         let degree = self.current_phrase[self.note_index] as usize;
         self.note_index += 1;
@@ -345,6 +363,35 @@ impl MelodyEngine {
             v.filt_base = cfg.lpf_cutoff;
             v.filt_amount = cfg.lpf_env_amount;
             v.filt_q = cfg.lpf_resonance;
+            self.last_note_midi = Some(midi);
+        }
+    }
+
+    /// SPEC_040 §6.3 / SPEC_036 cadential planning — when the phrase has
+    /// only `cadential_window` notes left, replace remaining degrees
+    /// with a chord-tone descent that lands on the chord root by
+    /// phrase-end. Off when `flags::cadential_planning()` is false.
+    fn apply_cadential_bias(&mut self, he: &HarmonyEngine) {
+        if !flags::cadential_planning() || self.current_phrase.len() < 2 {
+            return;
+        }
+        let remaining = self.current_phrase.len() - self.note_index;
+        const CADENTIAL_WINDOW: usize = 2;
+        if remaining > CADENTIAL_WINDOW || remaining == 0 {
+            return;
+        }
+        // Pull a chord-tone pentatonic degree for the phrase-end resolve.
+        let landing = he.chord_tone_pentatonic_degree(&mut self.rng) as u8;
+        // Walk backwards: penultimate note = landing ± 1 (approach), last = landing.
+        let len = self.current_phrase.len();
+        if remaining == 2 {
+            // Approach + landing.
+            let approach = if landing == 0 { 1 } else { landing - 1 };
+            self.current_phrase[len - 2] = approach;
+            self.current_phrase[len - 1] = landing;
+        } else {
+            // remaining == 1 → just land.
+            self.current_phrase[len - 1] = landing;
         }
     }
 

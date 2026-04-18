@@ -13,7 +13,7 @@
 //! - A 16-step pattern array matches the JS pattern-builder output.
 
 use crate::chord_track::ChordTrack;
-use crate::config::{gain, Phase};
+use crate::config::{flags, gain, Phase};
 use crate::harmony::{midi_to_freq, HarmonyEngine};
 use crate::melody::MelodyEngine;
 use crate::pad_track::PadTrack;
@@ -400,17 +400,47 @@ impl WalkingBass {
     }
 
     /// Return a MIDI note for this 16th-step.
+    ///
+    /// When `flags::walking_bass_next_chord()` is on, the last beat of
+    /// the current chord biases the bass toward an approach tone of
+    /// the next chord's root (chromatic neighbour or scale step). This
+    /// is the SPEC_040 §6 "musical convention" — bass walks toward the
+    /// next chord rather than reasserting the current root one more time.
     pub fn pick_note(&mut self, he: &HarmonyEngine, bass_cfg: &BassConfig) -> i32 {
         let octave = bass_cfg.octave;
-        let note = match self.step % 4 {
-            0 => he.root_midi(octave),
-            2 => he.fifth_midi(octave),
-            _ => he.root_midi(octave),
+        // Tier 2 RNG advance kept regardless of branch so seed replays
+        // identically when the flag is off (golden parity vs #81).
+        let _ = self.rng.next_f64();
+
+        let approach_active = flags::walking_bass_next_chord()
+            && he.beats_until_next_chord() <= 1;
+
+        let note = if approach_active {
+            // Approach next chord root by chromatic step from current root.
+            let (next_root, _) = he.peek_next_chord();
+            let cur_root_pc = he.root_midi(octave) % 12;
+            let key = he.root_semitone();
+            let target_pc = (key + next_root).rem_euclid(12);
+            // Choose chromatic step: if target is above current, approach
+            // from below (target - 1); if below, approach from above
+            // (target + 1). Tie-break to the upper chromatic so the bass
+            // line ascends most of the time (musically conventional).
+            let cur = cur_root_pc;
+            let above = (target_pc - cur).rem_euclid(12) <= 6;
+            let approach_pc = if above {
+                (target_pc - 1).rem_euclid(12)
+            } else {
+                (target_pc + 1).rem_euclid(12)
+            };
+            (octave + 1) * 12 + approach_pc
+        } else {
+            match self.step % 4 {
+                0 => he.root_midi(octave),
+                2 => he.fifth_midi(octave),
+                _ => he.root_midi(octave),
+            }
         };
         self.step = self.step.wrapping_add(1);
-        // Tier 2 would reach into chord tones — stubbed via RNG bias but
-        // kept deterministic so same seed replays identically.
-        let _ = self.rng.next_f64();
         note
     }
 }
@@ -432,6 +462,10 @@ pub struct Sequencer {
     pub chord: ChordTrack,
     pub pad: PadTrack,
     pub melody: MelodyEngine,
+    /// Full palette retained so VoicingEngine + WalkingBass next-chord
+    /// can read per-palette `voicing` / `harmonic_rhythm` profiles when
+    /// those flags are on. Cloned once at run-start; never mutated.
+    palette: Palette,
     wavetables: PaletteWavetables,
     rng: Mulberry32,
     sample_rate: f32,
@@ -462,6 +496,7 @@ impl Sequencer {
                 palette.motif,
                 seed,
             ),
+            palette: palette.clone(),
             wavetables: PaletteWavetables::for_palette(palette.name),
             rng: Mulberry32::new(seed.wrapping_add(11)),
             sample_rate,
@@ -514,14 +549,17 @@ impl Sequencer {
             );
         }
 
-        // Chord stabs (own pool).
-        self.chord.tick_16th(step_in_bar, he);
+        // Chord stabs (own pool). Pass palette + melody-last so the
+        // voicing engine (when enabled) can avoid melody collision.
+        let melody_last = self.melody.last_note_midi();
+        self.chord
+            .tick_16th(step_in_bar, he, &self.palette, melody_last);
     }
 
     /// Per-beat hook (called from Conductor.on_beat). Updates the chord-change-
     /// driven pad and the melody engine.
     pub fn on_beat(&mut self, he: &HarmonyEngine) {
-        self.pad.on_beat(he);
+        self.pad.on_beat(he, &self.palette);
         self.melody.on_beat(he);
     }
 

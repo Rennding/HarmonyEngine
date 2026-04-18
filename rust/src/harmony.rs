@@ -5,6 +5,7 @@
 //! chord-quality resolution, and `getChordTones(octave)`. VoicingEngine,
 //! PaletteBlender, and harmonic-rhythm ride-along port in Phase 2b (#61).
 
+use crate::config::{flags, Phase};
 use crate::palette::Palette;
 use crate::rng::Mulberry32;
 
@@ -67,6 +68,9 @@ pub struct HarmonyEngine {
     chord_index: usize,
     beats_in_chord: u32,
     beats_per_chord: u32,
+    /// Cached palette `harmonic_rhythm` table — read on phase change to
+    /// recompute `beats_per_chord` when `flags::harmonic_rhythm()` is on.
+    harmonic_rhythm: crate::palette::HarmonicRhythm,
     current_root: i32,
     current_is_major: bool,
 }
@@ -103,9 +107,53 @@ impl HarmonyEngine {
             chord_index: 0,
             beats_in_chord: 0,
             beats_per_chord: palette.beats_per_chord,
+            harmonic_rhythm: palette.harmonic_rhythm,
             current_root: first.0,
             current_is_major: first.1,
         }
+    }
+
+    /// SPEC_040 §4 — recompute `beats_per_chord` from the palette's
+    /// per-phase harmonic rhythm table. Called on every phase transition
+    /// when `flags::harmonic_rhythm()` is on. Off → flat
+    /// `beats_per_chord` from palette init is preserved.
+    ///
+    /// Sub-beat values (< 1.0, only noir_jazz Maelstrom) currently
+    /// floor at 1 beat — the sequencer's per-beat dispatch can't
+    /// schedule sub-beat changes yet, and SPEC_040 §4.4 explicitly
+    /// allows the simpler "advance multiple times per beat" path. #82
+    /// scope wires the rounded value; full sub-beat support is a
+    /// `chord_track.rs` follow-up if Aram's QA flags it.
+    pub fn update_beats_per_chord(&mut self, phase: Phase) {
+        if !flags::harmonic_rhythm() {
+            return;
+        }
+        let raw = self.harmonic_rhythm.beats_for(phase);
+        let new_bpc = if raw < 1.0 {
+            1
+        } else {
+            raw.round().max(1.0) as u32
+        };
+        if new_bpc != self.beats_per_chord {
+            self.beats_per_chord = new_bpc;
+            // Reset progress so the new rate takes effect on the next
+            // chord boundary rather than truncating the current chord.
+            self.beats_in_chord = 0;
+        }
+    }
+
+    /// Peek the next chord in the progression (one step ahead). Used by
+    /// `WalkingBass` next-chord lookahead when
+    /// `flags::walking_bass_next_chord()` is on.
+    pub fn peek_next_chord(&self) -> (i32, bool) {
+        let idx = (self.chord_index + 1) % self.progression.len();
+        self.progression[idx]
+    }
+
+    /// Beats remaining until the next chord change. Sub-beat resolution
+    /// not supported (always >= 1).
+    pub fn beats_until_next_chord(&self) -> u32 {
+        self.beats_per_chord.saturating_sub(self.beats_in_chord)
     }
 
     /// Per-beat hook — JS `HarmonyEngine.advanceBeat`.

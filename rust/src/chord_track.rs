@@ -6,10 +6,11 @@
 //! Phase 1b skips comp/arp variants and the ghost-note RNG branch since
 //! dark_techno is a pure stab style.
 
-use crate::config::{gain, Phase};
+use crate::config::{flags, gain, Phase};
 use crate::harmony::{midi_to_freq, HarmonyEngine};
-use crate::palette::{ChordConfig, ChordStyle};
+use crate::palette::{ChordConfig, ChordStyle, Palette};
 use crate::synth::{BiquadLowpass, Envelope};
+use crate::voicing_engine;
 use crate::wavetables::Wavetable;
 
 /// Per-quarter velocities for the JS `four_stab` pattern (steps 0/4/8/12).
@@ -64,6 +65,10 @@ pub struct ChordTrack {
     /// Phase entry gate — silences the track until phase reaches `entry_phase`.
     entry_phase_idx: usize,
     current_phase_idx: usize,
+    current_phase: Phase,
+    /// Previous voicing — fed into VoicingEngine voice-leading. Empty
+    /// at run-start. Only used when `flags::voicing_engine()` is on.
+    prev_voicing: Vec<i32>,
 }
 
 impl ChordTrack {
@@ -74,11 +79,14 @@ impl ChordTrack {
             sample_rate,
             entry_phase_idx: phase_index(cfg.entry_phase),
             current_phase_idx: 0,
+            current_phase: Phase::Pulse,
+            prev_voicing: Vec::with_capacity(8),
         }
     }
 
     pub fn on_phase_change(&mut self, phase: Phase) {
         self.current_phase_idx = phase_index(phase);
+        self.current_phase = phase;
     }
 
     fn muted(&self) -> bool {
@@ -88,7 +96,18 @@ impl ChordTrack {
 
     /// Per-16th-step trigger. Fires stabs at JS `four_stab` boundaries
     /// (steps 0, 4, 8, 12).
-    pub fn tick_16th(&mut self, step_in_bar: usize, he: &HarmonyEngine) {
+    ///
+    /// When `flags::voicing_engine()` is on, route chord voicing through
+    /// `VoicingEngine` (per-palette style + extensions + register +
+    /// collision). Off → fall back to `HarmonyEngine::voiced_chord_tones`
+    /// — preserves byte-identical golden parity vs #81.
+    pub fn tick_16th(
+        &mut self,
+        step_in_bar: usize,
+        he: &HarmonyEngine,
+        palette: &Palette,
+        melody_last_midi: Option<i32>,
+    ) {
         if self.muted() {
             return;
         }
@@ -99,11 +118,40 @@ impl ChordTrack {
             12 => FOUR_STAB_VELOCITIES[3],
             _ => return,
         };
-        let tones = he.voiced_chord_tones(self.cfg.octave, self.cfg.voices as usize);
         let base_gain = gain::CHORD * self.cfg.gain_scalar * velocity;
 
-        for tone in tones {
-            self.fire_voice(tone, base_gain);
+        if flags::voicing_engine() {
+            let (chord_root, is_major) = he.current_chord_symbol();
+            let chord_root_pc =
+                (he.root_semitone() + chord_root).rem_euclid(12);
+            let prev = if self.prev_voicing.is_empty() {
+                None
+            } else {
+                Some(self.prev_voicing.as_slice())
+            };
+            let voicing = voicing_engine::voice(
+                palette,
+                chord_root_pc,
+                is_major,
+                self.current_phase,
+                self.cfg.octave,
+                melody_last_midi,
+                prev,
+            );
+            // Cap at the palette's `voices` budget (still meaningful for
+            // dense styles like drop2 noir_jazz at Maelstrom).
+            let max = (self.cfg.voices as usize).min(voicing.count);
+            for &tone in voicing.notes[..max].iter() {
+                self.fire_voice(tone, base_gain);
+            }
+            // Cache for next-tick voice leading.
+            self.prev_voicing.clear();
+            self.prev_voicing.extend_from_slice(&voicing.notes[..max]);
+        } else {
+            let tones = he.voiced_chord_tones(self.cfg.octave, self.cfg.voices as usize);
+            for tone in tones {
+                self.fire_voice(tone, base_gain);
+            }
         }
     }
 

@@ -22,6 +22,7 @@ pub mod tension;
 pub mod voice_event;
 pub mod voice_pool;
 pub mod voice_ring;
+pub mod voicing_engine;
 pub mod wavetables;
 pub mod workers;
 

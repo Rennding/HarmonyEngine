@@ -219,6 +219,9 @@ impl Conductor {
         if self.phase != prev_phase {
             self.target_track_gains = TrackGains::for_phase(self.phase);
             self.sequencer.on_phase_change(self.phase);
+            // SPEC_040 §4 — recompute beats-per-chord from the palette
+            // table when harmonic_rhythm flag is on (no-op otherwise).
+            self.harmony.update_beats_per_chord(self.phase);
         }
         self.sequencer.on_beat(&self.harmony);
 

@@ -9,6 +9,12 @@
 
 ---
 
+## 2026-04-18 — QA: #69 all-10-palettes — qa-improve → #73 timbre fixes queued
+
+Three issues found: (1) PadTrack hardcoded 800 Hz LPF makes all pads sound uniformly dark — root cause of synthwave/ambient_dread similarity complaint; (2) JazzRide fires straight 8ths, no swing offset — noir_jazz robotic; (3) 60s test never reaches Surge (beat ~134). SPEC_071 written; #73 build issue opened (Sonnet).
+
+---
+
 ## 2026-04-18 — Rust Phase 2a-1 foundations — Plan + VoiceEvent + voice_ring — #68 (in progress)
 
 #60 split into three sub-issues (#68 threading skeleton, #69 palettes, #70 groove/narrative/diagnostic) so each slice is testable and fits in a session budget. This slice lands the typed foundations for the Shape B per-voice split: `Plan` (arc-swap beat snapshot published once per beat by the Conductor and loaded allocation-free by workers), `VoiceEvent` (Copy enums per voice — RhythmEvent/HarmonyEvent/TextureEvent/MelodyEvent with sample-indexed `time`), and `voice_ring` (typed SPSC HeapRb wrappers per voice, capacity 64 events). Cargo pulls in ringbuf 0.4 / crossbeam-channel 0.5 / arc-swap 1.7 / parking_lot 0.12 and dev-dep assert_no_alloc 1.1. 25 lib tests pass; clippy clean.

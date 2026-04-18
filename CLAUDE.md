@@ -222,15 +222,15 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Rust migration — Phase 2b-2 (#82) built, awaiting QA. Phase 2b-1 (#81) qa-pass aram-closed. Phase 2a complete (#60).**
+**Status: Rust migration — Phase 2b complete (#61 + #82 qa-pass aram-closed). Next: Desktop UI (#89).**
 
 | | |
 |---|---|
-| **Umbrella** | **#61** Phase 2b (open) — closes qa-pass once #82 passes (#81 already closed) |
-| **Awaiting QA** | **#82** Phase 2b-2: VoicingEngine (SPEC_040 §3/§5/§6) + harmonic rhythm (SPEC_040 §4) + WalkingBass next-chord + cadential planning + 4-voice lookahead infra, all feature-flagged behind `--enable-2b2` (Opus) — needs-aram |
-| **After 2b** | **#89** Desktop UI overhaul (egui, Windows v1) [umbrella] — sub-issues **#90** Build A (scaffold + Simple tab + presets + visualizer + shortcuts) → **#91** Build B (Engineer tab + parameter surface + QA tooling) (Sonnet both). Supersedes #62 per SPEC_062_UI_OVERHAUL.md. |
+| **Umbrella** | **#89** Desktop UI overhaul (egui, Windows v1) — closes qa-pass once #90 + #91 both pass. Supersedes #62 per SPEC_062_UI_OVERHAUL.md. |
+| **Next build** | **#90** Build A: scaffold + Simple tab + preset system + visualizer + shortcuts (Sonnet) — ships a usable `.exe` standalone |
+| **After #90** | **#91** Build B: Engineer tab + curated parameter surface + QA tooling (Sonnet) |
 | **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port<br>**#92** Android APK via eframe + cargo-apk (P3, parked until #89 stable) |
-| **Chain** | #82 → #90 → #91 |
+| **Chain** | #90 → #91 |
 
 JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic migrates into Rust phases per comments on each issue.
 
@@ -268,6 +268,8 @@ JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic
 | qa-improve via GitHub label only | qa-improve/fail always require chat — Claude must write and confirm new SPEC immediately. Only qa-pass is GitHub-async. |
 | Sub-issue created without native parent link | Body-text `Parent: #NN` is not enough — GitHub's native sub-issue tree drives the progress bar and issue-list nesting. After `issue_write method:create`, always follow with `sub_issue_write method:add issue_number:<parent> sub_issue_id:<child GraphQL id>`. The `sub_issue_id` comes from the `id` field of the create response, NOT the issue number. |
 | Commits orphaned on a branch after its PR merged | Once a PR merges mid-session, its branch is a dead-end — further commits on it don't reach main. Before committing any additional "should go to main" work, check the branch state: if the PR is merged, `git checkout -b claude/<new-slug> origin/main` and `git cherry-pick` any orphaned commits onto the fresh branch. Push the new branch as a separate PR. Session-end checklist step 6 ("push unpushed commits") must verify the target branch still has an open path to main. |
+| §7 stale after Aram closes issues between sessions | Aram closes qa-pass + aram-closed issues directly on GitHub without telling Claude (per §2a exemption). §7 becomes stale silently. **Fix:** every non-quick session — including plan/audit — MUST run `list_issues state:OPEN label:P1` at start and reconcile §7 if anything shown in §7 is closed. §1 step 3/4 are non-negotiable; plan sessions don't get a pass. If §7 shows issue as active but GitHub says closed with aram-closed: remove from §7, advance header, update Chain in same pass, before any other work. |
+| Dead-gap / "No response requested" non-response | Claude emitted `No response requested.` as full turn content after a user message that clearly required action (contained a question + directive + "ask me more if you need to"). Harness sees this as a completed turn; Aram saw 8 minutes of silence. **Fix:** never emit `No response requested.` as own output. Before closing any turn, self-check: did the last user message contain a question (`?`), an imperative verb (`draft`, `do`, `open`, `confirm`, `ask`, `go`), or an invitation to ask? If yes → the turn MUST include either a tool call or a substantive text response. If genuinely unsure whether action is wanted, the fallback is a 1-line clarifying question, NOT silence. Aram-side mitigation: re-ping immediately if a response looks suspiciously short or content-free. |
 
 ---
 

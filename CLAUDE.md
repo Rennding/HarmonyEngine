@@ -262,6 +262,7 @@ Paused JS builds: all paused — porting into Rust phases. See [GitHub milestone
 | PR merged without `Closes #NN` | PR body must include `Closes #NN` or `Refs #NN`. Session-start check audits last 10 merged PRs; flag misses to Aram. |
 | Commit without issue ref | Commit messages use `[#NN] subject` prefix. `[#infra]` allowed for meta work. Reject vague messages like "edits" — rewrite before push. |
 | qa-improve via GitHub label only | qa-improve/fail always require chat — Claude must write and confirm new SPEC immediately. Only qa-pass is GitHub-async. |
+| Stream idle timeout (lost session) | Batching 10+ reads + 10+ edits + multiple commands in one turn keeps the stream open too long — connection drops, all work is lost and nothing commits. **Break at natural checkpoints:** (1) read/explore phase → pause, (2) write module → compile → pause, (3) next module. Aram confirms "continue" between checkpoints. Opus 4.7 is especially prone — treat each logical unit (one new file, one compile check) as one turn. |
 
 ---
 

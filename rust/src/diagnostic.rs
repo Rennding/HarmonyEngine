@@ -14,6 +14,7 @@
 //!   flat_dynamics.
 //! * **SPEC_057 §4 (4):** voice_jitter, ring_underrun, ring_overflow,
 //!   plan_publish_latency.
+//! * **SPEC_057 §4 Phase 2b-1 (2, #81):** lookahead_fill, flush_latency.
 //!
 //! Threshold constants live in `crate::config::diagnostic`.
 
@@ -673,6 +674,76 @@ impl AnomalyDetector {
             });
         }
     }
+
+    // ── SPEC_057 §4 Phase 2b-1 (#81) lookahead detectors ───────────────
+
+    /// Lookahead-fill: warn when a worker's ring is chronically under- or
+    /// over-filled relative to its budget. `fill_beats` is the current
+    /// fill depth (how far past `now` the latest composed event sits);
+    /// `capacity_beats` is the worker's lookahead budget.
+    pub fn lookahead_fill(
+        &self,
+        log: &mut DiagnosticLog,
+        beat: u64,
+        ctx: &DiagnosticContext,
+        voice_label: &str,
+        fill_beats: f32,
+        capacity_beats: f32,
+    ) {
+        if capacity_beats <= 0.0 {
+            return;
+        }
+        let ratio = fill_beats / capacity_beats;
+        if ratio < cfg::LOOKAHEAD_FILL_LOW {
+            log.push(DiagnosticEntry {
+                beat,
+                severity: Severity::Warning,
+                vocab: VocabTerm::SilenceGap,
+                message: format!(
+                    "{voice_label} lookahead under-fill {fill_beats:.2}/{capacity_beats:.2} beats (<{:.0}%)",
+                    cfg::LOOKAHEAD_FILL_LOW * 100.0
+                ),
+                context: ctx.clone(),
+            });
+        } else if ratio > cfg::LOOKAHEAD_FILL_HIGH {
+            log.push(DiagnosticEntry {
+                beat,
+                severity: Severity::Warning,
+                vocab: VocabTerm::Cluttered,
+                message: format!(
+                    "{voice_label} lookahead over-fill {fill_beats:.2}/{capacity_beats:.2} beats (>{:.0}%)",
+                    cfg::LOOKAHEAD_FILL_HIGH * 100.0
+                ),
+                context: ctx.clone(),
+            });
+        }
+    }
+
+    /// Flush-latency: warn when the audio thread spent more than
+    /// `FLUSH_LATENCY_MAX_BEATS` skipping stale-generation events after a
+    /// plan-publish bump. `beats_to_drain` is the measured latency from
+    /// the flush report.
+    pub fn flush_latency(
+        &self,
+        log: &mut DiagnosticLog,
+        beat: u64,
+        ctx: &DiagnosticContext,
+        voice_label: &str,
+        beats_to_drain: f64,
+    ) {
+        if beats_to_drain > cfg::FLUSH_LATENCY_MAX_BEATS {
+            log.push(DiagnosticEntry {
+                beat,
+                severity: Severity::Error,
+                vocab: VocabTerm::Jarring,
+                message: format!(
+                    "{voice_label} flush drained in {beats_to_drain:.2} beats (>{:.1} threshold)",
+                    cfg::FLUSH_LATENCY_MAX_BEATS
+                ),
+                context: ctx.clone(),
+            });
+        }
+    }
 }
 
 #[cfg(test)]
@@ -991,6 +1062,64 @@ mod tests {
         det.plan_publish_latency(
             &mut log, 1, &ctx_default(), Duration::from_micros(1_000),
         );
+        assert_eq!(log.len(), 0);
+    }
+
+    #[test]
+    fn lookahead_fill_warns_on_under_fill() {
+        let mut log = silent_log();
+        let det = AnomalyDetector::new();
+        // Drums budget = 4 beats, current fill = 0.5 beat → 12.5 % (< 25 %).
+        det.lookahead_fill(&mut log, 1, &ctx_default(), "drums", 0.5, 4.0);
+        assert_eq!(log.len(), 1);
+        assert_eq!(log.entries().next().unwrap().vocab, VocabTerm::SilenceGap);
+    }
+
+    #[test]
+    fn lookahead_fill_warns_on_over_fill() {
+        let mut log = silent_log();
+        let det = AnomalyDetector::new();
+        // Melody budget = 16 beats, fill = 15.8 → 98.75 % (> 95 %).
+        det.lookahead_fill(&mut log, 1, &ctx_default(), "melody", 15.8, 16.0);
+        assert_eq!(log.len(), 1);
+        assert_eq!(log.entries().next().unwrap().vocab, VocabTerm::Cluttered);
+    }
+
+    #[test]
+    fn lookahead_fill_silent_in_band() {
+        let mut log = silent_log();
+        let det = AnomalyDetector::new();
+        // 8 of 16 = 50 % — inside [25 %, 95 %] band.
+        det.lookahead_fill(&mut log, 1, &ctx_default(), "melody", 8.0, 16.0);
+        assert_eq!(log.len(), 0);
+    }
+
+    #[test]
+    fn lookahead_fill_silent_when_capacity_zero() {
+        let mut log = silent_log();
+        let det = AnomalyDetector::new();
+        // Bass / chord / pad budget = 0 — detector is a no-op.
+        det.lookahead_fill(&mut log, 1, &ctx_default(), "bass", 0.0, 0.0);
+        assert_eq!(log.len(), 0);
+    }
+
+    #[test]
+    fn flush_latency_fires_above_one_bar() {
+        let mut log = silent_log();
+        let det = AnomalyDetector::new();
+        // 5 beats > 4-beat (1 bar) threshold.
+        det.flush_latency(&mut log, 1, &ctx_default(), "melody", 5.0);
+        assert_eq!(log.len(), 1);
+        let e = log.entries().next().unwrap();
+        assert_eq!(e.vocab, VocabTerm::Jarring);
+        assert_eq!(e.severity, Severity::Error);
+    }
+
+    #[test]
+    fn flush_latency_silent_within_one_bar() {
+        let mut log = silent_log();
+        let det = AnomalyDetector::new();
+        det.flush_latency(&mut log, 1, &ctx_default(), "drums", 1.0);
         assert_eq!(log.len(), 0);
     }
 }

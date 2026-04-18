@@ -58,6 +58,12 @@ impl From<cpal::PlayStreamError> for AudioError {
 impl AudioHost {
     /// Build and start a cpal output stream driven by a fresh `Conductor`.
     pub fn start(seed: i32) -> Result<Self, AudioError> {
+        Self::start_with_palette(seed, None)
+    }
+
+    /// Build and start a stream with an optional palette override.
+    /// Passing `None` falls back to `dark_techno` (Phase 1b parity default).
+    pub fn start_with_palette(seed: i32, palette: Option<&str>) -> Result<Self, AudioError> {
         let host = cpal::default_host();
         let device = host
             .default_output_device()
@@ -74,7 +80,10 @@ impl AudioHost {
             buffer_size: cpal::BufferSize::Default,
         };
 
-        let mut conductor = Conductor::new(sample_rate as f32, seed);
+        let mut conductor = match palette {
+            Some(name) => Conductor::with_palette_name(sample_rate as f32, seed, name),
+            None => Conductor::new(sample_rate as f32, seed),
+        };
 
         eprintln!(
             "[HE] audio host: device={} sr={} ch={} fmt={:?} bpm={} palette={}",

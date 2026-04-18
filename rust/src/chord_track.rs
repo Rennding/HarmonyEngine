@@ -8,7 +8,7 @@
 
 use crate::config::{gain, Phase};
 use crate::harmony::{midi_to_freq, HarmonyEngine};
-use crate::palette::ChordConfig;
+use crate::palette::{ChordConfig, ChordStyle};
 use crate::synth::{BiquadLowpass, Envelope};
 use crate::wavetables::Wavetable;
 
@@ -83,6 +83,7 @@ impl ChordTrack {
 
     fn muted(&self) -> bool {
         self.current_phase_idx < self.entry_phase_idx
+            || matches!(self.cfg.style, ChordStyle::None)
     }
 
     /// Per-16th-step trigger. Fires stabs at JS `four_stab` boundaries

@@ -225,9 +225,10 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 | | |
 |---|---|
-| **Next build** | **#61** Phase 2a-4: per-voice worker threads + VoiceRack wiring (Opus) |
+| **In progress** | **#60** Phase 2a: per-voice threads, all 10 palettes (Opus) |
+| **Next build** | **#61** Phase 2b: per-voice lookahead + VoicingEngine + harmonic rhythm (Opus) — depends on #60 QA pass |
 | **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port |
-| **Chain** | #69 → #70 → #61 → #62 |
+| **Chain** | #60 → #61 → #62 |
 
 JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic migrates into Rust phases per comments on each issue.
 

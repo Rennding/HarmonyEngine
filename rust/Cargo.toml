@@ -8,6 +8,10 @@ description = "HarmonyEngine — procedural music generator (Rust Phase 1 parity
 name = "harmonyengine"
 path = "src/main.rs"
 
+[[bin]]
+name = "harmonyengine-ui"
+path = "src-ui/main.rs"
+
 [lib]
 name = "harmonyengine"
 path = "src/lib.rs"
@@ -25,10 +29,19 @@ ringbuf = "0.4"
 crossbeam-channel = "0.5"
 arc-swap = "1.7"
 parking_lot = "0.12"
+# UI layer — Build A (#90). eframe/egui only used by harmonyengine-ui binary.
+eframe = "0.28"
+egui = "0.28"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+directories = "5"
 
 [dev-dependencies]
 # Enabled alongside the audio-thread RT discipline work in Phase 2a-1.
 assert_no_alloc = "1.1"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
 
 [profile.release]
 opt-level = 3

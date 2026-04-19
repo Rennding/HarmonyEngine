@@ -222,13 +222,13 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Rust migration — Phase 2b complete (#61 + #82 qa-pass aram-closed). Next: Desktop UI (#89).**
+**Status: Desktop UI Build A shipped (#90 needs-aram). Next: QA #90, then Build B (#91).**
 
 | | |
 |---|---|
 | **Umbrella** | **#89** Desktop UI overhaul (egui, Windows v1) — closes qa-pass once #90 + #91 both pass. Supersedes #62 per SPEC_062_UI_OVERHAUL.md. |
-| **Next build** | **#90** Build A: scaffold + Simple tab + preset system + visualizer + shortcuts (Sonnet) — ships a usable `.exe` standalone |
-| **After #90** | **#91** Build B: Engineer tab + curated parameter surface + QA tooling (Sonnet) |
+| **Awaiting QA** | **#90** Build A shipped — harmonyengine-ui binary, Simple tab, presets, visualizer, shortcuts. needs-aram. |
+| **After #90 qa-pass** | **#91** Build B: Engineer tab + curated parameter surface + QA tooling (Sonnet) |
 | **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port<br>**#92** Android APK via eframe + cargo-apk (P3, parked until #89 stable) |
 | **Chain** | #90 → #91 |
 

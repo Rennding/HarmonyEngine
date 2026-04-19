@@ -23,6 +23,18 @@ use crate::sequencer::{Sequencer, TrackGains};
 use crate::synth::{soft_clip, BrickwallLimiter, PeakCompressor};
 use crate::tension::TensionMap;
 
+/// Track index constants for `set_track_gain_scalar` / `get_track_gain_scalars`.
+/// Order matches `TrackGains` fields (kick=0, snare=1, hat=2, bass=3, chord=4, pad=5, melody=6).
+pub mod track_idx {
+    pub const KICK: u8 = 0;
+    pub const SNARE: u8 = 1;
+    pub const HAT: u8 = 2;
+    pub const BASS: u8 = 3;
+    pub const CHORD: u8 = 4;
+    pub const PAD: u8 = 5;
+    pub const MELODY: u8 = 6;
+}
+
 pub struct Conductor {
     palette: Palette,
     harmony: HarmonyEngine,
@@ -57,6 +69,13 @@ pub struct Conductor {
     ui_force_phase: Option<Phase>,
     /// When true, on_16th is a no-op (beat clock frozen).
     beat_frozen: bool,
+    // --- Engineer tab fields (Build B #91) ---
+    /// Per-track gain scalars set by the Engineer UI. Applied on top of the
+    /// phase-driven base gains so UI overrides survive phase transitions.
+    /// Order: kick, snare, hat, bass, chord, pad, melody.
+    ui_gain_overrides: [f32; 7],
+    /// Cycle mode flag (UI-driven). No loop logic yet; stored for UI readback.
+    cycle_mode: bool,
 }
 
 impl Conductor {
@@ -128,6 +147,8 @@ impl Conductor {
             seed,
             ui_force_phase: None,
             beat_frozen: false,
+            ui_gain_overrides: [1.0; 7],
+            cycle_mode: false,
         }
     }
 
@@ -230,7 +251,7 @@ impl Conductor {
         let prev_phase = self.phase;
         self.phase = self.ui_force_phase.unwrap_or_else(|| Phase::from_dc(self.dc));
         if self.phase != prev_phase {
-            self.target_track_gains = TrackGains::for_phase(self.phase);
+            self.target_track_gains = self.phase_target_with_overrides(self.phase);
             self.sequencer.on_phase_change(self.phase);
             // SPEC_040 §4 — recompute beats-per-chord from the palette
             // table when harmonic_rhythm flag is on (no-op otherwise).
@@ -268,7 +289,7 @@ impl Conductor {
         let effective = phase.unwrap_or_else(|| Phase::from_dc(self.dc));
         if effective != prev {
             self.phase = effective;
-            self.target_track_gains = TrackGains::for_phase(effective);
+            self.target_track_gains = self.phase_target_with_overrides(effective);
             self.sequencer.on_phase_change(effective);
             self.harmony.update_beats_per_chord(effective);
             self.force_publish_plan();
@@ -290,5 +311,63 @@ impl Conductor {
 
     pub fn beat_frozen(&self) -> bool {
         self.beat_frozen
+    }
+
+    // --- Engineer tab API (Build B #91) ---
+
+    /// Set a per-track gain scalar (0.0–4.0). Immediately recomputes target gains.
+    /// `track` index: 0=kick 1=snare 2=hat 3=bass 4=chord 5=pad 6=melody.
+    pub fn set_track_gain_scalar(&mut self, track: u8, scalar: f32) {
+        let idx = track as usize;
+        if idx < 7 {
+            self.ui_gain_overrides[idx] = scalar.clamp(0.0, 4.0);
+            self.target_track_gains = self.phase_target_with_overrides(self.phase);
+        }
+    }
+
+    /// Return all seven per-track gain scalars.
+    pub fn track_gain_scalars(&self) -> [f32; 7] {
+        self.ui_gain_overrides
+    }
+
+    /// Set cycle mode on/off. No loop logic in the audio path yet; stored for UI readback.
+    pub fn set_cycle_mode(&mut self, on: bool) {
+        self.cycle_mode = on;
+    }
+
+    pub fn cycle_mode(&self) -> bool {
+        self.cycle_mode
+    }
+
+    /// Set groove swing (0.0–1.0) live. Passed through to the sequencer's groove engine.
+    pub fn set_groove_swing(&mut self, v: f32) {
+        self.sequencer.groove.set_swing_base(v);
+    }
+
+    /// Set groove humanize jitter (0–50 ms) live.
+    pub fn set_groove_humanize(&mut self, v: f32) {
+        self.sequencer.groove.set_humanize_ms(v);
+    }
+
+    pub fn groove_swing(&self) -> f32 {
+        self.sequencer.groove.swing_base()
+    }
+
+    pub fn groove_humanize_ms(&self) -> f32 {
+        self.sequencer.groove.humanize_base_ms()
+    }
+
+    fn phase_target_with_overrides(&self, phase: Phase) -> TrackGains {
+        let [k, sn, ha, ba, ch, pa, me] = self.ui_gain_overrides;
+        let base = TrackGains::for_phase(phase);
+        TrackGains {
+            kick: base.kick * k,
+            snare: base.snare * sn,
+            hat: base.hat * ha,
+            bass: base.bass * ba,
+            chord: base.chord * ch,
+            pad: base.pad * pa,
+            melody: base.melody * me,
+        }
     }
 }

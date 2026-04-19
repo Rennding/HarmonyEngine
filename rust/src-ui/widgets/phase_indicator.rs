@@ -5,7 +5,7 @@ use harmonyengine::config::Phase;
 
 use crate::theme::PHASE_COLORS;
 
-pub fn draw(ui: &mut Ui, phase: Phase, beat: u32, bpm: f32, frozen: bool) {
+pub fn draw(ui: &mut Ui, phase: Phase, beat: u32, bpm: f32, frozen: bool, cycle: bool) {
     ui.horizontal(|ui| {
         // Phase pill.
         let phase_idx = match phase {
@@ -35,6 +35,12 @@ pub fn draw(ui: &mut Ui, phase: Phase, beat: u32, bpm: f32, frozen: bool) {
 
         // BPM.
         ui.label(RichText::new(format!("{bpm:.0} BPM")).monospace().color(Color32::from_rgb(150, 150, 170)));
+
+        // Cycle indicator.
+        if cycle {
+            ui.separator();
+            ui.label(RichText::new("↻ CYCLE").strong().color(Color32::from_rgb(120, 200, 150)));
+        }
 
         // Frozen indicator.
         if frozen {

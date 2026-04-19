@@ -222,15 +222,14 @@ JavaScript (vanilla, no framework), Web Audio API, HTML5 Canvas (visualizer only
 
 ## 7 · DO THIS NEXT
 
-**Status: Desktop UI Build A shipped (#90 needs-aram). Next: QA #90, then Build B (#91).**
+**Status: Desktop UI Build B shipped (#91 needs-aram). Next: QA #91, then close umbrella #89.**
 
 | | |
 |---|---|
-| **Umbrella** | **#89** Desktop UI overhaul (egui, Windows v1) — closes qa-pass once #90 + #91 both pass. Supersedes #62 per SPEC_062_UI_OVERHAUL.md. |
-| **Awaiting QA** | **#90** Build A shipped — harmonyengine-ui binary, Simple tab, presets, visualizer, shortcuts. needs-aram. |
-| **After #90 qa-pass** | **#91** Build B: Engineer tab + curated parameter surface + QA tooling (Sonnet) |
+| **Umbrella** | **#89** Desktop UI overhaul (egui, Windows v1) — closes qa-pass once #91 passes. Supersedes #62 per SPEC_062_UI_OVERHAUL.md. |
+| **Awaiting QA** | **#91** Build B shipped — Engineer tab (8 sections), per-track gain scalars + groove swing/humanize + cycle mode wired live, 2b-2 flag A/B toggles, diagnostic log viewer w/ clipboard copy, copy-state-as-JSON, recent-tweaks ring, reset-to-default per section + global. needs-aram. |
 | **Rust backlog** | **#56** noir_jazz palette design — reference for Rust port<br>**#92** Android APK via eframe + cargo-apk (P3, parked until #89 stable) |
-| **Chain** | #90 → #91 |
+| **Chain** | (none) |
 
 JS backlog cleared 2026-04-18 — all legacy issues closed as not_planned. Logic migrates into Rust phases per comments on each issue.
 

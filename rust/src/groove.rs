@@ -127,6 +127,13 @@ impl GrooveEngine {
     pub fn prob_mult(&self) -> f32 {
         self.prob_mult
     }
+
+    pub fn set_swing_base(&mut self, v: f32) {
+        self.swing_base = v.clamp(0.0, 1.0);
+    }
+    pub fn set_humanize_ms(&mut self, v: f32) {
+        self.humanize_base_ms = v.clamp(0.0, 50.0);
+    }
 }
 
 fn phase_mults(phase: Phase) -> (f32, f32, f32) {

@@ -8,6 +8,7 @@
 //! Shared read-back state (`SharedAudioState`) uses atomics so the UI can
 //! sample beat / phase / BPM at frame rate without touching the audio path.
 
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -32,6 +33,12 @@ pub enum UiCmd {
     /// Reinitialise with a new seed (new song).
     NewSong(i32),
     SetBeatFrozen(bool),
+    // Engineer tab (Build B #91)
+    /// Set per-track gain scalar. `track` index: 0=kick 1=snare 2=hat 3=bass 4=chord 5=pad 6=melody.
+    SetTrackGainScalar { track: u8, scalar: f32 },
+    SetGrooveSwing(f32),
+    SetGrooveHumanizeMs(f32),
+    SetCycleMode(bool),
 }
 
 // --- Shared read-back state -------------------------------------------------
@@ -51,6 +58,13 @@ pub struct SharedAudioState {
     pub fft_frame: Mutex<Vec<f32>>,
     /// Current palette name.
     pub palette_name: Mutex<String>,
+    /// Diagnostic log — ring of up to 50 entries, most-recent first.
+    /// Audio callback appends beat/phase/DC snapshots here.
+    pub diagnostic_log: Mutex<VecDeque<String>>,
+    /// Current DC value as f32 bits.
+    pub dc_bits: AtomicU32,
+    /// Cycle mode flag mirror.
+    pub cycle_mode: AtomicBool,
 }
 
 impl SharedAudioState {
@@ -63,6 +77,9 @@ impl SharedAudioState {
             is_playing: AtomicBool::new(true),
             fft_frame: Mutex::new(vec![0.0f32; 512]),
             palette_name: Mutex::new(palette.to_string()),
+            diagnostic_log: Mutex::new(VecDeque::with_capacity(50)),
+            dc_bits: AtomicU32::new(0.0f32.to_bits()),
+            cycle_mode: AtomicBool::new(false),
         })
     }
 
@@ -78,6 +95,10 @@ impl SharedAudioState {
 
     pub fn bpm(&self) -> f32 {
         f32::from_bits(self.bpm_bits.load(Ordering::Relaxed))
+    }
+
+    pub fn dc(&self) -> f32 {
+        f32::from_bits(self.dc_bits.load(Ordering::Relaxed))
     }
 }
 
@@ -190,13 +211,35 @@ impl AudioBridge {
 
                     // Periodic state publish.
                     if fft_counter % fft_update_interval == 0 {
-                        state.beat.store(conductor.beat_count(), Ordering::Relaxed);
-                        state.phase_idx.store(phase_to_u8(conductor.phase()), Ordering::Relaxed);
+                        let beat = conductor.beat_count();
+                        let phase = conductor.phase();
+                        let dc = conductor.dc();
+                        state.beat.store(beat, Ordering::Relaxed);
+                        state.phase_idx.store(phase_to_u8(phase), Ordering::Relaxed);
                         state.bpm_bits.store(conductor.bpm().to_bits(), Ordering::Relaxed);
+                        state.dc_bits.store((dc as f32).to_bits(), Ordering::Relaxed);
                         // Snapshot FFT to shared.
                         if let Ok(mut guard) = state.fft_frame.try_lock() {
                             guard.copy_from_slice(&fft_accum);
                             fft_accum.fill(0.0);
+                        }
+                        // Push a diagnostic snapshot (most-recent first, cap at 50).
+                        let phase_name = match phase {
+                            harmonyengine::config::Phase::Pulse => "Pulse",
+                            harmonyengine::config::Phase::Swell => "Swell",
+                            harmonyengine::config::Phase::Surge => "Surge",
+                            harmonyengine::config::Phase::Storm => "Storm",
+                            harmonyengine::config::Phase::Maelstrom => "Maelstrom",
+                        };
+                        let entry = format!(
+                            "beat {:>4} | {} | DC {:.3} | BPM {}",
+                            beat, phase_name, dc, conductor.bpm() as u32
+                        );
+                        if let Ok(mut log) = state.diagnostic_log.try_lock() {
+                            log.push_front(entry);
+                            while log.len() > 50 {
+                                log.pop_back();
+                            }
                         }
                     }
                 },
@@ -248,5 +291,12 @@ fn apply_cmd(
             }
         }
         UiCmd::SetBeatFrozen(f) => conductor.set_beat_frozen(f),
+        UiCmd::SetTrackGainScalar { track, scalar } => conductor.set_track_gain_scalar(track, scalar),
+        UiCmd::SetGrooveSwing(v) => conductor.set_groove_swing(v),
+        UiCmd::SetGrooveHumanizeMs(v) => conductor.set_groove_humanize(v),
+        UiCmd::SetCycleMode(on) => {
+            conductor.set_cycle_mode(on);
+            state.cycle_mode.store(on, Ordering::Relaxed);
+        }
     }
 }

@@ -179,8 +179,13 @@ Modules: **C**onfig · **S**tate · **A**udio · **H**armony · **T**wavetables 
 | _processCycleBeat() | conductor.js | 100 | Per-beat cycle state machine |
 | _resetCycleState() | conductor.js | 153 | Reset all cycle state vars |
 | Conductor.set_force_phase/set_bpm/set_beat_frozen/seed | rust/src/conductor.rs | ~267 | UI control methods: force phase, BPM update, beat-freeze, seed getter (#90) |
-| AudioBridge / UiCmd / SharedAudioState | rust/src-ui/bridge.rs | 1 | cpal stream + crossbeam UiCmd channel + atomic beat/phase/bpm/FFT state for UI (#90) |
-| HarmonyApp / SimpleState / Preset+PresetStore | rust/src-ui/{app,tabs/simple,presets}.rs | — | eframe App root, Simple tab state, JSON preset load/save/autosave/qa-repro (#90) |
+| Conductor.set_track_gain_scalar/set_cycle_mode/set_groove_swing/set_groove_humanize | rust/src/conductor.rs | ~305 | Engineer-tab live setters: per-track gain overrides + cycle flag + groove swing/humanize (#91) |
+| AudioBridge / UiCmd / SharedAudioState | rust/src-ui/bridge.rs | 1 | cpal stream + crossbeam UiCmd channel + atomic beat/phase/bpm/FFT state for UI (#90); extended with SetTrackGainScalar/SetGrooveSwing/SetGrooveHumanizeMs/SetCycleMode + diagnostic_log ring + dc_bits + cycle_mode mirror (#91) |
+| HarmonyApp / SimpleState / Preset+PresetStore | rust/src-ui/{app,tabs/simple,presets}.rs | — | eframe App root, Simple tab state, JSON preset load/save/autosave/qa-repro (#90); Preset extended with engineer:EngineerState + phase_at_save (#91) |
+| EngineerState / engineer::draw | rust/src-ui/tabs/engineer.rs | 1 | 8 collapsible sections (Conductor · Harmony · Sequencer · Melody · Groove · Tension · Diagnostic · 2b-2 Flags); live wiring for gain scalars + groove + 2b-2 flags; copy-state JSON; recent-tweaks ring; diagnostic log viewer w/ clipboard (#91) |
+| Knob | rust/src-ui/widgets/knob.rs | 10 | Circular drag knob widget with delta indicator (#91) |
+| Sequencer.groove | rust/src/sequencer.rs | ~475 | GrooveEngine field — swing/humanize/ghost-prob, initialised from palette; wired into drum should_fire (#91) |
+| GrooveEngine.set_swing_base/set_humanize_ms | rust/src/groove.rs | ~130 | Runtime setters for UI (#91) |
 | Conductor.start() | conductor.js | 161 | Start playback with optional palette |
 | Conductor.stop() | conductor.js | 176 | Stop all audio |
 | Conductor.setCycleMode() | conductor.js | 198 | Toggle cycle mode on/off |

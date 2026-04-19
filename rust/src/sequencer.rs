@@ -14,6 +14,7 @@
 
 use crate::chord_track::ChordTrack;
 use crate::config::{flags, gain, Phase};
+use crate::groove::GrooveEngine;
 use crate::harmony::{midi_to_freq, HarmonyEngine};
 use crate::melody::MelodyEngine;
 use crate::pad_track::PadTrack;
@@ -471,10 +472,16 @@ pub struct Sequencer {
     sample_rate: f32,
     last_bass_note: i32,
     pub track_gains: TrackGains,
+    /// Groove engine — swing/humanize/ghost-note probability (SPEC_018).
+    /// Initialised from palette at run-start; swing_base + humanize_ms can
+    /// be updated live by the Engineer UI via Conductor::set_groove_*.
+    pub groove: GrooveEngine,
 }
 
 impl Sequencer {
     pub fn new(sample_rate: f32, palette: &Palette, seed: i32, bpm: f32) -> Self {
+        let mut groove = GrooveEngine::new();
+        groove.init_run(palette);
         Self {
             drums: palette.drums,
             kick_pattern: pattern_16(palette.drums.kick_pattern),
@@ -502,6 +509,7 @@ impl Sequencer {
             sample_rate,
             last_bass_note: 0,
             track_gains: TrackGains::for_phase(Phase::Pulse),
+            groove,
         }
     }
 
@@ -519,13 +527,13 @@ impl Sequencer {
         let hat_freq = self.drums.hat.freq;
         let hat_decay = self.drums.hat.decay;
 
-        if k.active && self.roll(k.prob) {
+        if self.groove.should_fire(k.active, if k.prob < 1.0 { Some(k.prob) } else { None }, &mut self.rng) {
             self.kick_voice.trigger_kick(kick_freq, kick_decay, k.vel);
         }
-        if s.active && self.roll(s.prob) {
+        if self.groove.should_fire(s.active, if s.prob < 1.0 { Some(s.prob) } else { None }, &mut self.rng) {
             self.snare_voice.trigger_snare(snare_freq, snare_decay, s.vel);
         }
-        if h.active && self.roll(h.prob) {
+        if self.groove.should_fire(h.active, if h.prob < 1.0 { Some(h.prob) } else { None }, &mut self.rng) {
             self.hat_voice.trigger_hat(hat_freq, hat_decay, h.vel);
         }
 
@@ -567,6 +575,7 @@ impl Sequencer {
         self.chord.on_phase_change(phase);
         self.pad.on_phase_change(phase);
         self.melody.on_phase_change(phase);
+        self.groove.on_phase_change(phase);
     }
 
     #[inline]

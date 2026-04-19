@@ -12,6 +12,7 @@ use egui::{Color32, Context, RichText, TopBottomPanel, Ui};
 use crate::bridge::{AudioBridge, UiCmd};
 use crate::presets::{Preset, PresetStore};
 use crate::shortcuts;
+use crate::tabs::engineer::{self, EngineerState};
 use crate::tabs::simple::{SimpleState, PALETTE_NAMES};
 use crate::tabs::visualizer;
 use crate::widgets::{meter::LevelMeter, phase_indicator};
@@ -27,10 +28,13 @@ pub struct HarmonyApp {
     bridge: AudioBridge,
     tab: ActiveTab,
     simple: SimpleState,
+    engineer: EngineerState,
     meter: LevelMeter,
     preset_store: Option<PresetStore>,
     last_autosave: Instant,
     show_help: bool,
+    /// Local mirror of beat-frozen state so the top bar can display it.
+    beat_frozen: bool,
 }
 
 impl HarmonyApp {
@@ -58,11 +62,25 @@ impl HarmonyApp {
 
         let preset_store = PresetStore::new();
 
+        let mut engineer = EngineerState::default();
+
         // Load autosave if present.
         if let Some(ref store) = preset_store {
             if let Some(preset) = store.load_autosave() {
                 apply_preset_to_simple(&preset, &mut simple);
                 send_preset_cmds(&preset, &bridge);
+                engineer = preset.engineer.clone();
+                engineer.sync_flags_to_engine();
+                // Apply engineer-tab runtime params to engine.
+                for i in 0..7 {
+                    bridge.send(UiCmd::SetTrackGainScalar {
+                        track: i as u8,
+                        scalar: engineer.track_gain_scalars[i],
+                    });
+                }
+                bridge.send(UiCmd::SetGrooveSwing(engineer.swing));
+                bridge.send(UiCmd::SetGrooveHumanizeMs(engineer.humanize_ms));
+                bridge.send(UiCmd::SetCycleMode(engineer.cycle_mode));
             }
             simple.preset_names = store.named_preset_names();
         }
@@ -71,16 +89,19 @@ impl HarmonyApp {
             bridge,
             tab: ActiveTab::Simple,
             simple,
+            engineer,
             meter: LevelMeter::default(),
             preset_store,
             last_autosave: Instant::now(),
             show_help: false,
+            beat_frozen: false,
         }
     }
 
     fn current_preset(&self) -> Preset {
         let beat = self.bridge.state.beat.load(Ordering::Relaxed);
-        Preset::new(
+        let phase = self.bridge.state.phase_idx.load(Ordering::Relaxed);
+        let mut p = Preset::new(
             "autosave",
             self.simple.seed,
             PALETTE_NAMES[self.simple.palette_idx],
@@ -90,7 +111,10 @@ impl HarmonyApp {
             self.simple.muted,
             self.simple.forced_phase,
             beat,
-        )
+        );
+        p.engineer = self.engineer.clone();
+        p.phase_at_save = phase;
+        p
     }
 
     fn handle_actions(&mut self, ctx: &Context) {
@@ -173,10 +197,11 @@ impl HarmonyApp {
                     }
                 }
                 Action::FreezeBeat => {
-                    let frozen = !self.bridge.state.beat.load(Ordering::Relaxed) == 0; // dummy; track locally
-                    // Toggle freeze by reading phase_indicator state — store in simple for now.
-                    // We use forced_phase==6 as a sentinel for "frozen beat" display.
-                    self.bridge.send(UiCmd::SetBeatFrozen(true)); // actual toggle tracked in bridge
+                    self.beat_frozen = !self.beat_frozen;
+                    self.bridge.send(UiCmd::SetBeatFrozen(self.beat_frozen));
+                    self.engineer.push_tweak(format!(
+                        "Beat freeze: {}", if self.beat_frozen { "on" } else { "off" }
+                    ));
                 }
                 Action::ShowHelp => {
                     self.show_help = true;
@@ -287,7 +312,8 @@ impl eframe::App for HarmonyApp {
                     // App title.
                     ui.label(RichText::new("♪ HarmonyEngine").strong().size(14.0));
                     ui.separator();
-                    phase_indicator::draw(ui, phase, beat, bpm, false);
+                    let cycle = self.bridge.state.cycle_mode.load(Ordering::Relaxed);
+                    phase_indicator::draw(ui, phase, beat, bpm, self.beat_frozen, cycle);
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Inline level meter.
                         let meter_rect = ui.allocate_space(egui::vec2(8.0, 16.0)).1;
@@ -328,10 +354,10 @@ impl eframe::App for HarmonyApp {
                         }
                     }
                     ActiveTab::Engineer => {
-                        ui.add_space(12.0);
-                        ui.heading("Engineer Tab");
-                        ui.add_space(8.0);
-                        ui.label(RichText::new("Coming in Build B (#91)").color(crate::theme::TEXT_DIM));
+                        let cmds = engineer::draw(ui, &mut self.engineer, &self.bridge.state);
+                        for cmd in cmds {
+                            self.bridge.send(cmd);
+                        }
                     }
                 }
             });

@@ -12,7 +12,9 @@ use serde::{Deserialize, Serialize};
 
 use harmonyengine::config::Phase;
 
-pub const SCHEMA_VERSION: u32 = 1;
+use crate::tabs::engineer::EngineerState;
+
+pub const SCHEMA_VERSION: u32 = 2;
 pub const AUTOSAVE_FILENAME: &str = "autosave.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,6 +33,12 @@ pub struct Preset {
     pub forced_phase: u8,
     /// Beat index at time of save (informational for QA repro).
     pub beat_at_save: u32,
+    /// Engineer tab state — QA-critical parameters. Missing in v1 presets.
+    #[serde(default)]
+    pub engineer: EngineerState,
+    /// Phase at time of save (informational, for QA repro).
+    #[serde(default)]
+    pub phase_at_save: u8,
 }
 
 impl Preset {
@@ -56,6 +64,8 @@ impl Preset {
             muted,
             forced_phase,
             beat_at_save,
+            engineer: EngineerState::default(),
+            phase_at_save: 0,
         }
     }
 
